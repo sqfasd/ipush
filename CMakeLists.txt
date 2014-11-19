@@ -1,0 +1,23 @@
+PROJECT(xcomet)
+
+CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
+
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/deps/gtest/ ${PROJECT_SOURCE_DIR}/deps/gtest/include
+  ${PROJECT_SOURCE_DIR}/deps/
+  ${PROJECT_SOURCE_DIR}/deps/jsoncpp/include/
+  /usr/local/include/thrift/
+  /usr/local/include/
+  )
+LINK_DIRECTORIES(/usr/local/lib /usr/lib64/mysql)
+
+ADD_DEFINITIONS(-DHAVE_NETINET_IN_H)
+#ADD_DEFINITIONS(-O3 -std=c++11 -Wall -g)
+ADD_DEFINITIONS(-O3 -Wall -g)
+
+ADD_SUBDIRECTORY(deps)
+ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(test)
+ADD_SUBDIRECTORY(tools)
+
+ENABLE_TESTING()
+ADD_TEST(NAME test.run COMMAND test.run)
