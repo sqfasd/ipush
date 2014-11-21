@@ -1,5 +1,4 @@
 #include "router_server.h"
-#include "deps/base/logging.h"
 #include "deps/base/flags.h"
 
 namespace xcomet {
@@ -36,7 +35,7 @@ RouterServer::~RouterServer() {
 
 void RouterServer::Start() {
   sockaddr_in clientaddr;
-  socklen_t socksize = sizoef(clientaddr);
+  socklen_t socksize = sizeof(clientaddr);
   struct epoll_event events[MAX_EPOLL_SIZE];
   int nfds, clientsock;
   while(true) {
@@ -45,31 +44,64 @@ void RouterServer::Start() {
       LOG(ERROR) << strerror(errno);
       continue;
     }
-    for(size_t i = 0; i < nfds; i++) {
+    for(int i = 0; i < nfds; i++) {
       if(events[i].data.fd == host_socket_) {
-        clientsock = accept(host_socket_, (struct sockaddr*) &clientaddr, &nSize);
+        clientsock = accept(host_socket_, (struct sockaddr*) &clientaddr, &socksize);
+        VLOG(5) << "accept " << clientsock;
         if(-1 == clientsock) {
           LOG(ERROR) << strerror(errno);
           continue;
         }
+        if(!SetNonBlock(clientsock)) {
+          LOG(ERROR) << "set non block failed.";
+          continue;
+        }
         if(!EpollAdd(clientsock, EPOLLIN | EPOLLET)) {
           LOG(ERROR) << "EpollAdd Failed!";
-          CloseSocket(sockfd);
+          CloseSocket(clientsock);
           continue;
         }
       } else {
-          //TODO
         Response(events[i].data.fd);
       }
     }
   }
 }
 
+void RouterServer::Response(int sockfd) {
+  VLOG(5) << "Response socket " << sockfd;
+  bool done = false;
+  while(true) {
+    ssize_t count;
+    char buf[SOCKET_READ_BUFFER_SIZE];//TODO
+    count = read(sockfd, buf, sizeof(buf)) ;
+    VLOG(5) << "read socket " << sockfd << " size " << count;
+    if (-1 == count) {
+      if(errno != EAGAIN) {
+        LOG(ERROR) << strerror(errno);
+        done = true;
+      }
+      // throw to epoll
+      VLOG(5) << "read socket return EAGAIN";
+      break;
+    } else if (count == 0) {
+      VLOG(5) << sockfd << " read EOF";
+      done = true;
+      break;
+    }
+    // write to stdout TODO
+    //int s = write(1, buf, count);
+    //CHECK(s != -1); //TODO
+  }
+  CloseSocket(sockfd);
+}
+
 void RouterServer::CloseSocket(int sockfd) {
   if(-1 == close(sockfd)) {
     LOG(ERROR) << strerror(errno);
   }
-  _epollSize --;
+  epoll_size_ --;
+  VLOG(5) << "close " << sockfd;
 }
 
 void RouterServer::InitHostSocket(size_t port) {
