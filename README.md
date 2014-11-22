@@ -12,3 +12,9 @@ cd build
 cmake ..
 make
 ```
+
+### 启动 RouterServer
+
+```
+make && ./bin/router_server -v=5
+```
