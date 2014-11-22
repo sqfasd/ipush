@@ -9,6 +9,9 @@
 #include "src/channel.h"
 #include "src/router_proxy.h"
 
+DECLARE_int32(user_timeout_sec);
+DECLARE_int32(timer_interval_sec);
+
 namespace xcomet {
 
 class HttpQuery {
@@ -16,7 +19,7 @@ class HttpQuery {
 	HttpQuery(const struct evhttp_request *req) {
 		evhttp_parse_query(evhttp_request_get_uri(req), &params);
 	}
-	~HttpQuery(){
+	~HttpQuery() {
 		evhttp_clear_headers(&params);
 	}
 	int GetInt(const char* key, int default_value) {
@@ -33,7 +36,7 @@ class HttpQuery {
 
 class XCometServer {
  public:
-  typedef map<string, User*> UserMap;
+  typedef map<string, UserPtr> UserMap;
   typedef map<string, Channel*> ChannelMap;
 
   static XCometServer& Instance() {
@@ -59,7 +62,7 @@ class XCometServer {
     // string token = query.GetStr("token", "");
     // TODO check request parameters
 
-    User* user = NULL;
+    UserPtr user;
     UserMap::iterator iter = users_.find(uid);
     if (iter != users_.end()) {
       user = iter->second;
@@ -68,10 +71,11 @@ class XCometServer {
       evhttp_send_reply(req, 406, "The user has already connected", NULL);
       return;
     } else {
-      user = new User(uid, type, req, *this);
+      user.reset(new User(uid, type, req, *this));
       users_[uid] = user;
       router_.RegisterUser(uid);
     }
+    timeout_queue_.PushUserBack(user.get());
 
     user->Start();
     if (storage_.HasOfflineMessage(uid)) {
@@ -100,8 +104,10 @@ class XCometServer {
       LOG(INFO) << "pub to user: " << content;
       UserMap::iterator iter = users_.find(uid);
       if (iter != users_.end()) {
-        LOG(INFO) << "send to user: " << iter->second->GetUid();
-        iter->second->Send(content);
+        UserPtr user = iter->second;
+        LOG(INFO) << "send to user: " << user->GetUid();
+        user->Send(content);
+        timeout_queue_.PushUserBack(user.get());
       } else {
         router_.Redirect(uid, content);
       }
@@ -147,12 +153,28 @@ class XCometServer {
   void Leave(struct evhttp_request* req) {
   }
 
-  void RemoveUser(const string& uid) {
+  void OnTimer() {
+    VLOG(3) << "OnTimer";
+    DLinkedList<User*> timeout_users = timeout_queue_.PopFront();
+    DLinkedList<User*>::Iterator it = timeout_users.GetIterator();
+    while (User* user = it.Next()) {
+      user->Close();     
+    }
+    timeout_queue_.IncHead();
+  }
+
+  void RemoveUser(User* user) {
+    const string& uid = user->GetUid();
     LOG(INFO) << "RemoveUser: " << uid;
+    timeout_queue_.RemoveUser(user);
+    router_.UnregisterUser(uid);
     users_.erase(uid);
   }
  private:
-  XCometServer() : storage_(router_) {}
+  XCometServer()
+    : storage_(router_),
+      timeout_queue_(FLAGS_user_timeout_sec / FLAGS_timer_interval_sec) {
+  }
   ~XCometServer() {}
   void ReplyOK(struct evhttp_request* req) {
     evhttp_add_header(req->output_headers, "Content-Type", "text/javascript; charset=utf-8");
@@ -166,6 +188,7 @@ class XCometServer {
   ChannelMap channels_;
   RouterProxy router_;
   Storage storage_;
+  UserCircleQueue timeout_queue_;
 
   DISALLOW_COPY_AND_ASSIGN(XCometServer);
   friend struct DefaultSingletonTraits<XCometServer>;

@@ -6,10 +6,18 @@ User::User(const string& uid,
            int type,
            struct evhttp_request* req,
            XCometServer& serv)
-    : uid_(uid), type_(type), req_(req), server_(serv) {
+    : prev_(NULL),
+      next_(NULL),
+      queue_index_(-1),
+      uid_(uid),
+      type_(type),
+      req_(req),
+      server_(serv) {
+  VLOG(3) << "User construct";
 }
 
 User::~User() {
+  VLOG(3) << "User destroy";
 }
 
 void User::Send(const std::string& content) {
@@ -17,18 +25,18 @@ void User::Send(const std::string& content) {
   evbuffer_add_printf(buf, "%s\n", content.c_str());
   evhttp_send_reply_chunk(req_, buf);
   evbuffer_free(buf);
-  if (type_ == POLLING) {
+  if (type_ == COMET_TYPE_POLLING) {
     Close();
   }
 }
 
 void User::Close() {
   LOG(INFO) << "User connection disconnected: " << uid_;
-	if(req_->evcon){
-		evhttp_connection_set_closecb(req_->evcon, NULL, NULL);
-	}
+  if (req_->evcon) {
+    evhttp_connection_set_closecb(req_->evcon, NULL, NULL);
+  }
 	evhttp_send_reply_end(req_);
-  server_.RemoveUser(uid_);
+  server_.RemoveUser(this);
 }
 
 void User::Start() {

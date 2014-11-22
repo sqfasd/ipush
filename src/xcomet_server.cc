@@ -10,6 +10,8 @@
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9100, "");
+DEFINE_int32(user_timeout_sec, 600, "");
+DEFINE_int32(timer_interval_sec, 1, "");
 
 using xcomet::XCometServer;
 
@@ -46,6 +48,7 @@ static void SignalHandler(evutil_socket_t sig, short events, void* user_data) {
 }
 
 static void TimerHandler(evutil_socket_t sig, short events, void *user_data) {
+  XCometServer::Instance().OnTimer();
 }
 
 void ParseIpPort(const string& address, string& ip, int& port) {
@@ -125,7 +128,7 @@ int main(int argc, char* argv[]) {
 	timer_event = event_new(evbase, -1, EV_PERSIST, TimerHandler, evbase);
 	{
 		struct timeval tv;
-		tv.tv_sec = 1;
+		tv.tv_sec = FLAGS_timer_interval_sec;
 		tv.tv_usec = 0;
     CHECK(sigterm_event && event_add(timer_event, &tv) == 0)
         << "set timer handler failed";
