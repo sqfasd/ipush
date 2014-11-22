@@ -1,5 +1,5 @@
-#ifndef SRC_XCOMET_SERVER_H_
-#define SRC_XCOMET_SERVER_H_
+#ifndef SRC_SESSION_SERVER_H_
+#define SRC_SESSION_SERVER_H_
 
 #include "src/include_std.h"
 #include "base/singleton.h"
@@ -8,39 +8,20 @@
 #include "src/user.h"
 #include "src/channel.h"
 #include "src/router_proxy.h"
+#include "src/http_query.h"
 
 DECLARE_int32(user_timeout_sec);
 DECLARE_int32(timer_interval_sec);
 
 namespace xcomet {
 
-class HttpQuery {
- public:
-	HttpQuery(const struct evhttp_request *req) {
-		evhttp_parse_query(evhttp_request_get_uri(req), &params);
-	}
-	~HttpQuery() {
-		evhttp_clear_headers(&params);
-	}
-	int GetInt(const char* key, int default_value) {
-		const char* val = evhttp_find_header(&params, key);
-		return val ?atoi(val) :default_value;
-	}
-	const char* GetStr(const char* name, const char* default_value) const {
-		const char* val = evhttp_find_header(&params, name);
-		return val ?val :default_value;
-	}
- private:
-	struct evkeyvalq params;
-};
-
-class XCometServer {
+class SessionServer {
  public:
   typedef map<string, UserPtr> UserMap;
   typedef map<string, Channel*> ChannelMap;
 
-  static XCometServer& Instance() {
-    return *Singleton<XCometServer>::get();
+  static SessionServer& Instance() {
+    return *Singleton<SessionServer>::get();
   }
 
   // sub?uid=123&token=abc&type=1[&timeout=30][&noroute=true]
@@ -109,7 +90,7 @@ class XCometServer {
         user->Send(content);
         timeout_queue_.PushUserBack(user.get());
       } else {
-        router_.Redirect(uid, content);
+        router_.Redirect(req);
       }
     } else {
       string cid = query.GetStr("cid", "");
@@ -123,7 +104,7 @@ class XCometServer {
       if (iter != channels_.end()) {
         iter->second->Broadcast(content);
       } else {
-        router_.ChannelBroadcast(cid, content);
+        router_.Redirect(req);
       }
     }
     ReplyOK(req);
@@ -171,11 +152,11 @@ class XCometServer {
     users_.erase(uid);
   }
  private:
-  XCometServer()
+  SessionServer()
     : storage_(router_),
       timeout_queue_(FLAGS_user_timeout_sec / FLAGS_timer_interval_sec) {
   }
-  ~XCometServer() {}
+  ~SessionServer() {}
   void ReplyOK(struct evhttp_request* req) {
     evhttp_add_header(req->output_headers, "Content-Type", "text/javascript; charset=utf-8");
     struct evbuffer *buf = evbuffer_new();
@@ -190,9 +171,9 @@ class XCometServer {
   Storage storage_;
   UserCircleQueue timeout_queue_;
 
-  DISALLOW_COPY_AND_ASSIGN(XCometServer);
-  friend struct DefaultSingletonTraits<XCometServer>;
+  DISALLOW_COPY_AND_ASSIGN(SessionServer);
+  friend struct DefaultSingletonTraits<SessionServer>;
 };
 
 }  // namespace xcomet
-#endif  // SRC_XCOMET_SERVER_H_
+#endif  // SRC_SESSION_SERVER_H_

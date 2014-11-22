@@ -1,8 +1,10 @@
 #ifndef SRC_ROUTER_PROXY_H_
 #define SRC_ROUTER_PROXY_H_
 
-#include "src/include_std.h"
+#include <evhttp.h>
 #include "base/logging.h"
+#include "src/include_std.h"
+#include "src/http_query.h"
 
 namespace xcomet {
 
@@ -13,7 +15,14 @@ class RouterProxy {
   }
   ~RouterProxy() {
   }
-  void Redirect(const string& uid, const string& content) {
+  void Redirect(struct evhttp_request* req) {
+    VLOG(3) << "Redirect: " << evhttp_request_get_uri(req);
+    HttpQuery query(req);
+    string content = query.GetStr("content", "");
+    string uid = query.GetStr("uid", "");
+    if (uid.empty()) {
+      return;
+    }
     if (users_.find(uid) != users_.end()) {
       LOG(INFO) << "[FIXME] Redirect: uid="
                 << uid << ", content=" << content;

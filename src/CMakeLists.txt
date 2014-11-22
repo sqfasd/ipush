@@ -1,13 +1,13 @@
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
-ADD_EXECUTABLE(xcomet_server
-  xcomet_server.cc
+ADD_EXECUTABLE(session_server
+  session_server.cc
   channel.cc
   user.cc
   storage.cc
   router_proxy.cc
 )
-TARGET_LINK_LIBRARIES(xcomet_server
+TARGET_LINK_LIBRARIES(session_server
   base
   pthread
   event
