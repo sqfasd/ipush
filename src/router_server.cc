@@ -1,159 +1,113 @@
 #include "router_server.h"
-#include "deps/base/flags.h"
 
 namespace xcomet {
 
-//void LookupPresenceHandler(struct evhttp_request *req, void *arg) {
-//  LOG(INFO) << "LookupPresenceHandler";
-//}
-
-DEFINE_int32(listen_port, 9095, "the listen port for router server");
-
-
-//RouterServer::RouterServer() {
-  
-  //evbase_ = event_base_new();
-  //CHECK(evbase_ != NULL);
-  //admin_http_ = evhttp_new(evbase_);
-  //CHECK(admin_http_ != NULL);
-
-  //evhttp_set_cb(admin_http_, "/presence", LookupPresenceHandler, NULL);
-
-  //struct evhttp_bound_socket *handle;
-  //handle = evhttp_bind_socket_with_handle(front_http, front_ip.c_str(), port);
-//}
-
 RouterServer::RouterServer() {
-  InitHostSocket(FLAGS_listen_port);
-  InitEpoll();
 }
 
 RouterServer::~RouterServer() {
 }
-  //event_base_free(evbase_);
-  //evhttp_free(admin_http_);
 
 void RouterServer::Start() {
-  sockaddr_in clientaddr;
-  socklen_t socksize = sizeof(clientaddr);
-  struct epoll_event events[MAX_EPOLL_SIZE];
-  int nfds, clientsock;
-  while(true) {
-    nfds = epoll_wait(epoll_fd_, events, epoll_size_, -1);
-    if(-1 == nfds) {
-      LOG(ERROR) << strerror(errno);
-      continue;
+    evutil_socket_t listener;
+    struct sockaddr_in sin;
+    struct event_base *base;
+    struct event *listener_event;
+
+    base = event_base_new();
+    if (!base)
+        return; /*XXXerr*/
+
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = 0;
+    sin.sin_port = htons(LISTEN_PORT);
+
+    listener = socket(AF_INET, SOCK_STREAM, 0);
+    evutil_make_socket_nonblocking(listener);
+
+    if (bind(listener, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
+        perror("bind");
+        return;
     }
-    for(int i = 0; i < nfds; i++) {
-      if(events[i].data.fd == host_socket_) {
-        clientsock = accept(host_socket_, (struct sockaddr*) &clientaddr, &socksize);
-        VLOG(5) << "accept " << clientsock;
-        if(-1 == clientsock) {
-          LOG(ERROR) << strerror(errno);
-          continue;
-        }
-        if(!SetNonBlock(clientsock)) {
-          LOG(ERROR) << "set non block failed.";
-          continue;
-        }
-        if(!EpollAdd(clientsock, EPOLLIN | EPOLLET)) {
-          LOG(ERROR) << "EpollAdd Failed!";
-          CloseSocket(clientsock);
-          continue;
-        }
-      } else {
-        Response(events[i].data.fd);
-      }
+
+    if (listen(listener, 16)<0) {
+        perror("listen");
+        return;
     }
-  }
+
+    listener_event = event_new(base, listener, EV_READ|EV_PERSIST, AcceptCB, (void*)base);
+    /*XXX check it */
+    event_add(listener_event, NULL);
+
+    event_base_dispatch(base);
 }
 
-void RouterServer::Response(int sockfd) {
-  VLOG(5) << "Response socket " << sockfd;
-  bool done = false;
-  while(true) {
-    ssize_t count;
-    char buf[SOCKET_READ_BUFFER_SIZE];//TODO
-    count = read(sockfd, buf, sizeof(buf)) ;
-    VLOG(5) << "read socket " << sockfd << " size " << count;
-    if (-1 == count) {
-      if(errno != EAGAIN) {
-        LOG(ERROR) << strerror(errno);
-        done = true;
-      }
-      // throw to epoll
-      VLOG(5) << "read socket return EAGAIN";
-      break;
-    } else if (count == 0) {
-      VLOG(5) << sockfd << " read EOF";
-      done = true;
-      break;
+void RouterServer::AcceptCB(evutil_socket_t listener, short event, void *arg) {
+    struct event_base *base = (struct event_base*)arg;
+    struct sockaddr_storage ss;
+    socklen_t slen = sizeof(ss);
+    int fd = accept(listener, (struct sockaddr*)&ss, &slen);
+    if (fd < 0) {
+        perror("accept");
+    } else if (fd > FD_SETSIZE) {
+        close(fd);
+    } else {
+        struct bufferevent *bev;
+        evutil_make_socket_nonblocking(fd);
+        bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+        bufferevent_setcb(bev, ReadCB, NULL, ErrorCB, NULL);
+        bufferevent_setwatermark(bev, EV_READ, 0, MAX_LINE);
+        bufferevent_enable(bev, EV_READ|EV_WRITE);
     }
-    // write to stdout TODO
-    //int s = write(1, buf, count);
-    //CHECK(s != -1); //TODO
-  }
-  CloseSocket(sockfd);
 }
 
-void RouterServer::CloseSocket(int sockfd) {
-  if(-1 == close(sockfd)) {
-    LOG(ERROR) << strerror(errno);
-  }
-  epoll_size_ --;
-  VLOG(5) << "close " << sockfd;
+void RouterServer::ReadCB(struct bufferevent* bev, void *ctx) {
+    struct evbuffer *input, *output;
+    char *line;
+    size_t n;
+    int i;
+    input = bufferevent_get_input(bev);
+    output = bufferevent_get_output(bev);
+
+    while ((line = evbuffer_readln(input, &n, EVBUFFER_EOL_LF))) {
+        for (i = 0; i < n; ++i)
+            line[i] = rot13_char(line[i]);
+        evbuffer_add(output, line, n);
+        evbuffer_add(output, "\n", 1);
+        free(line);
+    }
+
+    if (evbuffer_get_length(input) >= MAX_LINE) {
+        /* Too long; just process what there is and go on so that the buffer
+         * doesn't grow infinitely long. */
+        char buf[1024];
+        while (evbuffer_get_length(input)) {
+            int n = evbuffer_remove(input, buf, sizeof(buf));
+            for (i = 0; i < n; ++i)
+                buf[i] = rot13_char(buf[i]);
+            evbuffer_add(output, buf, n);
+        }
+        evbuffer_add(output, "\n", 1);
+    }
 }
 
-void RouterServer::InitHostSocket(size_t port) {
-  int code;
-  host_socket_ = socket(AF_INET, SOCK_STREAM, 0);
-  CHECK(host_socket_ != -1);
-
-  //TODO
-  int nRet = -1;
-  code = setsockopt(host_socket_, SOL_SOCKET, SO_REUSEADDR, (char*)&nRet, sizeof(nRet));
-  CHECK(code != -1);
-  
-  struct sockaddr_in addrSock;
-  addrSock.sin_family = AF_INET;
-  addrSock.sin_port = htons(port);
-  addrSock.sin_addr.s_addr = htonl(INADDR_ANY);
-  
-  code = ::bind(host_socket_, (sockaddr*)&addrSock, sizeof(sockaddr));
-  CHECK(code != -1);
-
-  code = listen(host_socket_, LISTEN_QUEUE_LEN);
-  CHECK(code != -1);
+void RouterServer::ErrorCB(struct bufferevent* bev, short error, void *ctx) {
+    if (error & BEV_EVENT_EOF) {
+        /* connection has been closed, do any clean up here */
+        /* ... */
+    } else if (error & BEV_EVENT_ERROR) {
+        /* check errno to see what error occurred */
+        /* ... */
+    } else if (error & BEV_EVENT_TIMEOUT) {
+        /* must be a timeout event handle, handle it */
+        /* ... */
+    }
+    bufferevent_free(bev);
 }
 
-void RouterServer::InitEpoll() {
-  epoll_fd_ = epoll_create(MAX_EPOLL_SIZE);
-  CHECK(epoll_fd_ != -1);
-
-  CHECK(EpollAdd(host_socket_, EPOLLIN));
-}
-
-bool RouterServer::EpollAdd(int sockfd, uint32_t events) {
-  if(!SetNonBlock(sockfd)) {
-    LOG(ERROR) << "setnonblock failed.";
-    return false;
-  }
-  struct epoll_event ev;
-  ev.data.fd = sockfd;
-  ev.events = events;
-  if(epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, sockfd, &ev) < 0) {
-    LOG(ERROR) << "insert socket " << sockfd << " into epoll failed: " << strerror(errno);
-    return false;
-  }
-  epoll_size_ ++;
-  return true;
-}
-
-} //namespace xcomet
+} // namespace xcomet
 
 int main(int argc, char ** argv) {
-    base::ParseCommandLineFlags(&argc, &argv, false);
-    xcomet::RouterServer server;
-    server.Start();
     return EXIT_SUCCESS;
 }
+
