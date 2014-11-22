@@ -10,7 +10,7 @@ using base::DLinkedList;
 
 namespace xcomet {
 
-class XCometServer;
+class SessionServer;
 class User;
 class UserCircleQueue;
 
@@ -22,7 +22,7 @@ class User {
      COMET_TYPE_POLLING,
    };
 
-  User(const string& uid, int type, struct evhttp_request* req, XCometServer& serv);
+  User(const string& uid, int type, struct evhttp_request* req, SessionServer& serv);
   ~User();
   void SetType(int type) {type_ = type;}
   string GetUid() {return uid_;}
@@ -40,7 +40,7 @@ class User {
   string uid_;
   int type_;
   struct evhttp_request* req_;
-  XCometServer& server_;
+  SessionServer& server_;
 
   friend class DLinkedList<User*>;
   friend class UserCircleQueue;

@@ -1,4 +1,4 @@
-#include "src/xcomet_server.h"
+#include "src/session_server.h"
 
 #include <signal.h>
 #include <evhttp.h>
@@ -13,30 +13,30 @@ DEFINE_int32(admin_listen_port, 9100, "");
 DEFINE_int32(user_timeout_sec, 600, "");
 DEFINE_int32(timer_interval_sec, 1, "");
 
-using xcomet::XCometServer;
+using xcomet::SessionServer;
 
 static void SubHandler(struct evhttp_request* req, void* arg) {
-  XCometServer::Instance().Sub(req);
+  SessionServer::Instance().Sub(req);
 }
 
 static void PubHandler(struct evhttp_request* req, void* arg) {
-  XCometServer::Instance().Pub(req);
+  SessionServer::Instance().Pub(req);
 }
 
 static void UnsubHandler(struct evhttp_request* req, void* arg) {
-  XCometServer::Instance().Unsub(req);
+  SessionServer::Instance().Unsub(req);
 }
 
 static void BroadcastHandler(struct evhttp_request* req, void* arg) {
-  XCometServer::Instance().Broadcast(req);
+  SessionServer::Instance().Broadcast(req);
 }
 
 static void JoinHandler(struct evhttp_request* req, void* arg) {
-  XCometServer::Instance().Join(req);
+  SessionServer::Instance().Join(req);
 }
 
 static void LeaveHandler(struct evhttp_request* req, void* arg) {
-  XCometServer::Instance().Leave(req);
+  SessionServer::Instance().Leave(req);
 }
 
 static void AcceptErrorHandler(struct evconnlistener* listener, void* ptr) {
@@ -48,7 +48,7 @@ static void SignalHandler(evutil_socket_t sig, short events, void* user_data) {
 }
 
 static void TimerHandler(evutil_socket_t sig, short events, void *user_data) {
-  XCometServer::Instance().OnTimer();
+  SessionServer::Instance().OnTimer();
 }
 
 void ParseIpPort(const string& address, string& ip, int& port) {

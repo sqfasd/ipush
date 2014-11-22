@@ -1,11 +1,11 @@
 #include "src/user.h"
-#include "src/xcomet_server.h"
+#include "src/session_server.h"
 
 namespace xcomet {
 User::User(const string& uid,
            int type,
            struct evhttp_request* req,
-           XCometServer& serv)
+           SessionServer& serv)
     : prev_(NULL),
       next_(NULL),
       queue_index_(-1),
