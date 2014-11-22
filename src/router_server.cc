@@ -1,5 +1,7 @@
 #include "router_server.h"
 
+DEFINE_int32(listen_port, 8080, "");
+
 namespace xcomet {
 
 RouterServer::RouterServer() {
@@ -20,7 +22,7 @@ void RouterServer::Start() {
 
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = 0;
-    sin.sin_port = htons(LISTEN_PORT);
+    sin.sin_port = htons(FLAGS_listen_port);
 
     listener = socket(AF_INET, SOCK_STREAM, 0);
     evutil_make_socket_nonblocking(listener);
@@ -39,6 +41,7 @@ void RouterServer::Start() {
     /*XXX check it */
     event_add(listener_event, NULL);
 
+    LOG(INFO) << "start server, port:" << FLAGS_listen_port;
     event_base_dispatch(base);
 }
 
@@ -108,6 +111,8 @@ void RouterServer::ErrorCB(struct bufferevent* bev, short error, void *ctx) {
 } // namespace xcomet
 
 int main(int argc, char ** argv) {
+    xcomet::RouterServer server;
+    server.Start();
     return EXIT_SUCCESS;
 }
 

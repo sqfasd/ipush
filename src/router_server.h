@@ -1,6 +1,8 @@
 #ifndef ROUTER_SERVER_H
 #define ROUTER_SERVER_H
 
+#include "deps/base/flags.h"
+#include "deps/base/logging.h"
 #include <netinet/in.h>
 /* For socket functions */
 #include <sys/socket.h>
@@ -20,8 +22,9 @@
 
 #include <iostream>
 
+
 const size_t MAX_LINE = 16384;
-const size_t LISTEN_PORT = 40713;
+
 
 char rot13_char(char c) {
     /* We don't want to use isalpha here; setting the locale would change

@@ -16,5 +16,5 @@ make
 ### 启动 RouterServer
 
 ```
-make && ./bin/router.server -v=5
+make && ./bin/router_server -v=5
 ```
