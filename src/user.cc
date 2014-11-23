@@ -14,20 +14,35 @@ User::User(const string& uid,
       req_(req),
       server_(serv) {
   VLOG(3) << "User construct";
+	bufferevent_enable(evhttp_connection_get_bufferevent(req_->evcon), EV_READ);
+	evhttp_connection_set_closecb(req_->evcon, OnDisconnect, this);
+	evhttp_add_header(req_->output_headers, "Connection", "keep-alive");
+	evhttp_add_header(req_->output_headers, "Content-Type", "text/html; charset=utf-8");
+	evhttp_send_reply_start(req_, HTTP_OK, "OK");
 }
 
 User::~User() {
   VLOG(3) << "User destroy";
+  // TODO if not closed, close it
 }
 
 void User::Send(const std::string& content) {
-  struct evbuffer* buf = evbuffer_new();
-  evbuffer_add_printf(buf, "%s\n", content.c_str());
-  evhttp_send_reply_chunk(req_, buf);
-  evbuffer_free(buf);
+  SendChunk("data", content);
   if (type_ == COMET_TYPE_POLLING) {
     Close();
   }
+}
+
+void User::SendHeartbeat() {
+  SendChunk("noop", "");
+}
+
+void User::SendChunk(const string& type, const string& content) {
+  struct evbuffer* buf = evbuffer_new();
+  evbuffer_add_printf(buf, "{\"type\": \"%s\",\"content\":\"%s\"}\n",
+                      type.c_str(), content.c_str());
+  evhttp_send_reply_chunk(req_, buf);
+  evbuffer_free(buf);
 }
 
 void User::Close() {
@@ -37,14 +52,6 @@ void User::Close() {
   }
 	evhttp_send_reply_end(req_);
   server_.RemoveUser(this);
-}
-
-void User::Start() {
-	bufferevent_enable(evhttp_connection_get_bufferevent(req_->evcon), EV_READ);
-	evhttp_connection_set_closecb(req_->evcon, OnDisconnect, this);
-	evhttp_add_header(req_->output_headers, "Connection", "keep-alive");
-	evhttp_add_header(req_->output_headers, "Content-Type", "text/html; charset=utf-8");
-	evhttp_send_reply_start(req_, HTTP_OK, "OK");
 }
 
 void User::OnDisconnect(struct evhttp_connection* evconn, void* arg) {

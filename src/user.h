@@ -25,14 +25,15 @@ class User {
   User(const string& uid, int type, struct evhttp_request* req, SessionServer& serv);
   ~User();
   void SetType(int type) {type_ = type;}
+  int GetType() {return type_;}
   string GetUid() {return uid_;}
   void Send(const string& content);
+  void SendHeartbeat();
   void Close();
-  void Start();
-
 
  private:
   static void OnDisconnect(struct evhttp_connection* evconn, void* arg);
+  void SendChunk(const string& type, const string& content);
 
   User* prev_;
   User* next_;

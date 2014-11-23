@@ -1,6 +1,8 @@
 #ifndef SRC_INCLUDE_STD_H_
 #define SRC_INCLUDE_STD_H_
 
+#include <unistd.h>
+#include <signal.h>
 #include <string>
 #include <vector>
 #include <set>
