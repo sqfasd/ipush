@@ -21,9 +21,11 @@ RouterServer::~RouterServer() {
 }
 
 void RouterServer::OpenConn() {
-  bev_ = bufferevent_socket_new(evbase_, -1, BEV_OPT_CLOSE_ON_FREE);
-  CHECK(bev_);
-  evhttpcon_ = evhttp_connection_base_bufferevent_new(evbase_, NULL, bev_, FLAGS_sserver_sub_ip.c_str(), FLAGS_sserver_sub_port);
+  //bev_ = bufferevent_socket_new(evbase_, -1, BEV_OPT_CLOSE_ON_FREE);
+  //bev_ = bufferevent_socket_new(evbase_, -1, 0);
+  //CHECK(bev_);
+  evhttpcon_ = evhttp_connection_base_bufferevent_new(evbase_, NULL, NULL, FLAGS_sserver_sub_ip.c_str(), FLAGS_sserver_sub_port);
+  //evhttpcon_ = evhttp_connection_base_new(evbase_, NULL, FLAGS_sserver_sub_ip.c_str(), FLAGS_sserver_sub_port);
   CHECK(evhttpcon_);
   // retry infinitely
   //evhttp_connection_set_retries(evhttpcon_, -1);
@@ -65,15 +67,17 @@ void RouterServer::SubReqDoneCB(struct evhttp_request *req, void *ctx) {
     //struct bufferevent *bev = (struct bufferevent *) ctx;
     int errcode = EVUTIL_SOCKET_ERROR();
     LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
-    //that->CloseConn();
-    //that->OpenConn();
+    that->CloseConn();
+    base::MilliSleep(FLAGS_retry_interval);
+    that->OpenConn();
     return;
   }
 
   int code = evhttp_request_get_response_code(req);
   if (code != 200) {
-    //that->CloseConn();
-    //that->OpenConn();
+    that->CloseConn();
+    base::MilliSleep(FLAGS_retry_interval);
+    that->OpenConn();
     LOG(ERROR) << "error happend.";
     return;
   }
@@ -110,7 +114,7 @@ void RouterServer::SubReqChunkCB(struct evhttp_request* req, void * ctx) {
       LOG(ERROR) << "json parse failed, data" << string(buffer, nread);
       continue;
     }
-    that->MakePubReq();
+    //that->MakePubReq();
     VLOG(5) << value.toStyledString();
   }
   VLOG(5) << "finished SubReqChunkCB";
@@ -145,13 +149,13 @@ void RouterServer::PubReqDoneCB(struct evhttp_request* req, void * ctx) {
 
 //TODO to close connection
 void RouterServer::MakePubReq() {
-  struct bufferevent * bev = bufferevent_socket_new(evbase_, -1, BEV_OPT_CLOSE_ON_FREE);
-  CHECK(bev);
+  //struct bufferevent * bev = bufferevent_socket_new(evbase_, -1, BEV_OPT_CLOSE_ON_FREE);
+  //CHECK(bev);
   const char * host = "slave1.domain.com";
   const int port = 9101;
-  struct evhttp_connection * evhttpcon = evhttp_connection_base_bufferevent_new(evbase_, NULL, bev, host, port);
+  struct evhttp_connection * evhttpcon = evhttp_connection_base_bufferevent_new(evbase_, NULL, NULL, host, port);
   CHECK(evhttpcon);
-  struct evhttp_request* req = evhttp_request_new(PubReqDoneCB, bev);
+  struct evhttp_request* req = evhttp_request_new(PubReqDoneCB, NULL);
   struct evkeyvalq * output_headers;
   struct evbuffer * output_buffer;
   output_headers = evhttp_request_get_output_headers(req);
