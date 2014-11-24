@@ -1,109 +1,174 @@
 #include "router_server.h"
+#include "deps/base/time.h"
 
-DEFINE_int32(listen_port, 8080, "");
-DEFINE_int32(read_buffer_size,  16483, "");
+DEFINE_string(sserver_sub_ip, "master.domain.com", "");
+DEFINE_int32(sserver_sub_port, 8100, "");
+DEFINE_string(sserver_sub_uri, "/stream?cname=12", "");
+//DEFINE_int32(listen_port, 8080, "");
+DEFINE_int32(read_buffer_size,  4096, "");
+DEFINE_int32(retry_interval, 2000, "2000 milliseconds");
+DEFINE_bool(libevent_debug_log, false, "for debug logging");
 
 namespace xcomet {
 
 RouterServer::RouterServer() { 
-  Init();
+  evbase_ = event_base_new();
+  CHECK(evbase_);
 }
 
 RouterServer::~RouterServer() {
+  event_base_free(evbase_);
 }
 
-void RouterServer::Init() {
-  evbase_ = event_base_new();
-  CHECK(evbase_);
+void RouterServer::OpenConn() {
+  bev_ = bufferevent_socket_new(evbase_, -1, BEV_OPT_CLOSE_ON_FREE);
+  CHECK(bev_);
+  evhttpcon_ = evhttp_connection_base_bufferevent_new(evbase_, NULL, bev_, FLAGS_sserver_sub_ip.c_str(), FLAGS_sserver_sub_port);
+  CHECK(evhttpcon_);
+  // retry infinitely
+  //evhttp_connection_set_retries(evhttpcon_, -1);
+  struct evhttp_request* req = evhttp_request_new(SubReqDoneCB, this);
+  evhttp_request_set_chunked_cb(req, SubReqChunkCB);
+  evhttp_request_set_error_cb(req, ReqErrorCB);
+  int r = evhttp_make_request(evhttpcon_, req, EVHTTP_REQ_GET, FLAGS_sserver_sub_uri.c_str());
+  CHECK(r == 0);
+}
 
-  struct sockaddr_in sin;
-  sin.sin_family = AF_INET;
-  sin.sin_addr.s_addr = 0;
-  sin.sin_port = htons(FLAGS_listen_port);
-
-  listener_ = socket(AF_INET, SOCK_STREAM, 0);
-  evutil_make_socket_nonblocking(listener_);
-
-  CHECK(-1 != bind(listener_, (struct sockaddr*)&sin, sizeof(sin))) << strerror(errno); 
-
-  CHECK(-1 != listen(listener_, 16)) << strerror(errno);
-
-
-  listener_event_ = event_new(evbase_, listener_, EV_READ|EV_PERSIST, AcceptCB, static_cast<void*>(this));
-  CHECK(-1 != event_add(listener_event_, NULL));
-
-  LOG(INFO) << "start server, port:" << FLAGS_listen_port;
+void RouterServer::CloseConn() {
+  evhttp_connection_free(evhttpcon_);
 }
 
 void RouterServer::Start() {
-
+  LOG(INFO) << "open connection";
+  OpenConn();
   event_base_dispatch(evbase_);
+  // TODO retry
+  //CloseConn();
+  //LOG(ERROR) << "disconnected ... , sleep millisleep " << FLAGS_retry_interval << ", retry it .";
+  //base::MilliSleep(FLAGS_retry_interval);
 }
 
-void RouterServer::AcceptCB(evutil_socket_t listener, short event, void *arg) {
-  VLOG(5) << size_t(arg);
-  //struct event_base *base = (struct event_base*)arg;
-  RouterServer* that = static_cast<RouterServer*>(arg);
+
+//TODO to reconnect
+//TODO error handler
+void RouterServer::SubReqDoneCB(struct evhttp_request *req, void *ctx) {
+  VLOG(5) << "enter SubReqDoneCB";
+  RouterServer* that = static_cast<RouterServer*>(ctx);
   CHECK(that);
-  struct event_base *base = that->evbase_;
-  CHECK(base);
-  struct sockaddr_storage ss;
-  socklen_t slen = sizeof(ss);
-  int fd = accept(listener, (struct sockaddr*)&ss, &slen);
-  if (fd < 0) {
-    LOG(ERROR) << strerror(errno);
-  } else if (fd > FD_SETSIZE) {
-    LOG(ERROR) << "accept socket fd > FD_SETSIZE, close it.";
-    close(fd);
-  } else {
-    VLOG(5) << "new a socket bufferevent";
-    struct bufferevent *bev;
-    evutil_make_socket_nonblocking(fd);
-    bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
-    bufferevent_setcb(bev, ReadCB, NULL, ErrorCB, NULL);
-    bufferevent_setwatermark(bev, EV_READ, 0, FLAGS_read_buffer_size);
-    bufferevent_enable(bev, EV_READ|EV_WRITE);
+  char buffer[FLAGS_read_buffer_size];
+  int nread;
+
+  if (req == NULL) {
+    /* If req is NULL, it means an error occurred, but
+     * sadly we are mostly left guessing what the error
+     * might have been.  We'll do our best... */
+    //struct bufferevent *bev = (struct bufferevent *) ctx;
+    int errcode = EVUTIL_SOCKET_ERROR();
+    LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
+    //that->CloseConn();
+    //that->OpenConn();
+    return;
+  }
+
+  int code = evhttp_request_get_response_code(req);
+  if (code != 200) {
+    //that->CloseConn();
+    //that->OpenConn();
+    LOG(ERROR) << "error happend.";
+    return;
+  }
+
+  while ((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
+    VLOG(5) << nread ;
+    /* These are just arbitrary chunks of 256 bytes.
+     * They are not lines, so we can't treat them as such. */
+    fwrite(buffer, nread, 1, stdout);
+  }
+
+  VLOG(5) << "finished SubReqDoneCB";
+}
+
+void RouterServer::SubReqChunkCB(struct evhttp_request* req, void * ctx) {
+  VLOG(5) << "enter SubReqDoneCB";
+  RouterServer* that = static_cast<RouterServer*>(ctx);
+  VLOG(5) << "enter SubReqChunkCB";
+  char buffer[FLAGS_read_buffer_size];
+  int nread;
+  string chunkdata;
+  Json::Value value;
+  Json::Reader reader;
+  //TODO check parse
+  
+
+  //TODO when errno == EAGAIN
+  while((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
+    VLOG(5) << "read buffer size: " << nread;
+    VLOG(5) << "read buffer date: " << string(buffer, nread);
+    //fwrite(buffer, nread, 1, stdout);
+    //TODO
+    if(!reader.parse(buffer, buffer + nread, value)) {
+      LOG(ERROR) << "json parse failed, data" << string(buffer, nread);
+      continue;
+    }
+    that->MakePubReq();
+    VLOG(5) << value.toStyledString();
+  }
+  VLOG(5) << "finished SubReqChunkCB";
+}
+
+void RouterServer::ReqErrorCB(enum evhttp_request_error err, void * ctx) {
+  LOG(ERROR) << "ReqError";
+  //switch err {
+  //case EVREQ_HTTP_TIMEOUT:
+  //EVREQ_HTTP_EOF,
+  //EVREQ_HTTP_INVALID_HEADER,
+  //EVREQ_HTTP_BUFFER_ERROR,
+  //EVREQ_HTTP_REQUEST_CANCEL,
+  //EVREQ_HTTP_DATA_TOO_LONG 
+}
+
+void RouterServer::PubReqDoneCB(struct evhttp_request* req, void * ctx) {
+  VLOG(5) << "enter PubReqDoneCB";
+  char buffer[FLAGS_read_buffer_size];
+  int nread;
+
+  if (req == NULL) {
+    //TODO
+    LOG(ERROR) << "error";
+    return;
+  }
+
+  while ((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
+    VLOG(5) << string(buffer, nread);
   }
 }
 
-void RouterServer::ReadCB(struct bufferevent* bev, void *ctx) {
-  VLOG(5) << "enter ReadCB";
-  struct evbuffer *input, *output;
-  char buf[FLAGS_read_buffer_size];
-  input = bufferevent_get_input(bev);
-  output = bufferevent_get_output(bev);
-
-  while (evbuffer_get_length(input)) {
-    int n = evbuffer_remove(input, buf, sizeof(buf));
-    VLOG(5) << "evbuffer_remove";
-    evbuffer_add(output, buf, n);
-  }
-  // TODO bug when input's length equal to FLAGS_read_buffer_size
-  evbuffer_add(output, "\n", 1);
-  VLOG(5) << "finished ReadCB";
-}
-
-void RouterServer::ErrorCB(struct bufferevent* bev, short error, void *ctx) {
-  if (error & BEV_EVENT_EOF) {
-    /* connection has been closed, do any clean up here */
-    /* ... */
-    VLOG(5) << "connection has been closed from remote.";
-  } else if (error & BEV_EVENT_ERROR) {
-    /* check errno to see what error occurred */
-    /* ... */
-    LOG(ERROR) << strerror(EVUTIL_SOCKET_ERROR());
-  } else if (error & BEV_EVENT_TIMEOUT) {
-    /* must be a timeout event handle, handle it */
-    /* ... */
-    VLOG(5) << "timeout happened";
-  }
-  bufferevent_free(bev);
+//TODO to close connection
+void RouterServer::MakePubReq() {
+  struct bufferevent * bev = bufferevent_socket_new(evbase_, -1, BEV_OPT_CLOSE_ON_FREE);
+  CHECK(bev);
+  const char * host = "slave1.domain.com";
+  const int port = 9101;
+  struct evhttp_connection * evhttpcon = evhttp_connection_base_bufferevent_new(evbase_, NULL, bev, host, port);
+  CHECK(evhttpcon);
+  struct evhttp_request* req = evhttp_request_new(PubReqDoneCB, bev);
+  struct evkeyvalq * output_headers;
+  struct evbuffer * output_buffer;
+  output_headers = evhttp_request_get_output_headers(req);
+  evhttp_add_header(output_headers, "Host", host);
+  evhttp_add_header(output_headers, "Connection", "close");
+  int r = evhttp_make_request(evhttpcon, req, EVHTTP_REQ_GET, "/pub?uid=xxx&content=yyy");
+  CHECK(r == 0);
+  VLOG(5) << "MakePubReq finished.";
 }
 
 } // namespace xcomet
 
 int main(int argc, char ** argv) {
   base::ParseCommandLineFlags(&argc, &argv, false);
+  if(FLAGS_libevent_debug_log) {
+    event_enable_debug_logging(EVENT_DBG_ALL);
+  }
   xcomet::RouterServer server;
   server.Start();
   return EXIT_SUCCESS;
