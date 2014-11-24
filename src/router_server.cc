@@ -102,7 +102,6 @@ void RouterServer::SubReqChunkCB(struct evhttp_request* req, void * ctx) {
   Json::Value value;
   Json::Reader reader;
   //TODO check parse
-  
 
   //TODO when errno == EAGAIN
   while((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
@@ -148,11 +147,11 @@ void RouterServer::PubReqDoneCB(struct evhttp_request* req, void * ctx) {
 }
 
 //TODO to close connection
-void RouterServer::MakePubReq() {
+void RouterServer::MakePubReq(const char* host, const int port, const char* uri) {
   //struct bufferevent * bev = bufferevent_socket_new(evbase_, -1, BEV_OPT_CLOSE_ON_FREE);
   //CHECK(bev);
-  const char * host = "slave1.domain.com";
-  const int port = 9101;
+  //const char * host = "slave1.domain.com";
+  //const int port = 9101;
   struct evhttp_connection * evhttpcon = evhttp_connection_base_bufferevent_new(evbase_, NULL, NULL, host, port);
   CHECK(evhttpcon);
   struct evhttp_request* req = evhttp_request_new(PubReqDoneCB, NULL);
@@ -161,7 +160,7 @@ void RouterServer::MakePubReq() {
   output_headers = evhttp_request_get_output_headers(req);
   evhttp_add_header(output_headers, "Host", host);
   evhttp_add_header(output_headers, "Connection", "close");
-  int r = evhttp_make_request(evhttpcon, req, EVHTTP_REQ_GET, "/pub?uid=xxx&content=yyy");
+  int r = evhttp_make_request(evhttpcon, req, EVHTTP_REQ_GET, uri);
   CHECK(r == 0);
   VLOG(5) << "MakePubReq finished.";
 }

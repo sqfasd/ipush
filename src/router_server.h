@@ -50,7 +50,7 @@ class RouterServer {
     typedef string SessionServerID;
     map<UserID, SessionServerID> u2sMap;
   private:
-    void MakePubReq();
+    void MakePubReq(const char* host, const int port, const char* uri);
     
   private: // socket and libevent
     //evutil_socket_t listener_;
