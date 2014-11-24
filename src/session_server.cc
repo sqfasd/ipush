@@ -87,12 +87,14 @@ void SessionServer::Pub(struct evhttp_request* req) {
       user->Send(content);
       timeout_queue_.PushUserBack(user.get());
     } else {
-      router_.Redirect(uid, content);
+      LOG(ERROR) << "pub uid not found: " << uid;
+      evhttp_send_reply(req, 404, "Not Found", NULL);
+      return;
     }
   } else {
     string cid = query.GetStr("cid", "");
     if (cid.empty()) {
-      LOG(INFO) << "uid and cid both empty";
+      LOG(WARNING) << "uid and cid both empty";
       evhttp_send_reply(req, 410, "Invalid parameters", NULL);
       return;
     }
@@ -101,7 +103,9 @@ void SessionServer::Pub(struct evhttp_request* req) {
     if (iter != channels_.end()) {
       iter->second->Broadcast(content);
     } else {
-      router_.Redirect(req);
+      LOG(ERROR) << "pub cid not found: " << uid;
+      evhttp_send_reply(req, 404, "Not Found", NULL);
+      return;
     }
   }
   ReplyOK(req);
