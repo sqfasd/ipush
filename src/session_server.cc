@@ -12,6 +12,14 @@ DEFINE_int32(admin_listen_port, 9100, "");
 DEFINE_int32(poll_timeout_sec, 30, "");
 DEFINE_int32(timer_interval_sec, 1, "");
 
+#define CHECK_HTTP_GET()\
+  do {\
+    if(evhttp_request_get_command(req) != EVHTTP_REQ_GET) {\
+      evhttp_send_reply(req, 405, "Method Not Allowed", NULL);\
+      return;\
+    }\
+  } while(0)
+
 namespace xcomet {
 
 SessionServer::SessionServer()
@@ -23,11 +31,7 @@ SessionServer::~SessionServer() {
 }
 
 void SessionServer::Sub(struct evhttp_request* req) {
-  if(evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-    // TODO ReplyError module
-    evhttp_send_reply(req, 405, "Method Not Allowed", NULL);
-    return;
-  }
+  CHECK_HTTP_GET();
 
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
@@ -67,11 +71,8 @@ void SessionServer::Sub(struct evhttp_request* req) {
 // /pub?uid=123&content=hello
 // /pub?cid=123&content=hello
 void SessionServer::Pub(struct evhttp_request* req) {
-  if(evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-    // TODO ReplyError module
-    evhttp_send_reply(req, 405, "Method Not Allowed", NULL);
-    return;
-  }
+  // TODO process post
+  CHECK_HTTP_GET();
 
   HttpQuery query(req);
   string content = query.GetStr("content", "");
@@ -86,7 +87,7 @@ void SessionServer::Pub(struct evhttp_request* req) {
       user->Send(content);
       timeout_queue_.PushUserBack(user.get());
     } else {
-      router_.Redirect(req);
+      router_.Redirect(uid, content);
     }
   } else {
     string cid = query.GetStr("cid", "");
@@ -122,6 +123,12 @@ void SessionServer::DestroyRoom(struct evhttp_request* req) {
 void SessionServer::Broadcast(struct evhttp_request* req) {
 }
 
+// /rsub?seq=1
+void SessionServer::RSub(struct evhttp_request* req) {
+  CHECK_HTTP_GET();
+  router_.ResetSession(req);
+}
+
 // /join?cid=123&uid=456&resource=work
 void SessionServer::Join(struct evhttp_request* req) {
 }
@@ -143,6 +150,7 @@ void SessionServer::OnTimer() {
     }
   }
   timeout_queue_.IncHead();
+  router_.SendHeartbeat();
 }
 
 void SessionServer::RemoveUser(User* user) {
@@ -179,6 +187,10 @@ static void UnsubHandler(struct evhttp_request* req, void* arg) {
 
 static void BroadcastHandler(struct evhttp_request* req, void* arg) {
   SessionServer::Instance().Broadcast(req);
+}
+
+static void RSubHandler(struct evhttp_request* req, void* arg) {
+  SessionServer::Instance().RSub(req);
 }
 
 static void JoinHandler(struct evhttp_request* req, void* arg) {
@@ -233,6 +245,7 @@ void SetupClientHandler(struct evhttp* http, struct event_base* evbase) {
 void SetupAdminHandler(struct evhttp* http, struct event_base* evbase) {
   evhttp_set_cb(http, "/pub", PubHandler, evbase);
   evhttp_set_cb(http, "/broadcast", BroadcastHandler, evbase);
+  evhttp_set_cb(http, "/rsub", RSubHandler, evbase);
 
   struct evhttp_bound_socket* sock = NULL;
   sock = evhttp_bind_socket_with_handle(http,

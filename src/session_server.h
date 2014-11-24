@@ -1,8 +1,8 @@
 #ifndef SRC_SESSION_SERVER_H_
 #define SRC_SESSION_SERVER_H_
 
-#include "src/include_std.h"
-#include "base/singleton.h"
+#include "deps/base/singleton.h"
+#include "deps/base/scoped_ptr.h"
 #include "src/include_std.h"
 #include "src/storage.h"
 #include "src/user.h"
@@ -27,6 +27,7 @@ class SessionServer {
   void CreateRoom(struct evhttp_request* req);
   void DestroyRoom(struct evhttp_request* req);
   void Broadcast(struct evhttp_request* req);
+  void RSub(struct evhttp_request* req);
   void Join(struct evhttp_request* req);
   void Leave(struct evhttp_request* req);
   void OnTimer();

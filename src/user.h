@@ -1,20 +1,20 @@
 #ifndef SRC_USER_H_
 #define SRC_USER_H_
 
-#include <evhttp.h>
-#include "base/dlist.h"
-#include "base/shared_ptr.h"
+#include "deps/base/dlist.h"
+#include "deps/base/shared_ptr.h"
 #include "src/include_std.h"
+#include "src/session.h"
 
 using base::DLinkedList;
 
 namespace xcomet {
 
-class SessionServer;
 class User;
 class UserCircleQueue;
-
+class SessionServer;
 typedef base::shared_ptr<User> UserPtr;
+
 class User {
  public:
    enum {
@@ -28,19 +28,18 @@ class User {
   int GetType() {return type_;}
   string GetUid() {return uid_;}
   void Send(const string& content);
-  void SendHeartbeat();
   void Close();
+  void SendHeartbeat();
 
  private:
-  static void OnDisconnect(struct evhttp_connection* evconn, void* arg);
-  void SendChunk(const string& type, const string& content);
-
+  void OnSessionDisconnected();
+  Session session_;
   User* prev_;
   User* next_;
   int queue_index_;
   string uid_;
   int type_;
-  struct evhttp_request* req_;
+
   SessionServer& server_;
 
   friend class DLinkedList<User*>;

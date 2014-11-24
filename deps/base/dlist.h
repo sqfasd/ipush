@@ -1,6 +1,8 @@
 #ifndef BASE_DLIST_H_
 #define BASE_DLIST_H_
 
+#include <stddef.h>
+
 namespace base {
 
 template <class T>
