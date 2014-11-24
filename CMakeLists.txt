@@ -5,6 +5,7 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/deps/gtest/ ${PROJECT_SOURCE_DIR}/deps/gtest/include
   ${PROJECT_SOURCE_DIR}/deps/
   ${PROJECT_SOURCE_DIR}/deps/jsoncpp/include/
+  ${PROJECT_SOURCE_DIR}/deps/ssdb
   /usr/local/include/thrift/
   /usr/local/include/
   )

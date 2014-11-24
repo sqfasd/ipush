@@ -1,7 +1,5 @@
 #include "src/session_server.h"
 
-#include <unistd.h>
-#include <signal.h>
 #include <evhttp.h>
 #include <event2/event.h>
 #include <event2/listener.h>
@@ -11,14 +9,14 @@
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9100, "");
-DEFINE_int32(user_timeout_sec, 600, "");
+DEFINE_int32(poll_timeout_sec, 30, "");
 DEFINE_int32(timer_interval_sec, 1, "");
 
 namespace xcomet {
 
 SessionServer::SessionServer()
     : storage_(router_),
-      timeout_queue_(FLAGS_user_timeout_sec / FLAGS_timer_interval_sec) {
+      timeout_queue_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec) {
 }
 
 SessionServer::~SessionServer() {
@@ -57,7 +55,6 @@ void SessionServer::Sub(struct evhttp_request* req) {
   }
   timeout_queue_.PushUserBack(user.get());
 
-  user->Start();
   if (storage_.HasOfflineMessage(uid)) {
     MessageIterator iter = storage_.GetOfflineMessageIterator(uid);
     while (iter.HasNext()) {
@@ -138,7 +135,12 @@ void SessionServer::OnTimer() {
   DLinkedList<User*> timeout_users = timeout_queue_.PopFront();
   DLinkedList<User*>::Iterator it = timeout_users.GetIterator();
   while (User* user = it.Next()) {
-    user->Close();     
+    if (user->GetType() == User::COMET_TYPE_POLLING) {
+      user->Close();
+    } else {
+      user->SendHeartbeat();
+      timeout_queue_.PushUserBack(user);
+    }
   }
   timeout_queue_.IncHead();
 }
