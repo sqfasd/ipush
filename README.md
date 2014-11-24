@@ -28,5 +28,5 @@ router_serer 订阅 session_server ，当 session_server 有转发请求时，�
 订阅接口如下：
 
 ```
-http://session_server_ip/rsub
+http://session_server_ip:9100/rsub
 ```

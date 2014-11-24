@@ -3,6 +3,8 @@
 
 #include "deps/base/flags.h"
 #include "deps/base/logging.h"
+#include "deps/jsoncpp/include/json/json.h"
+
 #include <netinet/in.h>
 /* For socket functions */
 #include <sys/socket.h>
@@ -36,13 +38,20 @@ class RouterServer {
     void Start();
   private: // callbacks
     //static void AcceptCB(evutil_socket_t listener, short event, void *arg);
-    static void SubReqDoneCB(struct evhttp_request *req, void * ctx);
-    static void SubReqChunkCB(struct evhttp_request *req, void * arg);
+    static void SubReqDoneCB(struct evhttp_request *req, void * ctx);// this class
+    static void SubReqChunkCB(struct evhttp_request *req, void * ctx);// this class 
     static void ReqErrorCB(enum evhttp_request_error err, void * ctx);
+    static void PubReqDoneCB(struct evhttp_request* req, void * ctx);
   private:
-    void Init();
+    void OpenConn();
+    void CloseConn();
   private:
-    //map<>
+    typedef string UserID;
+    typedef string SessionServerID;
+    map<UserID, SessionServerID> u2sMap;
+  private:
+    void MakePubReq();
+    
   private: // socket and libevent
     //evutil_socket_t listener_;
     struct evhttp_connection* evhttpcon_;

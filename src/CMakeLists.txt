@@ -18,4 +18,5 @@ TARGET_LINK_LIBRARIES(router_server
   base
   pthread
   event
+  jsoncpp
 )
