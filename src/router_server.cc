@@ -42,6 +42,7 @@ void RouterServer::InitSubClients() {
                 shared_ptr<SessionClient>(
                     new SessionClient(
                         evbase_, 
+                        ClientErrorCB,
                         ips[i], 
                         atoi(ports[i].c_str()),
                         FLAGS_sserver_sub_uri
@@ -49,10 +50,17 @@ void RouterServer::InitSubClients() {
                     )
                 );
   }
-  // init events
+  // init request events
   for(size_t i = 0; i < subclients_.size(); i++) {
     subclients_[i]->MakeRequestEvent();
   }
+}
+
+void RouterServer::ClientErrorCB(int sock, short which, void *arg) {
+  SessionClient * client = static_cast<SessionClient*>(arg);
+  CHECK(client != NULL);
+  VLOG(5) << "ClientErrorCB";
+  //TODO
 }
 
 #if 0

@@ -13,6 +13,7 @@ class SessionClient {
  public:
   SessionClient(
       struct event_base *evbase,
+      event_callback_fn error_cb,
       const string& host, 
       int port, 
       const string& uri);
@@ -35,6 +36,10 @@ class SessionClient {
  private:
   struct event_base *evbase_;
   struct evhttp_connection* evhttpcon_;
+  struct event* everr_;
+ private:
+  void InitErrorEvent(event_callback_fn fn);
+  void ActiveErrorEvent();
 };
 
 } // namespace xcomet

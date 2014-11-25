@@ -13,11 +13,19 @@ namespace xcomet {
 
 SessionClient::SessionClient(
             struct event_base* evbase, 
+            event_callback_fn error_cb,
             const string& host,
             int port, 
             const string& uri)
-    : evbase_(evbase), host_(host), port_(port), uri_(uri) {
+    : 
+        evbase_(evbase), 
+        evhttpcon_(NULL),
+        everr_(NULL),
+        host_(host),
+        port_(port),
+        uri_(uri) {
   InitConn();
+  InitErrorEvent(error_cb);
 }
 
 SessionClient::~SessionClient() {
@@ -86,6 +94,8 @@ void SessionClient::SubReqDoneCB(struct evhttp_request *req, void *ctx) {
     LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
     VLOG(5) << "sleep " << FLAGS_retry_interval;
     base::MilliSleep(FLAGS_retry_interval); //TODO
+    LOG(ERROR) << "ActiveErrorEvent";
+    that->ActiveErrorEvent();
     //that->MakeRequestEvent(req->); //TODO // retry;
     return;
   }
@@ -164,6 +174,18 @@ void SessionClient::PubReqDoneCB(struct evhttp_request* req, void * ctx) {
   while ((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
     VLOG(5) << string(buffer, nread);
   }
+
+}
+
+void SessionClient::InitErrorEvent(event_callback_fn fn) {
+  CHECK(everr_ == NULL);
+  everr_ = event_new(evbase_, -1, EV_READ, fn, this); // wait for event_active
+  event_add(everr_, NULL);
+}
+
+void SessionClient::ActiveErrorEvent() {
+  CHECK(everr_ != NULL);
+  event_active(everr_, 0, 0);
 }
 
 }

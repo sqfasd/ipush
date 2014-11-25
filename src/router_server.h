@@ -58,6 +58,8 @@ class RouterServer {
   map<UserID, SessionServerID> u2sMap;
  private:
   vector<shared_ptr<SessionClient> > subclients_;
+ private: //callbacks
+  static void ClientErrorCB(int sock, short which, void *arg);
  private:
   //void InitConn(const char* host, int port);
   //void ReInitConn();
