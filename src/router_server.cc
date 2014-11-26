@@ -33,11 +33,11 @@ void RouterServer::Start() {
 
 void RouterServer::ResetSubClient(size_t id) {
   VLOG(5) << "ResetSubClient";
-  CHECK(session_clients_.size());
+  CHECK(session_sub_clients_.size());
   CHECK(clientipports_.size());
   CHECK(id < clientipports_.size()) ;
-  session_clients_[id].reset(
-                new SessionClient(
+  session_sub_clients_[id].reset(
+                new SessionSubClient(
                     this,
                     evbase_, 
                     id,
@@ -47,7 +47,7 @@ void RouterServer::ResetSubClient(size_t id) {
                     FLAGS_sserver_sub_uri
                     )
               );
-  session_clients_[id]->MakeSubEvent();
+  session_sub_clients_[id]->MakeSubEvent();
 }
 
 void RouterServer::InitClientIpPorts(const string& ipsstr, const string& portsstr) {
@@ -68,12 +68,12 @@ void RouterServer::InitClientIpPorts(const string& ipsstr, const string& portsst
 }
 
 void RouterServer::InitSubClients() {
-  CHECK(session_clients_.empty());
+  CHECK(session_sub_clients_.empty());
   for (size_t i = 0; i < clientipports_.size(); i++) {
-    LOG(INFO) << "new SessionClient " << clientipports_[i].first << "," << clientipports_[i].second;
-    session_clients_.push_back(
-                shared_ptr<SessionClient>(
-                    new SessionClient(
+    LOG(INFO) << "new SessionSubClient " << clientipports_[i].first << "," << clientipports_[i].second;
+    session_sub_clients_.push_back(
+                shared_ptr<SessionSubClient>(
+                    new SessionSubClient(
                         this,
                         evbase_, 
                         i,
@@ -86,8 +86,8 @@ void RouterServer::InitSubClients() {
                 );
   }
   // init request events
-  for(size_t i = 0; i < session_clients_.size(); i++) {
-    session_clients_[i]->MakeSubEvent();
+  for(size_t i = 0; i < session_sub_clients_.size(); i++) {
+    session_sub_clients_[i]->MakeSubEvent();
   }
 }
 
@@ -107,13 +107,14 @@ void RouterServer::MakeCliErrEvent(CliErrInfo* clierr) {
 } 
 
 void RouterServer::MakePubEvent(size_t clientid, const char* pub_uri) {
-  if(clientid >= session_clients_.size()) {
+  if(clientid >= session_sub_clients_.size()) {
     LOG(ERROR) << "clientid " << clientid << " out of range";
     return;
   }
 
-  session_clients_[clientid]->MakePubEvent(pub_uri);
-  VLOG(5) << pub_uri;
+  //TODO
+  //session_sub_clients_[clientid]->MakePubEvent(pub_uri);
+  //VLOG(5) << pub_uri;
 }
 
 } // namespace xcomet

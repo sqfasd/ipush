@@ -1,7 +1,7 @@
 #ifndef ROUTER_SERVER_H
 #define ROUTER_SERVER_H
 
-#include "session_client.h"
+#include "session_sub_client.h"
 #include "deps/base/shared_ptr.h"
 
 #include <netinet/in.h>
@@ -50,7 +50,7 @@ class RouterServer {
   map<UserID, SessionServerID> u2sMap;
  private:
   vector<pair<string, size_t> > clientipports_;
-  vector<shared_ptr<SessionClient> > session_clients_;
+  vector<shared_ptr<SessionSubClient> > session_sub_clients_;
  private: //callbacks
   static void ClientErrorCB(int sock, short which, void *arg);
  private:
