@@ -5,69 +5,78 @@
 #include "deps/base/logging.h"
 #include "router_server.h"
 #include "deps/base/time.h"
+#include "deps/limonp/StringUtil.hpp"
 
 DEFINE_int32(read_buffer_size,  4096, "");
 
 namespace xcomet {
 
+using Limonp::string_format;
+
 SessionClient::SessionClient(
             class RouterServer* parent,
             struct event_base* evbase, 
             size_t client_id,
-            //event_callback_fn error_cb,
-            const string& host,
-            int port, 
-            const string& uri)
+            const string& sub_host,
+            int sub_port, 
+            const string& sub_uri,
+            const string& pub_host,
+            int pub_port
+            )
     : 
         parent_(parent),
         evbase_(evbase), 
         client_id_(client_id),
-        //everr_(NULL),
-        host_(host),
-        port_(port),
-        uri_(uri),
+        sub_host_(sub_host),
+        sub_port_(sub_port),
+        sub_uri_(sub_uri),
+        pub_host_(pub_host),
+        pub_port_(pub_port),
         evhttpcon_(NULL) {
   InitConn();
-  //InitErrorEvent(error_cb);
 }
 
 SessionClient::~SessionClient() {
   CloseConn();
 }
 
-//memory leak ? evhttpcon_
-void SessionClient::MakeRequestEvent() {
-  VLOG(5) << "enter MakeRequestEvent";
-  //VLOG(5) << "------";
-  struct evhttp_request* req = evhttp_request_new(SubReqDoneCB, this);
-  //VLOG(5) << "------";
-  evhttp_request_set_chunked_cb(req, SubReqChunkCB);
-  //VLOG(5) << "------";
+void SessionClient::MakeSubEvent() {
+  VLOG(5) << "MakeSubEvent";
+  struct evhttp_request* req = evhttp_request_new(SubDoneCB, this);
+  evhttp_request_set_chunked_cb(req, SubChunkCB);
   evhttp_request_set_error_cb(req, ReqErrorCB);
-  //VLOG(5) << "------";
-  int r = evhttp_make_request(evhttpcon_, req, EVHTTP_REQ_GET, uri_.c_str());
-  //VLOG(5) << "------";
+  evhttp_request_set_on_complete_cb(req, SubCompleteCB, this);
+  CHECK(sub_uri_.size());
+  int r = evhttp_make_request(evhttpcon_, req, EVHTTP_REQ_GET, sub_uri_.c_str());
+  CHECK(r == 0);
+}
+
+void SessionClient::MakePubEvent(const char* pub_uri) {
+  VLOG(5) << "MakePubEvent";
+  struct evhttp_request* req = evhttp_request_new(PubDoneCB, this);
+  evhttp_request_set_chunked_cb(req, SubChunkCB);
+  evhttp_request_set_error_cb(req, ReqErrorCB);
+  evhttp_request_set_on_complete_cb(req, PubCompleteCB, this);
+  CHECK(pub_uri);
+  int r = evhttp_make_request(evhttpcon_, req, EVHTTP_REQ_GET, pub_uri);
   CHECK(r == 0);
 }
 
 void SessionClient::InitConn() {
   //struct bufferevent* bev = bufferevent_socket_new(evbase_, -1, 0);
-  VLOG(5) << "init connections , host: " 
-          << host_ 
-          << " port: " 
-          << port_;
+  VLOG(5) << "init connections , sub_host: " 
+          << sub_host_ 
+          << " sub_port: " 
+          << sub_port_;
   evhttpcon_ = evhttp_connection_base_bufferevent_new(
               evbase_, 
               NULL, 
               NULL, 
-              host_.c_str(),
-              port_);
-  //evhttpcon_ = evhttp_connection_base_bufferevent_new(evbase_, NULL, bev, FLAGS_sserver_sub_ip.c_str(), FLAGS_sserver_sub_port);
-  //evhttpcon_ = evhttp_connection_new(FLAGS_sserver_sub_ip.c_str(), FLAGS_sserver_sub_port);
-  //evhttpcon_ = evhttp_connection_base_new(evbase_, NULL, FLAGS_sserver_sub_ip.c_str(), FLAGS_sserver_sub_port);
+              sub_host_.c_str(),
+              sub_port_);
   CHECK(evhttpcon_);
   evhttp_connection_set_closecb(evhttpcon_, ConnCloseCB, this);
-  //evhttp_connection_set_retries(evhttpcon_, -1); // retry infinitely TODO
+  //evhttp_connection_set_retries(evhttpcon_, -1); // retry infinitely 
 }
 
 void SessionClient::CloseConn() {
@@ -76,36 +85,22 @@ void SessionClient::CloseConn() {
 
 
 void SessionClient::ConnCloseCB(struct evhttp_connection* conn, void *ctx) {
-  VLOG(5) << "enter ConnCloseCB";
-  //SessionClient* that = static_cast<SessionClient*>(ctx);
-  VLOG(5) << "finished ConnCloseCB";
+  VLOG(5) << "ConnCloseCB";
 }
 
-//TODO to reconnect
-//TODO error handler
-void SessionClient::SubReqDoneCB(struct evhttp_request *req, void *ctx) {
-  VLOG(5) << "enter SubReqDoneCB";
+void SessionClient::SubDoneCB(struct evhttp_request *req, void *ctx) {
+  VLOG(5) << "enter SubDoneCB";
   SessionClient* that = static_cast<SessionClient*>(ctx);
   CHECK(that);
   char buffer[FLAGS_read_buffer_size];
   int nread;
 
   if (req == NULL || evhttp_request_get_response_code(req) != 200) {
-    /* If req is NULL, it means an error occurred, but
-     * sadly we are mostly left guessing what the error
-     * might have been.  We'll do our best... */
-    //struct bufferevent *bev = (struct bufferevent *) ctx;
     int errcode = EVUTIL_SOCKET_ERROR();
     LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
     that->parent_->MakeCliErrEvent(new CliErrInfo(that->client_id_, "socket error", that->parent_));
     return;
   }
-
-  //int code = evhttp_request_get_response_code(req);
-  //if (code != 200) {
-  //  LOG(ERROR) << "error happend.";
-  //  return;
-  //}
 
   while ((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
     VLOG(5) << nread ;
@@ -114,34 +109,37 @@ void SessionClient::SubReqDoneCB(struct evhttp_request *req, void *ctx) {
     fwrite(buffer, nread, 1, stdout);
   }
 
-  VLOG(5) << "finished SubReqDoneCB";
+  VLOG(5) << "finished SubDoneCB";
 }
 
-void SessionClient::SubReqChunkCB(struct evhttp_request* req, void * ctx) {
-  VLOG(5) << "enter SubReqDoneCB";
-  //SessionClient* that = static_cast<SessionClient*>(ctx);
-  VLOG(5) << "enter SubReqChunkCB";
+void SessionClient::SubChunkCB(struct evhttp_request* req, void * ctx) {
+  SessionClient* that = static_cast<SessionClient*>(ctx);
+  VLOG(5) << "enter SubChunkCB";
   char buffer[FLAGS_read_buffer_size];
   int nread;
   string chunkdata;
   Json::Value value;
   Json::Reader reader;
+  Json::FastWriter writer;
+  string content2send;
   //TODO check parse
 
   //TODO when errno == EAGAIN
   while((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
     VLOG(5) << "read buffer size: " << nread;
     VLOG(5) << "read buffer date: " << string(buffer, nread);
-    //fwrite(buffer, nread, 1, stdout);
     //TODO
     if(!reader.parse(buffer, buffer + nread, value)) {
       LOG(ERROR) << "json parse failed, data" << string(buffer, nread);
       continue;
     }
-    //that->MakePubReq();
-    VLOG(5) << value.toStyledString();
+    //value["content"];
+    //VLOG(5) << value.toStyledString();
+    string uri = string_format("/pub?cname=12&content=%s", value["type"].asCString());
+    //VLOG(5) << uri;
+    //that->parent_->MakePubEvent(0, uri.c_str());
   }
-  VLOG(5) << "finished SubReqChunkCB";
+  VLOG(5) << "finished SubChunkCB";
 }
 
 void SessionClient::ReqErrorCB(enum evhttp_request_error err, void * ctx) {
@@ -161,14 +159,16 @@ void SessionClient::ReqErrorCB(enum evhttp_request_error err, void * ctx) {
   //EVREQ_HTTP_DATA_TOO_LONG 
 }
 
-void SessionClient::PubReqDoneCB(struct evhttp_request* req, void * ctx) {
-  VLOG(5) << "enter PubReqDoneCB";
+void SessionClient::PubDoneCB(struct evhttp_request* req, void * ctx) {
+  VLOG(5) << "PubDoneCB";
+  SessionClient* that = static_cast<SessionClient*>(ctx);
   char buffer[FLAGS_read_buffer_size];
   int nread;
 
-  if (req == NULL) {
-    //TODO
-    LOG(ERROR) << "error";
+  if (req == NULL || evhttp_request_get_response_code(req) != 200) {
+    int errcode = EVUTIL_SOCKET_ERROR();
+    LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
+    that->parent_->MakeCliErrEvent(new CliErrInfo(that->client_id_, "socket error", that->parent_));
     return;
   }
 
@@ -178,15 +178,12 @@ void SessionClient::PubReqDoneCB(struct evhttp_request* req, void * ctx) {
 
 }
 
-//void SessionClient::InitErrorEvent(event_callback_fn fn) {
-//  CHECK(everr_ == NULL);
-//  everr_ = event_new(evbase_, -1, EV_READ, fn, this); // wait for event_active
-//  event_add(everr_, NULL);
-//}
-
-//void SessionClient::ActiveErrorEvent() {
-//  CHECK(everr_ != NULL);
-//  event_active(everr_, 0, 0);
-//}
-
+void SessionClient::SubCompleteCB(struct evhttp_request* req, void * cxt) {
+  VLOG(5) << "SubCompleteCB";
 }
+
+void SessionClient::PubCompleteCB(struct evhttp_request* req, void * ctx) {
+  VLOG(5) << "PubCompleteCB";
+}
+
+} // namespace xcomet

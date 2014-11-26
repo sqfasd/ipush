@@ -8,7 +8,8 @@
 DEFINE_string(sserver_sub_ips, "127.0.0.1|127.0.0.1", "");
 DEFINE_string(sserver_sub_ports, "8100|8200", "");
 DEFINE_string(sserver_sub_uri, "/stream?cname=12", "");
-DEFINE_int32(retry_interval, 5, "");
+//DEFINE_string(sserver_pub_uri, "/pub?cname=12&content=123", "");
+DEFINE_int32(retry_interval, 2, "seconds");
 DEFINE_bool(libevent_debug_log, false, "for debug logging");
 
 const struct timeval RETRY_TV = {FLAGS_retry_interval, 0};
@@ -32,10 +33,10 @@ void RouterServer::Start() {
 
 void RouterServer::ResetSubClient(size_t id) {
   VLOG(5) << "ResetSubClient";
-  CHECK(subclients_.size());
+  CHECK(session_clients_.size());
   CHECK(clientipports_.size());
   CHECK(id < clientipports_.size()) ;
-  subclients_[id].reset(
+  session_clients_[id].reset(
                 new SessionClient(
                     this,
                     evbase_, 
@@ -46,7 +47,7 @@ void RouterServer::ResetSubClient(size_t id) {
                     FLAGS_sserver_sub_uri
                     )
               );
-  subclients_[id]->MakeRequestEvent();
+  session_clients_[id]->MakeSubEvent();
 }
 
 void RouterServer::InitClientIpPorts(const string& ipsstr, const string& portsstr) {
@@ -67,10 +68,10 @@ void RouterServer::InitClientIpPorts(const string& ipsstr, const string& portsst
 }
 
 void RouterServer::InitSubClients() {
-  CHECK(subclients_.empty());
+  CHECK(session_clients_.empty());
   for (size_t i = 0; i < clientipports_.size(); i++) {
     LOG(INFO) << "new SessionClient " << clientipports_[i].first << "," << clientipports_[i].second;
-    subclients_.push_back(
+    session_clients_.push_back(
                 shared_ptr<SessionClient>(
                     new SessionClient(
                         this,
@@ -85,8 +86,8 @@ void RouterServer::InitSubClients() {
                 );
   }
   // init request events
-  for(size_t i = 0; i < subclients_.size(); i++) {
-    subclients_[i]->MakeRequestEvent();
+  for(size_t i = 0; i < session_clients_.size(); i++) {
+    session_clients_[i]->MakeSubEvent();
   }
 }
 
@@ -104,6 +105,16 @@ void RouterServer::MakeCliErrEvent(CliErrInfo* clierr) {
   event_add(everr, &RETRY_TV);
   LOG(INFO) << "event_add error_event : timeout " << FLAGS_retry_interval;
 } 
+
+void RouterServer::MakePubEvent(size_t clientid, const char* pub_uri) {
+  if(clientid >= session_clients_.size()) {
+    LOG(ERROR) << "clientid " << clientid << " out of range";
+    return;
+  }
+
+  session_clients_[clientid]->MakePubEvent(pub_uri);
+  VLOG(5) << pub_uri;
+}
 
 } // namespace xcomet
 

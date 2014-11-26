@@ -23,30 +23,43 @@ class SessionClient {
       class RouterServer* parent,
       struct event_base *evbase,
       size_t client_id,
-      //event_callback_fn error_cb,
-      const string& host, 
-      int port, 
-      const string& uri);
+      const string& sub_host, 
+      int sub_port, 
+      const string& sub_uri,
+      const string& pub_host,
+      int pub_port
+      );
   ~SessionClient();
  public:
-  void MakeRequestEvent();
+  void MakeSubEvent();
+  void MakePubEvent(const char* pub_uri);
  private:
   void InitConn();
   void CloseConn();
  private: // callbacks
   static void ConnCloseCB(struct evhttp_connection * conn, void *ctx);
-  static void SubReqDoneCB(struct evhttp_request *req, void * ctx);// this class
-  static void SubReqChunkCB(struct evhttp_request *req, void * ctx);// this class 
+ private:
+  static void SubDoneCB(struct evhttp_request *req, void * ctx);// this class
+  static void SubChunkCB(struct evhttp_request *req, void * ctx);// this class 
+  static void SubCompleteCB(struct evhttp_request *req, void * ctx);
+ private:
   static void ReqErrorCB(enum evhttp_request_error err, void * ctx);
-  static void PubReqDoneCB(struct evhttp_request* req, void * ctx);
+ private:
+  static void PubDoneCB(struct evhttp_request* req, void * ctx);
+  static void PubCompleteCB(struct evhttp_request* req, void *ctx);
  private:
   class RouterServer* parent_;
   struct event_base *evbase_;
  private:
   size_t client_id_;
-  string host_;
-  int port_;
-  string uri_;
+  string sub_host_;
+  int sub_port_;
+  string sub_uri_;
+
+ private:
+  string pub_host_;
+  int pub_port_;
+
  private:
   struct evhttp_connection* evhttpcon_;
   //struct event* everr_;
