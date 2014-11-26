@@ -91,27 +91,13 @@ void SessionSubClient::SubChunkCB(struct evhttp_request* req, void * ctx) {
   VLOG(5) << "enter SubChunkCB";
   char buffer[FLAGS_sub_read_buffer_size];
   int nread;
-  string chunkdata;
-  Json::Value value;
-  Json::Reader reader;
-  Json::FastWriter writer;
-  string content2send;
   //TODO check parse
 
   //TODO when errno == EAGAIN
   while((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
     VLOG(5) << "read buffer size: " << nread;
     VLOG(5) << "read buffer date: " << string(buffer, nread);
-    //TODO
-    if(!reader.parse(buffer, buffer + nread, value)) {
-      LOG(ERROR) << "json parse failed, data" << string(buffer, nread);
-      continue;
-    }
-    //value["content"];
-    //VLOG(5) << value.toStyledString();
-    string uri = string_format("/pub?cname=12&content=%s", value["type"].asCString());
-    VLOG(5) << uri;
-    that->parent_->MakePubEvent(0, uri.c_str());
+    that->parent_->ChunkedMsgHandler(that->client_id_, buffer, nread); 
   }
   VLOG(5) << "finished SubChunkCB";
 }

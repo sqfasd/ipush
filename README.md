@@ -30,3 +30,15 @@ router_serer 订阅 session_server ，当 session_server 有转发请求时，�
 ```
 http://session_server_ip:9100/rsub
 ```
+
+## router_server 和 session_server 交互的协议示例
+
+```
+{"type": "user_msg", "to_uid":"1", "content":"hello world"}
+```
+
+```
+{"type": "login", "uid": "1"}
+```
+
+
