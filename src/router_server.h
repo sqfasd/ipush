@@ -26,6 +26,10 @@
 
 #include <iostream>
 
+#include "deps/base/scoped_ptr.h"
+#include "deps/base/callback.h"
+#include "src/storage.h"
+
 using namespace std;
 
 namespace xcomet {
@@ -53,6 +57,8 @@ class RouterServer {
   void InitPubCliAddrs(const string& ips, const string& ports);
   void InitPubClients();
  private:
+  void InitStorage(const string& path);
+ private:
   map<UserID, SessionServerID> u2sMap_;
  private:
   SessionServerID FindServerIdByUid(const UserID& uid) const;
@@ -69,6 +75,7 @@ class RouterServer {
   //void ReInitConn();
  private: // socket and libevent
   struct event_base *evbase_;
+  scoped_ptr<Storage> storage_;
 };
 
 } // namespace xcomet

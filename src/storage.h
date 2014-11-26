@@ -2,6 +2,9 @@
 #define SRC_STORAGE_H_
 
 #include <event.h>
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
 #include "deps/ssdb/src/ssdb/ssdb.h"
 #include "deps/base/callback.h"
 #include "deps/base/scoped_ptr.h"

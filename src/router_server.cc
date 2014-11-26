@@ -13,6 +13,7 @@ DEFINE_string(sserver_sub_uri, "/stream?cname=12", "");
 DEFINE_string(sserver_pub_ips, "127.0.0.1|127.0.0.1", "");
 DEFINE_string(sserver_pub_ports, "8100|8200", "");
 
+DEFINE_string(ssdb_path, "/tmp/ssdb_tmp", "");
 
 //DEFINE_string(sserver_pub_uri, "/pub?cname=12&content=123", "");
 DEFINE_int32(retry_interval, 2, "seconds");
@@ -38,6 +39,7 @@ void RouterServer::Start() {
   InitSubClients();
   InitPubCliAddrs(FLAGS_sserver_pub_ips, FLAGS_sserver_pub_ports);
   InitPubClients();
+  InitStorage(FLAGS_ssdb_path);
   event_base_dispatch(evbase_);
 }
 
@@ -135,6 +137,12 @@ void RouterServer::InitPubClients() {
                     )
                 );
   }
+}
+
+void RouterServer::InitStorage(const string& path) {
+  LOG(INFO) << "InitStorage path:" << path;
+  storage_.reset(new Storage(evbase_, path));
+  
 }
 
 void RouterServer::ClientErrorCB(int sock, short which, void *arg) {
