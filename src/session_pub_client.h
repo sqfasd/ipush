@@ -1,5 +1,5 @@
-#ifndef SESSION_CLIENT_H
-#define SESSION_CLIENT_H
+#ifndef SESSION_PUB_CLIENT_H
+#define SESSION_PUB_CLIENT_H
 
 #include <event2/event.h>
 #include <event2/buffer.h>
@@ -9,44 +9,36 @@
 
 namespace xcomet {
 
-struct CliErrInfo {
-  size_t id;
-  string error;
-  class RouterServer* router;
-  CliErrInfo(size_t id_, const string& err, class RouterServer* parent) : id(id_), error(err), router(parent) {
-  }
-};
-
-class SessionClient {
+class SessionPubClient {
  public:
-  SessionClient(
+  SessionPubClient(
       class RouterServer* parent,
       struct event_base *evbase,
       size_t client_id,
-      //event_callback_fn error_cb,
-      const string& host, 
-      int port, 
-      const string& uri);
-  ~SessionClient();
+      const string& pub_host, 
+      int pub_port
+      );
+  ~SessionPubClient();
  public:
-  void MakeRequestEvent();
+  void MakePubEvent(const char* pub_uri);
  private:
   void InitConn();
   void CloseConn();
  private: // callbacks
   static void ConnCloseCB(struct evhttp_connection * conn, void *ctx);
-  static void SubReqDoneCB(struct evhttp_request *req, void * ctx);// this class
-  static void SubReqChunkCB(struct evhttp_request *req, void * ctx);// this class 
+ private:
   static void ReqErrorCB(enum evhttp_request_error err, void * ctx);
-  static void PubReqDoneCB(struct evhttp_request* req, void * ctx);
+ private:
+  static void PubDoneCB(struct evhttp_request* req, void * ctx);
+  static void PubCompleteCB(struct evhttp_request* req, void *ctx);
  private:
   class RouterServer* parent_;
   struct event_base *evbase_;
  private:
   size_t client_id_;
-  string host_;
-  int port_;
-  string uri_;
+  string pub_host_;
+  int pub_port_;
+
  private:
   struct evhttp_connection* evhttpcon_;
   //struct event* everr_;

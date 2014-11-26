@@ -8,7 +8,13 @@
 DEFINE_string(sserver_sub_ips, "127.0.0.1|127.0.0.1", "");
 DEFINE_string(sserver_sub_ports, "8100|8200", "");
 DEFINE_string(sserver_sub_uri, "/stream?cname=12", "");
-DEFINE_int32(retry_interval, 5, "");
+
+DEFINE_string(sserver_pub_ips, "127.0.0.1|127.0.0.1", "");
+DEFINE_string(sserver_pub_ports, "8100|8200", "");
+
+
+//DEFINE_string(sserver_pub_uri, "/pub?cname=12&content=123", "");
+DEFINE_int32(retry_interval, 2, "seconds");
 DEFINE_bool(libevent_debug_log, false, "for debug logging");
 
 const struct timeval RETRY_TV = {FLAGS_retry_interval, 0};
@@ -25,31 +31,33 @@ RouterServer::~RouterServer() {
 }
 
 void RouterServer::Start() {
-  InitClientIpPorts(FLAGS_sserver_sub_ips, FLAGS_sserver_sub_ports);
+  InitSubCliAddrs(FLAGS_sserver_sub_ips, FLAGS_sserver_sub_ports);
   InitSubClients();
+  InitPubCliAddrs(FLAGS_sserver_pub_ips, FLAGS_sserver_pub_ports);
+  InitPubClients();
   event_base_dispatch(evbase_);
 }
 
 void RouterServer::ResetSubClient(size_t id) {
   VLOG(5) << "ResetSubClient";
-  CHECK(subclients_.size());
-  CHECK(clientipports_.size());
-  CHECK(id < clientipports_.size()) ;
-  subclients_[id].reset(
-                new SessionClient(
+  CHECK(session_sub_clients_.size());
+  CHECK(subcliaddrs_.size());
+  CHECK(id < subcliaddrs_.size()) ;
+  session_sub_clients_[id].reset(
+                new SessionSubClient(
                     this,
                     evbase_, 
                     id,
                     //ClientErrorCB,
-                    clientipports_[id].first, 
-                    clientipports_[id].second,
+                    subcliaddrs_[id].first, 
+                    subcliaddrs_[id].second,
                     FLAGS_sserver_sub_uri
                     )
               );
-  subclients_[id]->MakeRequestEvent();
+  session_sub_clients_[id]->MakeSubEvent();
 }
 
-void RouterServer::InitClientIpPorts(const string& ipsstr, const string& portsstr) {
+void RouterServer::InitSubCliAddrs(const string& ipsstr, const string& portsstr) {
   VLOG(5) << FLAGS_sserver_sub_ips ;
   VLOG(5) << FLAGS_sserver_sub_ports ;
   vector<string> ips;
@@ -58,35 +66,71 @@ void RouterServer::InitClientIpPorts(const string& ipsstr, const string& portsst
   SplitString(portsstr, '|', &ports);
   CHECK(ips.size());
   CHECK(ips.size() == ports.size());
-  clientipports_.resize(ips.size());
-  LOG(INFO) << "clientipports_ size : " << clientipports_.size();
-  for(size_t i = 0; i < clientipports_.size(); i++) {
-    clientipports_[i].first = ips[i];
-    clientipports_[i].second = atoi(ports[i].c_str());
+  subcliaddrs_.resize(ips.size());
+  LOG(INFO) << "subcliaddrs_ size : " << subcliaddrs_.size();
+  for(size_t i = 0; i < subcliaddrs_.size(); i++) {
+    subcliaddrs_[i].first = ips[i];
+    subcliaddrs_[i].second = atoi(ports[i].c_str());
+  }
+}
+
+void RouterServer::InitPubCliAddrs(const string& ipsstr, const string& portsstr) {
+  VLOG(5) << FLAGS_sserver_pub_ips ;
+  VLOG(5) << FLAGS_sserver_pub_ports ;
+  vector<string> ips;
+  vector<string> ports;
+  SplitString(ipsstr, '|', &ips);
+  SplitString(portsstr, '|', &ports);
+  CHECK(ips.size());
+  CHECK(ips.size() == ports.size());
+  pubcliaddrs_.resize(ips.size());
+  LOG(INFO) << "pubcliaddrs_ size : " << pubcliaddrs_.size();
+  for(size_t i = 0; i < pubcliaddrs_.size(); i++) {
+    pubcliaddrs_[i].first = ips[i];
+    pubcliaddrs_[i].second = atoi(ports[i].c_str());
   }
 }
 
 void RouterServer::InitSubClients() {
-  CHECK(subclients_.empty());
-  for (size_t i = 0; i < clientipports_.size(); i++) {
-    LOG(INFO) << "new SessionClient " << clientipports_[i].first << "," << clientipports_[i].second;
-    subclients_.push_back(
-                shared_ptr<SessionClient>(
-                    new SessionClient(
+  CHECK(session_sub_clients_.empty());
+  for (size_t i = 0; i < subcliaddrs_.size(); i++) {
+    VLOG(5) << "new SessionSubClient " << subcliaddrs_[i].first << "," << subcliaddrs_[i].second;
+    session_sub_clients_.push_back(
+                shared_ptr<SessionSubClient>(
+                    new SessionSubClient(
                         this,
                         evbase_, 
                         i,
                         //ClientErrorCB,
-                        clientipports_[i].first, 
-                        clientipports_[i].second,
+                        subcliaddrs_[i].first, 
+                        subcliaddrs_[i].second,
                         FLAGS_sserver_sub_uri
                         )
                     )
                 );
   }
   // init request events
-  for(size_t i = 0; i < subclients_.size(); i++) {
-    subclients_[i]->MakeRequestEvent();
+  for(size_t i = 0; i < session_sub_clients_.size(); i++) {
+    session_sub_clients_[i]->MakeSubEvent();
+  }
+}
+
+void RouterServer::InitPubClients() {
+  CHECK(session_pub_clients_.empty());
+  for (size_t i = 0; i < pubcliaddrs_.size(); i++) {
+    VLOG(5) << "new SessionPubClient " << pubcliaddrs_[i].first << "," << pubcliaddrs_[i].second;
+    session_pub_clients_.push_back(
+                shared_ptr<SessionPubClient>(
+                    new SessionPubClient(
+                        this,
+                        evbase_, 
+                        i,
+                        //ClientErrorCB,
+                        pubcliaddrs_[i].first, 
+                        pubcliaddrs_[i].second
+                        )
+                    )
+                );
   }
 }
 
@@ -104,6 +148,15 @@ void RouterServer::MakeCliErrEvent(CliErrInfo* clierr) {
   event_add(everr, &RETRY_TV);
   LOG(INFO) << "event_add error_event : timeout " << FLAGS_retry_interval;
 } 
+
+void RouterServer::MakePubEvent(size_t clientid, const char* pub_uri) {
+  VLOG(5) << "RouterServer::MakePubEvent";
+  if(clientid >= session_pub_clients_.size()) {
+    LOG(ERROR) << "clientid " << clientid << " out of range";
+    return;
+  }
+  session_pub_clients_[clientid]->MakePubEvent(pub_uri);
+}
 
 } // namespace xcomet
 
