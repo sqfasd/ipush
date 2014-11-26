@@ -16,8 +16,7 @@ class SessionPubClient {
       struct event_base *evbase,
       size_t client_id,
       const string& pub_host, 
-      int pub_port, 
-      const string& pub_uri
+      int pub_port
       );
   ~SessionPubClient();
  public:
@@ -39,7 +38,6 @@ class SessionPubClient {
   size_t client_id_;
   string pub_host_;
   int pub_port_;
-  string pub_uri_;
 
  private:
   struct evhttp_connection* evhttpcon_;

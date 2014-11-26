@@ -18,8 +18,7 @@ SessionPubClient::SessionPubClient(
             struct event_base* evbase, 
             size_t client_id,
             const string& pub_host,
-            int pub_port, 
-            const string& pub_uri
+            int pub_port
             )
     : 
         parent_(parent),
@@ -27,7 +26,6 @@ SessionPubClient::SessionPubClient(
         client_id_(client_id),
         pub_host_(pub_host),
         pub_port_(pub_port),
-        pub_uri_(pub_uri),
         evhttpcon_(NULL) {
   InitConn();
 }
@@ -81,14 +79,12 @@ void SessionPubClient::PubDoneCB(struct evhttp_request* req, void * ctx) {
   if (req == NULL || evhttp_request_get_response_code(req) != 200) {
     int errcode = EVUTIL_SOCKET_ERROR();
     LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
-    that->parent_->MakeCliErrEvent(new struct CliErrInfo(that->client_id_, "socket error", that->parent_));
     return;
   }
 
   while ((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
     VLOG(5) << string(buffer, nread);
   }
-
 }
 
 void SessionPubClient::ReqErrorCB(enum evhttp_request_error err, void * ctx) {
@@ -107,7 +103,6 @@ void SessionPubClient::ReqErrorCB(enum evhttp_request_error err, void * ctx) {
   //EVREQ_HTTP_REQUEST_CANCEL,
   //EVREQ_HTTP_DATA_TOO_LONG 
 }
-
 
 void SessionPubClient::PubCompleteCB(struct evhttp_request* req, void * ctx) {
   VLOG(5) << "PubCompleteCB";

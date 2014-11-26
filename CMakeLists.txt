@@ -17,6 +17,7 @@ LINK_DIRECTORIES(
   ${PROJECT_SOURCE_DIR}/deps/ssdb/deps/snappy-1.1.0/.libs
   ${PROJECT_SOURCE_DIR}/deps/ssdb/deps/jemalloc-3.3.1/lib
   ${PROJECT_SOURCE_DIR}/deps/ssdb/deps/leveldb-1.14.0
+  /usr/local/lib
 )
 
 ADD_DEFINITIONS(-DHAVE_NETINET_IN_H)

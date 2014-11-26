@@ -73,7 +73,7 @@ void SessionSubClient::ConnCloseCB(struct evhttp_connection* conn, void *ctx) {
 }
 
 void SessionSubClient::SubDoneCB(struct evhttp_request *req, void *ctx) {
-  VLOG(5) << "enter SubDoneCB";
+  VLOG(5) << "SessionSubClient::SubDoneCB";
   SessionSubClient* that = static_cast<SessionSubClient*>(ctx);
   CHECK(that);
   char buffer[FLAGS_sub_read_buffer_size];
@@ -82,18 +82,8 @@ void SessionSubClient::SubDoneCB(struct evhttp_request *req, void *ctx) {
   if (req == NULL || evhttp_request_get_response_code(req) != 200) {
     int errcode = EVUTIL_SOCKET_ERROR();
     LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
-    that->parent_->MakeCliErrEvent(new CliErrInfo(that->client_id_, "socket error", that->parent_));
-    return;
   }
-
-  while ((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
-    VLOG(5) << nread ;
-    /* These are just arbitrary chunks of 256 bytes.
-     * They are not lines, so we can't treat them as such. */
-    fwrite(buffer, nread, 1, stdout);
-  }
-
-  VLOG(5) << "finished SubDoneCB";
+  that->parent_->MakeCliErrEvent(new CliErrInfo(that->client_id_, "socket error", that->parent_));
 }
 
 void SessionSubClient::SubChunkCB(struct evhttp_request* req, void * ctx) {
@@ -120,8 +110,8 @@ void SessionSubClient::SubChunkCB(struct evhttp_request* req, void * ctx) {
     //value["content"];
     //VLOG(5) << value.toStyledString();
     string uri = string_format("/pub?cname=12&content=%s", value["type"].asCString());
-    //VLOG(5) << uri;
-    //that->parent_->MakePubEvent(0, uri.c_str());
+    VLOG(5) << uri;
+    that->parent_->MakePubEvent(0, uri.c_str());
   }
   VLOG(5) << "finished SubChunkCB";
 }

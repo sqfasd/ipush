@@ -2,6 +2,7 @@
 #define ROUTER_SERVER_H
 
 #include "session_sub_client.h"
+#include "session_pub_client.h"
 #include "deps/base/shared_ptr.h"
 
 #include <netinet/in.h>
@@ -42,15 +43,20 @@ class RouterServer {
   void MakePubEvent(size_t clientid, const char* pub_uri);
  private:
   void ResetSubClient(size_t id);
-  void InitClientIpPorts(const string& ips, const string& ports);
+  void InitSubCliAddrs(const string& ips, const string& ports);
   void InitSubClients();
+ private:
+  void InitPubCliAddrs(const string& ips, const string& ports);
+  void InitPubClients();
  private:
   typedef string UserID;
   typedef string SessionServerID;
   map<UserID, SessionServerID> u2sMap;
  private:
-  vector<pair<string, size_t> > clientipports_;
+  vector<pair<string, size_t> > subcliaddrs_;
+  vector<pair<string, size_t> > pubcliaddrs_;
   vector<shared_ptr<SessionSubClient> > session_sub_clients_;
+  vector<shared_ptr<SessionPubClient> > session_pub_clients_;
  private: //callbacks
   static void ClientErrorCB(int sock, short which, void *arg);
  private:
