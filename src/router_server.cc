@@ -8,7 +8,10 @@
 DEFINE_string(sserver_sub_ips, "127.0.0.1|127.0.0.1", "");
 DEFINE_string(sserver_sub_ports, "8100|8200", "");
 DEFINE_string(sserver_sub_uri, "/stream?cname=12", "");
+DEFINE_int32(retry_interval, 5, "");
 DEFINE_bool(libevent_debug_log, false, "for debug logging");
+
+const struct timeval RETRY_TV = {FLAGS_retry_interval, 0};
 
 namespace xcomet {
 
@@ -30,11 +33,8 @@ void RouterServer::Start() {
 void RouterServer::ResetSubClient(size_t id) {
   VLOG(5) << "ResetSubClient";
   CHECK(subclients_.size());
-  VLOG(5) << "---------";
   CHECK(clientipports_.size());
-  VLOG(5) << "---------";
   CHECK(id < clientipports_.size()) ;
-  VLOG(5) << "---------";
   subclients_[id].reset(
                 new SessionClient(
                     this,
@@ -94,34 +94,16 @@ void RouterServer::ClientErrorCB(int sock, short which, void *arg) {
   VLOG(5) << "ClientErrorCB";
   CliErrInfo * err = static_cast<CliErrInfo*>(arg);
   CHECK(err != NULL);
-  VLOG(5) << "---------";
   err->router->ResetSubClient(err->id);
-  VLOG(5) << "---------";
   delete err;
 }
 
 void RouterServer::MakeCliErrEvent(CliErrInfo* clierr) {
   VLOG(5) << "MakeCliErrEvent";
-  struct event * everr = event_new(evbase_, -1, EV_READ, ClientErrorCB, static_cast<void *>(clierr));// wait for event_active
-  event_add(everr, NULL);  // no timeout
-  event_active(everr, 0, 0); // manual active
+  struct event * everr = event_new(evbase_, -1, EV_READ|EV_TIMEOUT, ClientErrorCB, static_cast<void *>(clierr));
+  event_add(everr, &RETRY_TV);
+  LOG(INFO) << "event_add error_event : timeout " << FLAGS_retry_interval;
 } 
-
-#if 0
-//TODO to close connection
-void RouterServer::MakePubReq(const char* host, const int port, const char* uri) {
-  //struct bufferevent * bev = bufferevent_socket_new(evbase_, -1, BEV_OPT_CLOSE_ON_FREE);
-  //CHECK(bev);
-  //const char * host = "slave1.domain.com";
-  //const int port = 9101;
-  struct evhttp_connection * evhttpcon = evhttp_connection_base_bufferevent_new(evbase_, NULL, NULL, host, port);
-  CHECK(evhttpcon);
-  struct evhttp_request* req = evhttp_request_new(PubReqDoneCB, NULL);
-  int r = evhttp_make_request(evhttpcon, req, EVHTTP_REQ_GET, uri);
-  CHECK(r == 0);
-  VLOG(5) << "MakePubReq finished.";
-}
-#endif
 
 } // namespace xcomet
 
