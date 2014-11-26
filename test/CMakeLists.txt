@@ -1,2 +1,2 @@
 
-#ADD_SUBDIRECTORY(unittest)
+ADD_SUBDIRECTORY(unittest)

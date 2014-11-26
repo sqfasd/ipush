@@ -17,11 +17,13 @@ class RouterProxy {
   RouterProxy();
   ~RouterProxy();
   void SendHeartbeat();
-  void Redirect(const string& uid, const string& content);
   void ResetSession(struct evhttp_request* req);
-  void Redirect(struct evhttp_request* pub_req);
   void RegisterUser(const string& uid);
   void UnregisterUser(const string& uid);
+
+  // TODO session will not redirect msg, use router server directly
+  void Redirect(const string& uid, const string& content);
+  void Redirect(struct evhttp_request* pub_req);
   void ChannelBroadcast(const string& cid, const string& content);
   queue<string>* GetOfflieMessages(const string& uid);
   bool HasOfflineMessage(const string& uid);
