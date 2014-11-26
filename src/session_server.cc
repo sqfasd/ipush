@@ -23,8 +23,7 @@ DEFINE_int32(timer_interval_sec, 1, "");
 namespace xcomet {
 
 SessionServer::SessionServer()
-    : storage_(router_),
-      timeout_queue_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec) {
+    : timeout_queue_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec) {
 }
 
 SessionServer::~SessionServer() {
@@ -58,14 +57,6 @@ void SessionServer::Sub(struct evhttp_request* req) {
     router_.RegisterUser(uid);
   }
   timeout_queue_.PushUserBack(user.get());
-
-  if (storage_.HasOfflineMessage(uid)) {
-    MessageIterator iter = storage_.GetOfflineMessageIterator(uid);
-    while (iter.HasNext()) {
-      user->Send(iter.Next());
-    }
-    storage_.RemoveOfflineMessages(uid);
-  }
 }
 
 // /pub?uid=123&content=hello

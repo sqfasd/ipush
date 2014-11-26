@@ -4,7 +4,6 @@
 #include "deps/base/singleton.h"
 #include "deps/base/scoped_ptr.h"
 #include "src/include_std.h"
-#include "src/storage.h"
 #include "src/user.h"
 #include "src/channel.h"
 #include "src/router_proxy.h"
@@ -42,7 +41,6 @@ class SessionServer {
   UserMap users_;
   ChannelMap channels_;
   RouterProxy router_;
-  Storage storage_;
   UserCircleQueue timeout_queue_;
 
   DISALLOW_COPY_AND_ASSIGN(SessionServer);
