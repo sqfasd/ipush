@@ -71,8 +71,9 @@ class RouterServer {
  private: //callbacks
   static void ClientErrorCB(int sock, short which, void *arg);
  private:
-  //void InitConn(const char* host, int port);
-  //void ReInitConn();
+  void SaveOfflineMsgDoneCB(bool ok);
+  void GetOfflineMsgDoneCB(MessageIteratorPtr mit);
+ private:
  private: // socket and libevent
   struct event_base *evbase_;
   scoped_ptr<Storage> storage_;
