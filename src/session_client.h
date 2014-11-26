@@ -9,11 +9,21 @@
 
 namespace xcomet {
 
+struct CliErrInfo {
+  size_t id;
+  string error;
+  class RouterServer* router;
+  CliErrInfo(size_t id_, const string& err, class RouterServer* parent) : id(id_), error(err), router(parent) {
+  }
+};
+
 class SessionClient {
  public:
   SessionClient(
+      class RouterServer* parent,
       struct event_base *evbase,
-      event_callback_fn error_cb,
+      size_t client_id,
+      //event_callback_fn error_cb,
       const string& host, 
       int port, 
       const string& uri);
@@ -30,16 +40,19 @@ class SessionClient {
   static void ReqErrorCB(enum evhttp_request_error err, void * ctx);
   static void PubReqDoneCB(struct evhttp_request* req, void * ctx);
  private:
+  class RouterServer* parent_;
+  struct event_base *evbase_;
+ private:
+  size_t client_id_;
   string host_;
   int port_;
   string uri_;
  private:
-  struct event_base *evbase_;
   struct evhttp_connection* evhttpcon_;
-  struct event* everr_;
+  //struct event* everr_;
  private:
-  void InitErrorEvent(event_callback_fn fn);
-  void ActiveErrorEvent();
+  //void InitErrorEvent(event_callback_fn fn);
+  //void ActiveErrorEvent();
 };
 
 } // namespace xcomet

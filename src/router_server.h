@@ -31,12 +31,14 @@ namespace xcomet {
 
 using base::shared_ptr;
 
+
 class RouterServer {
  public:
   RouterServer();
   ~RouterServer();
  public:
   void Start();
+  void MakeCliErrEvent(CliErrInfo* clierr);
  private: // callbacks
   //static void AcceptCB(evutil_socket_t listener, short event, void *arg);
 #if 0
@@ -51,12 +53,15 @@ class RouterServer {
  private:
   //void MakeOpenConnEvent(const char* host, const int port);
    //void CloseConn();
+  void ResetSubClient(size_t id);
+  void InitClientIpPorts(const string& ips, const string& ports);
   void InitSubClients();
  private:
   typedef string UserID;
   typedef string SessionServerID;
   map<UserID, SessionServerID> u2sMap;
  private:
+  vector<pair<string, size_t> > clientipports_;
   vector<shared_ptr<SessionClient> > subclients_;
  private: //callbacks
   static void ClientErrorCB(int sock, short which, void *arg);

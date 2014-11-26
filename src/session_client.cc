@@ -12,20 +12,24 @@ DEFINE_int32(retry_interval, 2000, "milliseconds");
 namespace xcomet {
 
 SessionClient::SessionClient(
+            class RouterServer* parent,
             struct event_base* evbase, 
-            event_callback_fn error_cb,
+            size_t client_id,
+            //event_callback_fn error_cb,
             const string& host,
             int port, 
             const string& uri)
     : 
+        parent_(parent),
         evbase_(evbase), 
-        evhttpcon_(NULL),
-        everr_(NULL),
+        client_id_(client_id),
+        //everr_(NULL),
         host_(host),
         port_(port),
-        uri_(uri) {
+        uri_(uri),
+        evhttpcon_(NULL) {
   InitConn();
-  InitErrorEvent(error_cb);
+  //InitErrorEvent(error_cb);
 }
 
 SessionClient::~SessionClient() {
@@ -35,10 +39,15 @@ SessionClient::~SessionClient() {
 //memory leak ? evhttpcon_
 void SessionClient::MakeRequestEvent() {
   VLOG(5) << "enter MakeRequestEvent";
+  VLOG(5) << "------";
   struct evhttp_request* req = evhttp_request_new(SubReqDoneCB, this);
+  VLOG(5) << "------";
   evhttp_request_set_chunked_cb(req, SubReqChunkCB);
+  VLOG(5) << "------";
   evhttp_request_set_error_cb(req, ReqErrorCB);
+  VLOG(5) << "------";
   int r = evhttp_make_request(evhttpcon_, req, EVHTTP_REQ_GET, uri_.c_str());
+  VLOG(5) << "------";
   CHECK(r == 0);
 }
 
@@ -71,8 +80,8 @@ void SessionClient::ConnCloseCB(struct evhttp_connection* conn, void *ctx) {
   VLOG(5) << "enter ConnCloseCB";
   SessionClient* that = static_cast<SessionClient*>(ctx);
   VLOG(5) << "sleep " << FLAGS_retry_interval;
-  base::MilliSleep(FLAGS_retry_interval); //TODO
-  that->MakeRequestEvent(); // reopen it
+  //base::MilliSleep(FLAGS_retry_interval); //TODO
+  //that->MakeRequestEvent(); // reopen it
   VLOG(5) << "finished ConnCloseCB";
 }
 
@@ -94,8 +103,9 @@ void SessionClient::SubReqDoneCB(struct evhttp_request *req, void *ctx) {
     LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
     VLOG(5) << "sleep " << FLAGS_retry_interval;
     base::MilliSleep(FLAGS_retry_interval); //TODO
-    LOG(ERROR) << "ActiveErrorEvent";
-    that->ActiveErrorEvent();
+    //LOG(ERROR) << "ActiveErrorEvent";
+    //that->ActiveErrorEvent();
+    that->parent_->MakeCliErrEvent(new CliErrInfo(that->client_id_, "socket error", that->parent_));
     //that->MakeRequestEvent(req->); //TODO // retry;
     return;
   }
@@ -118,7 +128,7 @@ void SessionClient::SubReqDoneCB(struct evhttp_request *req, void *ctx) {
 
 void SessionClient::SubReqChunkCB(struct evhttp_request* req, void * ctx) {
   VLOG(5) << "enter SubReqDoneCB";
-  SessionClient* that = static_cast<SessionClient*>(ctx);
+  //SessionClient* that = static_cast<SessionClient*>(ctx);
   VLOG(5) << "enter SubReqChunkCB";
   char buffer[FLAGS_read_buffer_size];
   int nread;
@@ -177,15 +187,15 @@ void SessionClient::PubReqDoneCB(struct evhttp_request* req, void * ctx) {
 
 }
 
-void SessionClient::InitErrorEvent(event_callback_fn fn) {
-  CHECK(everr_ == NULL);
-  everr_ = event_new(evbase_, -1, EV_READ, fn, this); // wait for event_active
-  event_add(everr_, NULL);
-}
+//void SessionClient::InitErrorEvent(event_callback_fn fn) {
+//  CHECK(everr_ == NULL);
+//  everr_ = event_new(evbase_, -1, EV_READ, fn, this); // wait for event_active
+//  event_add(everr_, NULL);
+//}
 
-void SessionClient::ActiveErrorEvent() {
-  CHECK(everr_ != NULL);
-  event_active(everr_, 0, 0);
-}
+//void SessionClient::ActiveErrorEvent() {
+//  CHECK(everr_ != NULL);
+//  event_active(everr_, 0, 0);
+//}
 
 }

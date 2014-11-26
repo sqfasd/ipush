@@ -22,29 +22,63 @@ RouterServer::~RouterServer() {
 }
 
 void RouterServer::Start() {
+  InitClientIpPorts(FLAGS_sserver_sub_ips, FLAGS_sserver_sub_ports);
   InitSubClients();
   event_base_dispatch(evbase_);
 }
 
-void RouterServer::InitSubClients() {
+void RouterServer::ResetSubClient(size_t id) {
+  VLOG(5) << "ResetSubClient";
+  CHECK(subclients_.size());
+  VLOG(5) << "---------";
+  CHECK(clientipports_.size());
+  VLOG(5) << "---------";
+  CHECK(id < clientipports_.size()) ;
+  VLOG(5) << "---------";
+  subclients_[id].reset(
+                new SessionClient(
+                    this,
+                    evbase_, 
+                    id,
+                    //ClientErrorCB,
+                    clientipports_[id].first, 
+                    clientipports_[id].second,
+                    FLAGS_sserver_sub_uri
+                    )
+              );
+  subclients_[id]->MakeRequestEvent();
+}
+
+void RouterServer::InitClientIpPorts(const string& ipsstr, const string& portsstr) {
   VLOG(5) << FLAGS_sserver_sub_ips ;
   VLOG(5) << FLAGS_sserver_sub_ports ;
   vector<string> ips;
   vector<string> ports;
-  SplitString(FLAGS_sserver_sub_ips, '|', &ips);
-  SplitString(FLAGS_sserver_sub_ports, '|', &ports);
-  CHECK(subclients_.empty());
+  SplitString(ipsstr, '|', &ips);
+  SplitString(portsstr, '|', &ports);
   CHECK(ips.size());
   CHECK(ips.size() == ports.size());
-  for (size_t i = 0; i < ips.size(); i++) {
-    LOG(INFO) << "new SessionClient " << ips[i] << "," << ports[i];
+  clientipports_.resize(ips.size());
+  LOG(INFO) << "clientipports_ size : " << clientipports_.size();
+  for(size_t i = 0; i < clientipports_.size(); i++) {
+    clientipports_[i].first = ips[i];
+    clientipports_[i].second = atoi(ports[i].c_str());
+  }
+}
+
+void RouterServer::InitSubClients() {
+  CHECK(subclients_.empty());
+  for (size_t i = 0; i < clientipports_.size(); i++) {
+    LOG(INFO) << "new SessionClient " << clientipports_[i].first << "," << clientipports_[i].second;
     subclients_.push_back(
                 shared_ptr<SessionClient>(
                     new SessionClient(
+                        this,
                         evbase_, 
-                        ClientErrorCB,
-                        ips[i], 
-                        atoi(ports[i].c_str()),
+                        i,
+                        //ClientErrorCB,
+                        clientipports_[i].first, 
+                        clientipports_[i].second,
                         FLAGS_sserver_sub_uri
                         )
                     )
@@ -57,11 +91,21 @@ void RouterServer::InitSubClients() {
 }
 
 void RouterServer::ClientErrorCB(int sock, short which, void *arg) {
-  SessionClient * client = static_cast<SessionClient*>(arg);
-  CHECK(client != NULL);
   VLOG(5) << "ClientErrorCB";
-  //TODO
+  CliErrInfo * err = static_cast<CliErrInfo*>(arg);
+  CHECK(err != NULL);
+  VLOG(5) << "---------";
+  err->router->ResetSubClient(err->id);
+  VLOG(5) << "---------";
+  delete err;
 }
+
+void RouterServer::MakeCliErrEvent(CliErrInfo* clierr) {
+  VLOG(5) << "MakeCliErrEvent";
+  struct event * everr = event_new(evbase_, -1, EV_READ, ClientErrorCB, static_cast<void *>(clierr));// wait for event_active
+  event_add(everr, NULL);  // no timeout
+  event_active(everr, 0, 0); // manual active
+} 
 
 #if 0
 //TODO to close connection
