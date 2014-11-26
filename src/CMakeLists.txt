@@ -14,7 +14,10 @@ TARGET_LINK_LIBRARIES(session_server
   event
 )
 
-ADD_EXECUTABLE(router_server router_server.cc)
+ADD_EXECUTABLE(router_server 
+  router_server.cc
+  session_client.cc
+)
 TARGET_LINK_LIBRARIES(router_server
   base
   pthread
