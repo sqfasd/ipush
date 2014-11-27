@@ -2,8 +2,6 @@
 
 #include "deps/base/logging.h"
 
-using base::NewOneTimeCallback;
-
 namespace xcomet {
 
 Storage::Storage(struct event_base* evbase, const string& dir)
@@ -28,8 +26,8 @@ Storage::~Storage() {
 void Storage::SaveOfflineMessage(
     const string& uid,
     const string& content,
-    base::Callback1<bool>* cb) {
-  worker_->Do(NewOneTimeCallback(this, &Storage::SaveOfflineMessageSync, uid, content), cb);
+    boost::function<void (bool)> cb) {
+  worker_->Do<bool>(boost::bind(&Storage::SaveOfflineMessageSync, this, uid, content), cb);
 }
 
 bool Storage::SaveOfflineMessageSync(const string uid, const string content) {
@@ -39,8 +37,8 @@ bool Storage::SaveOfflineMessageSync(const string uid, const string content) {
 
 void Storage::GetOfflineMessageIterator(
     const string& uid,
-    base::Callback1<MessageIteratorPtr>* cb) {
-  worker_->Do(NewOneTimeCallback(this, &Storage::GetOfflineMessageIteratorSync, uid), cb);
+    boost::function<void (MessageIteratorPtr)> cb) {
+  worker_->Do<MessageIteratorPtr>(boost::bind(&Storage::GetOfflineMessageIteratorSync, this, uid), cb);
 }
 
 MessageIteratorPtr Storage::GetOfflineMessageIteratorSync(const string uid) {

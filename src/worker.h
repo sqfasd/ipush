@@ -2,7 +2,8 @@
 #define SRC_WORKER_H_
 
 #include <event.h>
-#include "deps/base/callback.h"
+#include <boost/bind.hpp>
+#include <boost/function.hpp>
 #include "deps/base/thread.h"
 #include "deps/base/concurrent_queue.h"
 #include "src/include_std.h"
@@ -20,7 +21,7 @@ class Task {
 template <typename R>
 class TaskImpl : public Task {
  public:
-  TaskImpl(base::ResultCallback<R>* runner, base::Callback1<R>* cb)
+  TaskImpl(boost::function<R ()> runner, boost::function<void (R)> cb)
       : runner_(runner), callback_(cb) {
   }
 
@@ -28,23 +29,23 @@ class TaskImpl : public Task {
   }
 
   virtual void Run() {
-    ret_val_ = runner_->Run();
+    ret_val_ = runner_();
   }
 
   virtual void Callback() {
-    callback_->Run(ret_val_);
+    callback_(ret_val_);
   }
 
  private:
-  base::ResultCallback<R>* runner_;
-  base::Callback1<R>* callback_;
+  boost::function<R ()> runner_;
+  boost::function<void (R)> callback_;
   R ret_val_;
 };
 
 template <>
 class TaskImpl<void> : public Task {
  public:
-  TaskImpl(base::Closure* runner, base::Closure* cb) 
+  TaskImpl(boost::function<void ()> runner, boost::function<void ()> cb)
       : runner_(runner), callback_(cb) {
   }
 
@@ -52,16 +53,16 @@ class TaskImpl<void> : public Task {
   }
 
   virtual void Run() {
-    runner_->Run();
+    runner_();
   }
 
   virtual void Callback() {
-    callback_->Run();
+    callback_();
   }
 
  private:
-  base::Closure* runner_;
-  base::Closure* callback_;
+  boost::function<void ()> runner_;
+  boost::function<void ()> callback_;
 };
 
 
@@ -70,12 +71,12 @@ class Worker : public base::Thread {
   Worker(struct event_base* evbase);
   ~Worker();
 
-  void Do(base::Closure* runner, base::Closure* cb) {
+  void Do(boost::function<void ()> runner, boost::function<void ()> cb) {
     task_queue_.Push(new TaskImpl<void>(runner, cb));
   }
 
   template <typename R>
-  void Do(base::ResultCallback<R>* runner, base::Callback1<R>* cb) {
+  void Do(boost::function<R ()> runner, boost::function<void (R)> cb) {
     task_queue_.Push(new TaskImpl<R>(runner, cb));
   }
 

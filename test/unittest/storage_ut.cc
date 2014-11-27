@@ -14,12 +14,13 @@ namespace xcomet {
 class StorageUnittest : public testing::Test {
  public:
   void SaveDone(bool ok) {
+    LOG(INFO) << "Storage Save Done";
     CHECK(ok);
-    LOG(INFO) << "Storage Save Done ok";
   }
 
-  void GetDone(MessageIteratorPtr mit) {
-    LOG(INFO) << "Storage Get Done ok";
+  void GetDone(string uid, MessageIteratorPtr mit) {
+    LOG(INFO) << "Storage Get Done";
+    CHECK(uid == "u1");
     CHECK(mit->HasNext());
     CHECK(mit->Next() == "m1");
     CHECK(mit->HasNext());
@@ -70,13 +71,13 @@ class StorageUnittest : public testing::Test {
 
 TEST_F(StorageUnittest, SimpleTest) {
   storage_->SaveOfflineMessage("u1", "m1",
-      base::NewOneTimeCallback(this, &StorageUnittest::SaveDone));
+      boost::bind(&StorageUnittest::SaveDone, this, _1));
   storage_->SaveOfflineMessage("u1", "m2",
-      base::NewOneTimeCallback(this, &StorageUnittest::SaveDone));
+      boost::bind(&StorageUnittest::SaveDone, this, _1));
   storage_->SaveOfflineMessage("u1", "m3",
-      base::NewOneTimeCallback(this, &StorageUnittest::SaveDone));
+      boost::bind(&StorageUnittest::SaveDone, this, _1));
   storage_->GetOfflineMessageIterator("u1",
-      base::NewOneTimeCallback(this, &StorageUnittest::GetDone));
+      boost::bind(&StorageUnittest::GetDone, this, "u1", _1));
 }
 
 }  // namespace xcomet

@@ -77,16 +77,15 @@ class WorkerUnittest : public testing::Test {
   scoped_ptr<base::ThreadRunner> thread_;
   struct event_base* evbase_;
   pthread_t pid_;
-  int* ret_;
 };
 
 TEST_F(WorkerUnittest, SimpleTest) {
   worker_->Do(
-      base::NewOneTimeCallback(this, &WorkerUnittest::SlowWork),
-      base::NewOneTimeCallback(this, &WorkerUnittest::Callback));
-  worker_->Do(
-      base::NewOneTimeCallback(this, &WorkerUnittest::SlowWork1),
-      base::NewOneTimeCallback(this, &WorkerUnittest::Callback1));
+      boost::bind(&WorkerUnittest::SlowWork, this),
+      boost::bind(&WorkerUnittest::Callback, this));
+  worker_->Do<int*>(
+      boost::bind(&WorkerUnittest::SlowWork1, this),
+      boost::bind(&WorkerUnittest::Callback1, this, _1));
 }
 
 }  // namespace xcomet

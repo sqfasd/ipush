@@ -2,11 +2,7 @@
 #define SRC_STORAGE_H_
 
 #include <event.h>
-#ifndef __STDC_FORMAT_MACROS
-#define __STDC_FORMAT_MACROS
-#endif
 #include "deps/ssdb/src/ssdb/ssdb.h"
-#include "deps/base/callback.h"
 #include "deps/base/scoped_ptr.h"
 #include "src/include_std.h"
 #include "src/message_iterator.h"
@@ -20,11 +16,11 @@ class Storage {
   ~Storage();
   void SaveOfflineMessage(const string& uid,
                           const string& content,
-                          base::Callback1<bool>* cb);
+                          boost::function<void (bool)> cb);
   bool SaveOfflineMessageSync(const string uid, const string content);
 
   void GetOfflineMessageIterator(const string& uid,
-                                 base::Callback1<MessageIteratorPtr>* cb);
+                                 boost::function<void (MessageIteratorPtr)> cb);
   MessageIteratorPtr GetOfflineMessageIteratorSync(const string uid);
 
   //void RemoveOfflineMessages(const string& uid, base::Callback1<bool>* cb);
