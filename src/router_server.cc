@@ -196,6 +196,8 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
     CHECK(uid != NULL);
     InsertUid(uid, clientid);
     LOG(INFO) << "uid: " << uid << " clientid: " << clientid;
+    // get offline message
+    //GetOfflineMessageIterator(uid, base::NewOneTimeCallback(this, GetOfflineMsgDoneCB, uid));
   } else {
     LOG(ERROR) << value.asString();
   }
@@ -214,6 +216,19 @@ SessionServerID RouterServer::FindServerIdByUid(const UserID& uid) const {
     return INVALID_SID;
   }
   return citer->second;
+}
+
+void RouterServer::SaveOfflineMsgDoneCB(bool ok) {
+  VLOG(5) << "SaveOfflineMsgCB " << ok;
+}
+
+void RouterServer::GetOfflineMsgDoneCB(MessageIteratorPtr mit) {
+  VLOG(5) << "GetOfflineMsgDoneCB";
+  while(mit->HasNext()) {
+    string msg = mit->Next();
+    VLOG(5) << msg;
+  }
+  
 }
 
 } // namespace xcomet

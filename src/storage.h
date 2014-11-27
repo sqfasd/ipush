@@ -2,6 +2,7 @@
 #define SRC_STORAGE_H_
 
 #include <event.h>
+#include <inttypes.h>
 #include "deps/ssdb/src/ssdb/ssdb.h"
 #include "deps/base/scoped_ptr.h"
 #include "src/include_std.h"

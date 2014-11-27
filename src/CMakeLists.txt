@@ -25,10 +25,18 @@ ADD_EXECUTABLE(router_server
   router_server.cc
   session_sub_client.cc
   session_pub_client.cc
+  storage.cc
+  worker.cc
+  event_msgqueue.c
 )
 TARGET_LINK_LIBRARIES(router_server
   base
   pthread
   event
   jsoncpp
+  ssdb
+  net #ssdb net
+  util # ssdb util
+  leveldb
+  snappy
 )
