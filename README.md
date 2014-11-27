@@ -41,4 +41,8 @@ http://session_server_ip:9100/rsub
 {"type": "login", "uid": "1"}
 ```
 
+## pub http协议示例
+
+```
+```
 
