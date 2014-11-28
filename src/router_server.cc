@@ -330,12 +330,11 @@ void RouterServer::PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit
   }
 }
 
-void RouterServer::GetOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mid) {
+void RouterServer::GetOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit) {
   VLOG(5) << "RouterServer::GetOfflineMsgDoneCB";
-  stringstream ss;
   while(mit->HasNext()) {
-    string ss << mit->Next();
-    VLOG(5) << ss;
+    string s = mit->Next();
+    VLOG(5) << s;
   }
   //TODO
 }
