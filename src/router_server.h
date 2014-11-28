@@ -71,8 +71,8 @@ class RouterServer {
  private: //callbacks
   static void ClientErrorCB(int sock, short which, void *arg);
  private:
-  void SaveOfflineMsgDoneCB(bool ok);
-  void GetOfflineMsgDoneCB(MessageIteratorPtr mit);
+  void PushOfflineMsgDoneCB(bool ok);
+  void PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit);
  private:
  private: // socket and libevent
   struct event_base *evbase_;
