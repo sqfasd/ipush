@@ -6,6 +6,7 @@
 #include "base/logging.h"
 #include "base/flags.h"
 #include "base/string_util.h"
+#include "base/shared_ptr.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9100, "");
@@ -63,7 +64,13 @@ void SessionServer::Sub(struct evhttp_request* req) {
 // /pub?cid=123&content=hello
 void SessionServer::Pub(struct evhttp_request* req) {
   // TODO process post
-  CHECK_HTTP_GET();
+  // CHECK_HTTP_GET();
+  struct evbuffer* input_buffer = evhttp_request_get_input_buffer(req);
+  int len = evbuffer_get_length(input_buffer);
+  VLOG(3) << "Pub receive data length: " << len;
+  base::shared_ptr<string> post_buffer(new string());
+  post_buffer->reserve(len);
+  post_buffer->append((char*)evbuffer_pullup(input_buffer, -1), len);
 
   HttpQuery query(req);
   string content = query.GetStr("content", "");
@@ -75,7 +82,11 @@ void SessionServer::Pub(struct evhttp_request* req) {
     if (iter != users_.end()) {
       UserPtr user = iter->second;
       LOG(INFO) << "send to user: " << user->GetUid();
-      user->Send(content);
+      if (post_buffer->empty()) {
+        user->Send(content);
+      } else {
+        user->Send(*(post_buffer.get()));
+      }
       timeout_queue_.PushUserBack(user.get());
     } else {
       LOG(ERROR) << "pub uid not found: " << uid;
@@ -145,7 +156,11 @@ void SessionServer::OnTimer() {
     }
   }
   timeout_queue_.IncHead();
-  router_.SendHeartbeat();
+  if (router_.IncCounter() ==
+      FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec) {
+    router_.SendHeartbeat();
+    router_.SetCounter(0);
+  }
 }
 
 void SessionServer::RemoveUser(User* user) {

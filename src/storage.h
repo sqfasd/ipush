@@ -28,8 +28,8 @@ class Storage {
   //bool RemoveOfflineMessagesSync(const string& uid);
 
  private:
-  SSDB* ssdb_;
   scoped_ptr<Worker> worker_;
+  SSDB* ssdb_;
   const string dir_;
 };
 }  // namespace xcomet
