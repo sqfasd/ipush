@@ -5,6 +5,8 @@
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
 #include <event2/http.h>
+#include <evhttp.h>
+//#include <event2/evhttp.h>
 #include "include_std.h"
 
 namespace xcomet {

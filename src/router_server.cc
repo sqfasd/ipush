@@ -181,9 +181,9 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
   if(type.asString() == "user_msg") {
     VLOG(5) << type;
     string uri = string_format("/pub?cname=12&content=%s", type.asCString());
-    const char * to_uid = value["to_uid"].asCString();
-    CHECK(to_uid != NULL);
-    int clientid = FindServerIdByUid(to_uid);
+    const char * uid = value["uid"].asCString();
+    CHECK(uid != NULL);
+    int clientid = FindServerIdByUid(uid);
     if(clientid != INVALID_SID) {
       MakePubEvent(clientid, uri.c_str());
     } else {
@@ -199,7 +199,8 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
     // get offline message
     storage_->GetOfflineMessageIterator(uid, boost::bind(&RouterServer::PopOfflineMsgDoneCB, this, uid, _1));
   } else {
-    LOG(ERROR) << value.asString();
+    LOG(ERROR) << value;
+    //LOG(ERROR) << value.asString(); // exception
   }
 }
 

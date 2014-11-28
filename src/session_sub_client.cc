@@ -74,8 +74,8 @@ void SessionSubClient::ConnCloseCB(struct evhttp_connection* conn, void *ctx) {
 
 void SessionSubClient::SubDoneCB(struct evhttp_request *req, void *ctx) {
   VLOG(5) << "SessionSubClient::SubDoneCB";
-  SessionSubClient* that = static_cast<SessionSubClient*>(ctx);
-  CHECK(that);
+  SessionSubClient* self = static_cast<SessionSubClient*>(ctx);
+  CHECK(self);
   char buffer[FLAGS_sub_read_buffer_size];
   int nread;
 
@@ -83,11 +83,11 @@ void SessionSubClient::SubDoneCB(struct evhttp_request *req, void *ctx) {
     int errcode = EVUTIL_SOCKET_ERROR();
     LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
   }
-  that->parent_->MakeCliErrEvent(new CliErrInfo(that->client_id_, "socket error", that->parent_));
+  self->parent_->MakeCliErrEvent(new CliErrInfo(self->client_id_, "socket error", self->parent_));
 }
 
 void SessionSubClient::SubChunkCB(struct evhttp_request* req, void * ctx) {
-  SessionSubClient* that = static_cast<SessionSubClient*>(ctx);
+  SessionSubClient* self = static_cast<SessionSubClient*>(ctx);
   VLOG(5) << "enter SubChunkCB";
   char buffer[FLAGS_sub_read_buffer_size];
   int nread;
@@ -97,7 +97,7 @@ void SessionSubClient::SubChunkCB(struct evhttp_request* req, void * ctx) {
   while((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
     VLOG(5) << "read buffer size: " << nread;
     VLOG(5) << "read buffer date: " << string(buffer, nread);
-    that->parent_->ChunkedMsgHandler(that->client_id_, buffer, nread); 
+    self->parent_->ChunkedMsgHandler(self->client_id_, buffer, nread); 
   }
   VLOG(5) << "finished SubChunkCB";
 }
