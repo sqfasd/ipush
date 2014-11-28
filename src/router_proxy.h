@@ -28,10 +28,14 @@ class RouterProxy {
   queue<string>* GetOfflieMessages(const string& uid);
   bool HasOfflineMessage(const string& uid);
   void RemoveOfflineMessages(const string& uid);
+  void SetCounter(int n) {counter_ = n;}
+  int IncCounter() {return ++counter_;}
  private:
   void SendAll();
   void OnSessionDisconnected();
+
   scoped_ptr<Session> session_;
+  int counter_;
   MsgMap user_msgs_;
   set<string> users_;
   vector<string> msg_buffer_;

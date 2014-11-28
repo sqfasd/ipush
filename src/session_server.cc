@@ -156,7 +156,11 @@ void SessionServer::OnTimer() {
     }
   }
   timeout_queue_.IncHead();
-  router_.SendHeartbeat();
+  if (router_.IncCounter() ==
+      FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec) {
+    router_.SendHeartbeat();
+    router_.SetCounter(0);
+  }
 }
 
 void SessionServer::RemoveUser(User* user) {

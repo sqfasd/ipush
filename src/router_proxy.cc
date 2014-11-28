@@ -5,7 +5,7 @@
 namespace xcomet {
 
 RouterProxy::RouterProxy()
-    : buffer_size_(1000), seq_(0), offset_(0), tail_(0) {
+    : counter_(0), buffer_size_(1000), seq_(0), offset_(0), tail_(0) {
   msg_buffer_.reserve(buffer_size_);
 }
 
