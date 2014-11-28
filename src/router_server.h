@@ -73,6 +73,7 @@ class RouterServer {
  private:
   void PushOfflineMsgDoneCB(bool ok);
   void PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit);
+  void GetOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mid);
  private: 
   struct event_base *evbase_;
   scoped_ptr<Storage> storage_;

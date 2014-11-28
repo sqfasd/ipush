@@ -235,7 +235,7 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
     InsertUid(uid, clientid);
     LOG(INFO) << "uid: " << uid << " clientid: " << clientid;
     // get offline message
-    storage_->GetOfflineMessageIterator(uid, boost::bind(&RouterServer::PopOfflineMsgDoneCB, this, uid, _1));
+    storage_->PopOfflineMessageIterator(uid, boost::bind(&RouterServer::PopOfflineMsgDoneCB, this, uid, _1));
   } else if(IS_LOGOUT(type)) {
     VLOG(5) << type;
     //TODO
@@ -328,6 +328,16 @@ void RouterServer::PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit
     //TODO
     //session_pub_clients_[sid]->MakePubEvent();
   }
+}
+
+void RouterServer::GetOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mid) {
+  VLOG(5) << "RouterServer::GetOfflineMsgDoneCB";
+  stringstream ss;
+  while(mit->HasNext()) {
+    string ss << mit->Next();
+    VLOG(5) << ss;
+  }
+  //TODO
 }
 
 void RouterServer::ReplyError(struct evhttp_request* req) {
