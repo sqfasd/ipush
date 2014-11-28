@@ -61,7 +61,7 @@ MessageIteratorPtr Storage::GetOfflineMessageIteratorSync(const string uid) {
   // TODO avoid inefficient copy
   ssdb_->qslice(uid, 0, -1, &result);
   base::shared_ptr<queue<string> > mq(new queue<string>());
-  for (int i = 0; i < result.size(); ++i) {
+  for (size_t i = 0; i < result.size(); ++i) {
     mq->push(result[i]);
   }
   return MessageIteratorPtr(new MessageIterator(mq));

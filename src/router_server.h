@@ -80,7 +80,11 @@ class RouterServer {
   void InitAdminHttp();
   struct evhttp* admin_http_;
   static void AdminPubCB(struct evhttp_request* req, void *ctx);
-  static void AcceptErrorHandler(struct evconnlistener * listener , void *ctx);
+  static void AdminBroadcastCB(struct evhttp_request* req, void *ctx);
+  static void AdminCheckPresenceCB(struct evhttp_request* req, void * ctx);
+  static void AdminCheckOffMsgCB(struct evhttp_request* req, void *ctx);
+  static void AcceptErrorCB(struct evconnlistener * listener , void *ctx);
+ private:
   void ReplyError(struct evhttp_request* req);
   void ReplyOK(struct evhttp_request* req);
 };

@@ -96,7 +96,7 @@ void SessionSubClient::SubChunkCB(struct evhttp_request* req, void * ctx) {
   //TODO when errno == EAGAIN
   while((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
     VLOG(5) << "read buffer size: " << nread;
-    VLOG(5) << "read buffer date: " << string(buffer, nread);
+    VLOG(5) << "read buffer date: " << (string(buffer, nread - 1));
     self->parent_->ChunkedMsgHandler(self->client_id_, buffer, nread); 
   }
   VLOG(5) << "finished SubChunkCB";

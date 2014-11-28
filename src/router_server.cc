@@ -159,16 +159,20 @@ void RouterServer::InitStorage(const string& path) {
 void RouterServer::InitAdminHttp() {
   admin_http_ = evhttp_new(evbase_);
   evhttp_set_cb(admin_http_, "/pub", AdminPubCB, this);
+  evhttp_set_cb(admin_http_, "/broadcast", AdminBroadcastCB, this);
+  evhttp_set_cb(admin_http_, "/presence", AdminCheckPresenceCB, this);
+  evhttp_set_cb(admin_http_, "/offmsg", AdminCheckOffMsgCB, this);
+  
   struct evhttp_bound_socket* sock;
   sock = evhttp_bind_socket_with_handle(admin_http_, FLAGS_admin_listen_ip.c_str(), FLAGS_admin_listen_port);
   CHECK(sock) << "bind address failed" << strerror(errno);
   LOG(INFO) << "admin server listen on" << FLAGS_admin_listen_ip << " " << FLAGS_admin_listen_port;
   struct evconnlistener * listener = evhttp_bound_socket_get_listener(sock);
-  evconnlistener_set_error_cb(listener, AcceptErrorHandler);
+  evconnlistener_set_error_cb(listener, AcceptErrorCB);
 }
 
-void RouterServer::AcceptErrorHandler(struct evconnlistener * listener, void * ctx) {
-  LOG(ERROR) << "RouterServer::AcceptErrorHandler";
+void RouterServer::AcceptErrorCB(struct evconnlistener * listener, void * ctx) {
+  LOG(ERROR) << "RouterServer::AcceptErrorCB";
 }
 
 void RouterServer::ClientErrorCB(int sock, short which, void *arg) {
@@ -250,7 +254,6 @@ void RouterServer::InsertUid(const UserID& uid, SessionServerID sid) {
 }
 
 SessionServerID RouterServer::FindServerIdByUid(const UserID& uid) const {
-  SessionServerID sid;
   map<UserID, SessionServerID>::const_iterator citer;
   citer = u2sMap_.find(uid);
   if(citer == u2sMap_.end()) {
@@ -290,6 +293,28 @@ void RouterServer::AdminPubCB(struct evhttp_request* req, void *ctx) {
   VLOG(5) << "reply ok";
 }
 
+void RouterServer::AdminBroadcastCB(struct evhttp_request* req, void *ctx) {
+  //TODO
+  //RouterServer * self = static_cast<RouterServer*>(ctx);
+  VLOG(5) << "RouterServer::AdminBroadcastCB";
+}
+
+void RouterServer::AdminCheckPresenceCB(struct evhttp_request* req, void *ctx) {
+  RouterServer * self = static_cast<RouterServer*>(ctx);
+  VLOG(5) << "RouterServer::AdminCheckPresenceCB";
+  evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
+  struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
+  string response;
+  string_format(response,  "{\"presence\": %d}", self->u2sMap_.size());
+  evbuffer_add(output_buffer, response.c_str(), response.size());
+  evhttp_send_reply(req, HTTP_OK, response.c_str(), output_buffer);
+  VLOG(5) << response;
+}
+
+void RouterServer::AdminCheckOffMsgCB(struct evhttp_request* req, void *ctx) {
+  //TODO
+}
+
 void RouterServer::PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit) {
   VLOG(5) << "PopOfflineMsgDoneCB";
   SessionServerID sid = FindServerIdByUid(uid);
@@ -308,9 +333,7 @@ void RouterServer::PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit
 void RouterServer::ReplyError(struct evhttp_request* req) {
   evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  //const char * response = "{\"type\":\"ok\"}\n"; //TODO
-  //evbuffer_add(output_buffer, response, strlen(response)); // TODO
-  evhttp_send_reply(req, 404, "Error", output_buffer);
+  evhttp_send_reply(req, HTTP_BADREQUEST, "Error", output_buffer);
 }
 
 void RouterServer::ReplyOK(struct evhttp_request* req) {
@@ -318,7 +341,7 @@ void RouterServer::ReplyOK(struct evhttp_request* req) {
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
   const char * response = "{\"type\":\"ok\"}\n"; //TODO
   evbuffer_add(output_buffer, response, strlen(response)); // TODO
-  evhttp_send_reply(req, 200, "OK", output_buffer);
+  evhttp_send_reply(req, HTTP_OK, "OK", output_buffer);
 }
 
 } // namespace xcomet
