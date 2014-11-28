@@ -47,3 +47,8 @@ http://session_server_ip:9100/rsub
 http://session_server_ip:9000/sub?uid=1
 ```
 
+## 调用示例
+
+```
+curl -v -d "@test.body" "http://localhost:9100/pub?uid=1"
+```

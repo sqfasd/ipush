@@ -172,11 +172,10 @@ void SessionServer::RemoveUser(User* user) {
 }
 
 void SessionServer::ReplyOK(struct evhttp_request* req) {
-  evhttp_add_header(req->output_headers, "Content-Type", "text/javascript; charset=utf-8");
-  struct evbuffer *buf = evbuffer_new();
-  evbuffer_add_printf(buf, "{\"type\":\"ok\"}\n");
-  evhttp_send_reply(req, 200, "OK", buf);
-  evbuffer_free(buf);
+  evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
+  struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
+  evbuffer_add_printf(output_buffer, "{\"type\":\"ok\"}\n"); //TODO
+  evhttp_send_reply(req, 200, "OK", output_buffer);
 }
 
 }  // namespace xcomet

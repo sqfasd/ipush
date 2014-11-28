@@ -80,6 +80,9 @@ class RouterServer {
   void InitAdminHttp();
   struct evhttp* admin_http_;
   static void AdminPubCB(struct evhttp_request* req, void *ctx);
+  static void AcceptErrorHandler(struct evconnlistener * listener , void *ctx);
+  void ReplyError(struct evhttp_request* req);
+  void ReplyOK(struct evhttp_request* req);
 };
 
 } // namespace xcomet

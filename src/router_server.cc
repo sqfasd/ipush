@@ -6,6 +6,10 @@
 #include "deps/base/string_util.h"
 #include "deps/limonp/StringUtil.hpp"
 #include "http_query.h"
+#include <event2/listener.h>
+
+DEFINE_string(admin_listen_ip, "0.0.0.0", "");
+DEFINE_int32(admin_listen_port, 9100, "");
 
 DEFINE_string(sserver_sub_ips, "127.0.0.1|127.0.0.1", "");
 DEFINE_string(sserver_sub_ports, "8100|8200", "");
@@ -21,6 +25,11 @@ DEFINE_int32(retry_interval, 2, "seconds");
 DEFINE_bool(libevent_debug_log, false, "for debug logging");
 
 const struct timeval RETRY_TV = {FLAGS_retry_interval, 0};
+
+#define IS_LOGIN(type) (strcmp(type, "login") == 0)
+#define IS_LOGOUT(type) (strcmp(type, "logout") == 0)
+#define IS_MSG(type) (strcmp(type, "user_msg") == 0)
+#define IS_NOOP(type) (strcmp(type, "noop") == 0)
 
 namespace xcomet {
 
@@ -41,6 +50,7 @@ void RouterServer::Start() {
   InitPubCliAddrs(FLAGS_sserver_pub_ips, FLAGS_sserver_pub_ports);
   InitPubClients();
   InitStorage(FLAGS_ssdb_path);
+  InitAdminHttp();
   event_base_dispatch(evbase_);
 }
 
@@ -148,7 +158,17 @@ void RouterServer::InitStorage(const string& path) {
 
 void RouterServer::InitAdminHttp() {
   admin_http_ = evhttp_new(evbase_);
-  evhttp_set_cb(admin_http_, "/pub", AdminPubCB, evbase_);
+  evhttp_set_cb(admin_http_, "/pub", AdminPubCB, this);
+  struct evhttp_bound_socket* sock;
+  sock = evhttp_bind_socket_with_handle(admin_http_, FLAGS_admin_listen_ip.c_str(), FLAGS_admin_listen_port);
+  CHECK(sock) << "bind address failed" << strerror(errno);
+  LOG(INFO) << "admin server listen on" << FLAGS_admin_listen_ip << " " << FLAGS_admin_listen_port;
+  struct evconnlistener * listener = evhttp_bound_socket_get_listener(sock);
+  evconnlistener_set_error_cb(listener, AcceptErrorHandler);
+}
+
+void RouterServer::AcceptErrorHandler(struct evconnlistener * listener, void * ctx) {
+  LOG(ERROR) << "RouterServer::AcceptErrorHandler";
 }
 
 void RouterServer::ClientErrorCB(int sock, short which, void *arg) {
@@ -187,14 +207,24 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
     LOG(ERROR) << "json parse failed, data" << string(buffer, len);
     return;
   }
-  const Json::Value& type = value["type"];
-  if(type.asString() == "user_msg") {
+  const char* type = NULL;
+  try {
+    type = value["type"].asCString();
+  } catch (...) {
+    LOG(ERROR) << "json catch exception :" << string(buffer, len);
+    return;
+  }
+  if (type == NULL) {
+    LOG(ERROR) << "type is NULL";
+    return;
+  }
+  if(IS_MSG(type)) {
     VLOG(5) << type;
-    string uri = string_format("/pub?cname=12&content=%s", type.asCString());
+    string uri = string_format("/pub?cname=12&content=%s", type);
     const char * uid = value["uid"].asCString();
     CHECK(uid != NULL);
     MakePubEvent(uid, buffer, len);
-  } else if(type.asString() == "login") {
+  } else if(IS_LOGIN(type)) {
     VLOG(5) << type;
     const char * uid = value["uid"].asCString();
     CHECK(uid != NULL);
@@ -202,9 +232,15 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
     LOG(INFO) << "uid: " << uid << " clientid: " << clientid;
     // get offline message
     storage_->GetOfflineMessageIterator(uid, boost::bind(&RouterServer::PopOfflineMsgDoneCB, this, uid, _1));
-  } else {
-    LOG(ERROR) << value;
+  } else if(IS_LOGOUT(type)) {
+    VLOG(5) << type;
+    //TODO
+    //LOG(ERROR) << value;
     //LOG(ERROR) << value.asString(); // exception
+  } else if(IS_NOOP(type)) {
+    VLOG(5) << type;
+  } else {
+    LOG(ERROR) << "type is illegal";
   }
 }
 
@@ -236,6 +272,7 @@ void RouterServer::AdminPubCB(struct evhttp_request* req, void *ctx) {
   //const char * content = query.GetStr("content", NULL);
   if (uid == NULL) {
     LOG(ERROR) << "uid not found";
+    self->ReplyError(req);
     return;
   }
   
@@ -245,9 +282,12 @@ void RouterServer::AdminPubCB(struct evhttp_request* req, void *ctx) {
   const char * bufferstr = (const char*)evbuffer_pullup(input_buffer, len);
   if(bufferstr == NULL) {
     LOG(ERROR) << "evbuffer_pullup return null";
+    self->ReplyError(req);
     return;
   }
   self->MakePubEvent(uid, bufferstr, len);
+  self->ReplyOK(req);
+  VLOG(5) << "reply ok";
 }
 
 void RouterServer::PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit) {
@@ -263,6 +303,22 @@ void RouterServer::PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit
     //TODO
     //session_pub_clients_[sid]->MakePubEvent();
   }
+}
+
+void RouterServer::ReplyError(struct evhttp_request* req) {
+  evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
+  struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
+  //const char * response = "{\"type\":\"ok\"}\n"; //TODO
+  //evbuffer_add(output_buffer, response, strlen(response)); // TODO
+  evhttp_send_reply(req, 404, "Error", output_buffer);
+}
+
+void RouterServer::ReplyOK(struct evhttp_request* req) {
+  evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
+  struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
+  const char * response = "{\"type\":\"ok\"}\n"; //TODO
+  evbuffer_add(output_buffer, response, strlen(response)); // TODO
+  evhttp_send_reply(req, 200, "OK", output_buffer);
 }
 
 } // namespace xcomet
