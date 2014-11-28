@@ -20,6 +20,10 @@ class Storage {
                           boost::function<void (bool)> cb);
   bool SaveOfflineMessageSync(const string uid, const string content);
 
+  void PopOfflineMessageIterator(const string& uid,
+                                 boost::function<void (MessageIteratorPtr)> cb);
+  MessageIteratorPtr PopOfflineMessageIteratorSync(const string uid);
+
   void GetOfflineMessageIterator(const string& uid,
                                  boost::function<void (MessageIteratorPtr)> cb);
   MessageIteratorPtr GetOfflineMessageIteratorSync(const string uid);

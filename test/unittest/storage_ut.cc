@@ -18,6 +18,18 @@ class StorageUnittest : public testing::Test {
     CHECK(ok);
   }
 
+  void PopDone(string uid, MessageIteratorPtr mit) {
+    LOG(INFO) << "Storage Pop Done";
+    CHECK(uid == "u1");
+    CHECK(mit->HasNext());
+    CHECK(mit->Next() == "m1");
+    CHECK(mit->HasNext());
+    CHECK(mit->Next() == "m2");
+    CHECK(mit->HasNext());
+    CHECK(mit->Next() == "m3");
+    CHECK(!mit->HasNext());
+  }
+
   void GetDone(string uid, MessageIteratorPtr mit) {
     LOG(INFO) << "Storage Get Done";
     CHECK(uid == "u1");
@@ -78,6 +90,8 @@ TEST_F(StorageUnittest, SimpleTest) {
       boost::bind(&StorageUnittest::SaveDone, this, _1));
   storage_->GetOfflineMessageIterator("u1",
       boost::bind(&StorageUnittest::GetDone, this, "u1", _1));
+  storage_->PopOfflineMessageIterator("u1",
+      boost::bind(&StorageUnittest::PopDone, this, "u1", _1));
 }
 
 }  // namespace xcomet

@@ -35,6 +35,21 @@ bool Storage::SaveOfflineMessageSync(const string uid, const string content) {
   return true;
 }
 
+void Storage::PopOfflineMessageIterator(
+    const string& uid,
+    boost::function<void (MessageIteratorPtr)> cb) {
+  worker_->Do<MessageIteratorPtr>(boost::bind(&Storage::PopOfflineMessageIteratorSync, this, uid), cb);
+}
+
+MessageIteratorPtr Storage::PopOfflineMessageIteratorSync(const string uid) {
+  string str1;
+  base::shared_ptr<queue<string> > mq(new queue<string>());
+  while (ssdb_->qpop_front(uid, &str1) > 0) {
+    mq->push(str1);
+  }
+  return MessageIteratorPtr(new MessageIterator(mq));
+}
+
 void Storage::GetOfflineMessageIterator(
     const string& uid,
     boost::function<void (MessageIteratorPtr)> cb) {
@@ -42,10 +57,12 @@ void Storage::GetOfflineMessageIterator(
 }
 
 MessageIteratorPtr Storage::GetOfflineMessageIteratorSync(const string uid) {
-  string str1;
+  vector<string> result;
+  // TODO avoid inefficient copy
+  ssdb_->qslice(uid, 0, -1, &result);
   base::shared_ptr<queue<string> > mq(new queue<string>());
-  while (ssdb_->qpop_front(uid, &str1) > 0) {
-    mq->push(str1);
+  for (int i = 0; i < result.size(); ++i) {
+    mq->push(result[i]);
   }
   return MessageIteratorPtr(new MessageIterator(mq));
 }
