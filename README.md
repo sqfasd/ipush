@@ -34,7 +34,7 @@ http://session_server_ip:9100/rsub
 ## router_server 和 session_server 交互的协议示例
 
 ```
-{"type": "user_msg", "to_uid":"1", "content":"hello world"}
+{"type": "user_msg", "uid":"1", "content":"hello world"}
 ```
 
 ```
@@ -44,5 +44,6 @@ http://session_server_ip:9100/rsub
 ## pub http协议示例
 
 ```
+http://session_server_ip:9000/sub?uid=1
 ```
 

@@ -5,6 +5,8 @@
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
 #include <event2/http.h>
+#include <evhttp.h>
+//#include <event2/evhttp.h>
 #include "include_std.h"
 
 namespace xcomet {
@@ -20,7 +22,7 @@ class SessionPubClient {
       );
   ~SessionPubClient();
  public:
-  void MakePubEvent(const char* pub_uri);
+  void MakePubEvent(const char * uid, const char* content, size_t len);
  private:
   void InitConn();
   void CloseConn();

@@ -5,6 +5,7 @@
 #include "deps/base/time.h"
 #include "deps/base/string_util.h"
 #include "deps/limonp/StringUtil.hpp"
+#include "http_query.h"
 
 DEFINE_string(sserver_sub_ips, "127.0.0.1|127.0.0.1", "");
 DEFINE_string(sserver_sub_ports, "8100|8200", "");
@@ -145,6 +146,11 @@ void RouterServer::InitStorage(const string& path) {
   
 }
 
+void RouterServer::InitAdminHttp() {
+  admin_http_ = evhttp_new(evbase_);
+  evhttp_set_cb(admin_http_, "/pub", AdminPubCB, evbase_);
+}
+
 void RouterServer::ClientErrorCB(int sock, short which, void *arg) {
   VLOG(5) << "ClientErrorCB";
   CliErrInfo * err = static_cast<CliErrInfo*>(arg);
@@ -160,13 +166,17 @@ void RouterServer::MakeCliErrEvent(CliErrInfo* clierr) {
   LOG(INFO) << "event_add error_event : timeout " << FLAGS_retry_interval;
 } 
 
-void RouterServer::MakePubEvent(size_t clientid, const char* pub_uri) {
+void RouterServer::MakePubEvent(const char* uid, const char* data, size_t len) {
   VLOG(5) << "RouterServer::MakePubEvent";
-  if(clientid >= session_pub_clients_.size()) {
-    LOG(ERROR) << "clientid " << clientid << " out of range";
-    return;
+  SessionServerID sid = FindServerIdByUid(uid);
+  if(sid == INVALID_SID) {
+    LOG(INFO) << "uid " << uid << " is offline";
+    //to save the pub the content TODO
+  } else {
+    CHECK(size_t(sid) < session_pub_clients_.size());
+    session_pub_clients_[sid]->MakePubEvent(uid, data, len);
+    VLOG(5) << "session_pub_clients_[sid]->MakePubEvent";
   }
-  session_pub_clients_[clientid]->MakePubEvent(pub_uri);
 }
 
 void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t len) {
@@ -181,15 +191,9 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
   if(type.asString() == "user_msg") {
     VLOG(5) << type;
     string uri = string_format("/pub?cname=12&content=%s", type.asCString());
-    const char * to_uid = value["to_uid"].asCString();
-    CHECK(to_uid != NULL);
-    int clientid = FindServerIdByUid(to_uid);
-    if(clientid != INVALID_SID) {
-      MakePubEvent(clientid, uri.c_str());
-    } else {
-      //TODO offline message handle
-      VLOG(5) << "offline mesage";
-    }
+    const char * uid = value["uid"].asCString();
+    CHECK(uid != NULL);
+    MakePubEvent(uid, buffer, len);
   } else if(type.asString() == "login") {
     VLOG(5) << type;
     const char * uid = value["uid"].asCString();
@@ -199,7 +203,8 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
     // get offline message
     storage_->GetOfflineMessageIterator(uid, boost::bind(&RouterServer::PopOfflineMsgDoneCB, this, uid, _1));
   } else {
-    LOG(ERROR) << value.asString();
+    LOG(ERROR) << value;
+    //LOG(ERROR) << value.asString(); // exception
   }
 }
 
@@ -220,6 +225,29 @@ SessionServerID RouterServer::FindServerIdByUid(const UserID& uid) const {
 
 void RouterServer::PushOfflineMsgDoneCB(bool ok) {
   VLOG(5) << "SaveOfflineMsgCB " << ok;
+}
+
+void RouterServer::AdminPubCB(struct evhttp_request* req, void *ctx) {
+  RouterServer * self = static_cast<RouterServer*>(ctx);
+  VLOG(5) << "RouterServer::AdminPubCB";
+
+  HttpQuery query(req);
+  const char * uid = query.GetStr("uid", NULL);
+  //const char * content = query.GetStr("content", NULL);
+  if (uid == NULL) {
+    LOG(ERROR) << "uid not found";
+    return;
+  }
+  
+  struct evbuffer* input_buffer = evhttp_request_get_input_buffer(req);
+  int len = evbuffer_get_length(input_buffer);
+  VLOG(5) << "data length:" << len;
+  const char * bufferstr = (const char*)evbuffer_pullup(input_buffer, len);
+  if(bufferstr == NULL) {
+    LOG(ERROR) << "evbuffer_pullup return null";
+    return;
+  }
+  self->MakePubEvent(uid, bufferstr, len);
 }
 
 void RouterServer::PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit) {
