@@ -36,7 +36,7 @@ void RouterProxy::SendAll() {
 
 void RouterProxy::Redirect(const string& uid, const string& content) {
   VLOG(3) << "Redirect: uid=" << uid << ", content=" << content;
-  string msg = StringPrintf("{\"type\":\"user_msg\", \"content\":\"%s\",\"to\":\"%s\",\"seq\":%d}",
+  string msg = StringPrintf("{\"type\":\"user_msg\", \"content\":\"%s\",\"uid\":\"%s\",\"seq\":%d}",
       uid.c_str(), content.c_str(), seq_++);
   msg_buffer_.push_back(msg);
   tail_++;
@@ -64,7 +64,7 @@ void RouterProxy::Redirect(struct evhttp_request* pub_req) {
 void RouterProxy::RegisterUser(const string& uid) {
   LOG(INFO) << "RegisterUser: " << uid;
   // users_.insert(uid);
-  string msg = StringPrintf("{\"type\":\"user_reg\", \"uid\":\"%s\",\"seq\":%d}",
+  string msg = StringPrintf("{\"type\":\"login\", \"uid\":\"%s\",\"seq\":%d}",
       uid.c_str(), seq_++);
   msg_buffer_.push_back(msg);
   tail_++;
@@ -73,7 +73,7 @@ void RouterProxy::RegisterUser(const string& uid) {
 
 void RouterProxy::UnregisterUser(const string& uid) {
   // users_.erase(uid);
-  string msg = StringPrintf("{\"type\":\"user_unreg\", \"uid\":\"%s\",\"seq\":%d}",
+  string msg = StringPrintf("{\"type\":\"logout\", \"uid\":\"%s\",\"seq\":%d}",
       uid.c_str(), seq_++);
   msg_buffer_.push_back(msg);
   tail_++;
