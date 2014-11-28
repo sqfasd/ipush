@@ -22,7 +22,7 @@ class SessionPubClient {
       );
   ~SessionPubClient();
  public:
-  void MakePubEvent(const char* pub_uri);
+  void MakePubEvent(const char * uid, const char* content, size_t len);
  private:
   void InitConn();
   void CloseConn();

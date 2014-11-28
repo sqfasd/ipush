@@ -47,7 +47,7 @@ class RouterServer {
  public:
   void Start();
   void MakeCliErrEvent(CliErrInfo* clierr);
-  void MakePubEvent(size_t clientid, const char* pub_uri);
+  void MakePubEvent(const char* uid, const char* data, size_t len);
   void ChunkedMsgHandler(size_t clientid, const char* buffer, size_t len);
  private:
   void ResetSubClient(size_t id);
@@ -73,10 +73,13 @@ class RouterServer {
  private:
   void PushOfflineMsgDoneCB(bool ok);
   void PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit);
- private:
- private: // socket and libevent
+ private: 
   struct event_base *evbase_;
   scoped_ptr<Storage> storage_;
+ private:
+  void InitAdminHttp();
+  struct evhttp* admin_http_;
+  static void AdminPubCB(struct evhttp_request* req, void *ctx);
 };
 
 } // namespace xcomet

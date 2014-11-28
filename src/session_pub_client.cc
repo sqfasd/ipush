@@ -34,15 +34,14 @@ SessionPubClient::~SessionPubClient() {
   CloseConn();
 }
 
-void SessionPubClient::MakePubEvent(const char* pub_uri) {
-  VLOG(5) << "MakePubEvent";
-  const char * data = "{\"type\":\"test\"}";
+void SessionPubClient::MakePubEvent(const char * uid, const char* data, size_t len) {
+  VLOG(5) << "SessionPubClient::MakePubEvent";
   struct evhttp_request* req = evhttp_request_new(PubDoneCB, this);
-  evbuffer_add(req->output_buffer, data, strlen(data));
+  evbuffer_add(req->output_buffer, data, len);
   evhttp_request_set_error_cb(req, ReqErrorCB);
   evhttp_request_set_on_complete_cb(req, PubCompleteCB, this);
-  CHECK(pub_uri);
-  int r = evhttp_make_request(evhttpcon_, req, EVHTTP_REQ_POST, pub_uri);
+  CHECK(data != NULL && len > 0);
+  int r = evhttp_make_request(evhttpcon_, req, EVHTTP_REQ_POST, string_format("/pub?uid=%s", uid).c_str());
   CHECK(r == 0);
 }
 
