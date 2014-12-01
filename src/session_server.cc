@@ -133,6 +133,10 @@ void SessionServer::Broadcast(struct evhttp_request* req) {
 void SessionServer::RSub(struct evhttp_request* req) {
   CHECK_HTTP_GET();
   router_.ResetSession(req);
+  UserMap::iterator it;
+  for (it = users_.begin(); it != users_.end(); ++it) {
+    router_.RegisterUser(it->first);
+  }
 }
 
 // /join?cid=123&uid=456&resource=work
