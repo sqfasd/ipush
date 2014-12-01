@@ -34,8 +34,8 @@ using namespace std;
 
 namespace xcomet {
 
-typedef string UserID; //TODO
-typedef int SessionServerID; //TODO
+typedef string UserID;
+typedef int SessionServerID; 
 const SessionServerID INVALID_SID = -1;
 
 using base::shared_ptr;
@@ -48,7 +48,7 @@ class RouterServer {
   void Start();
   void MakeCliErrEvent(CliErrInfo* clierr);
   void MakePubEvent(const char* uid, const char* data, size_t len);
-  void ChunkedMsgHandler(size_t clientid, const char* buffer, size_t len);
+  void ChunkedMsgHandler(size_t sid, const char* buffer, size_t len);
  private:
   void ResetSubClient(size_t id);
   void InitSubCliAddrs(const string& ips, const string& ports);
