@@ -21,10 +21,9 @@ void Session::Send(const std::string& content) {
 }
 
 void Session::Send2(const std::string& content) {
-  struct evbuffer* buf = evbuffer_new();
+  struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
   evbuffer_add_printf(buf, "%s\n", content.c_str());
   evhttp_send_reply_chunk(req_, buf);
-  evbuffer_free(buf);
 }
 
 void Session::SendHeartbeat() {
@@ -32,11 +31,10 @@ void Session::SendHeartbeat() {
 }
 
 void Session::SendChunk(const string& type, const string& content) {
-  struct evbuffer* buf = evbuffer_new();
+  struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
   evbuffer_add_printf(buf, "{\"type\": \"%s\",\"content\":\"%s\"}\n",
                       type.c_str(), content.c_str());
   evhttp_send_reply_chunk(req_, buf);
-  evbuffer_free(buf);
 }
 
 void Session::Close() {
