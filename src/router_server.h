@@ -63,6 +63,7 @@ class RouterServer {
  private:
   SessionServerID FindServerIdByUid(const UserID& uid) const;
   void InsertUid(const UserID& uid, SessionServerID sid);
+  void EraseUid(const UserID& uid) ;
  private:
   vector<pair<string, size_t> > subcliaddrs_;
   vector<pair<string, size_t> > pubcliaddrs_;

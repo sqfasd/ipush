@@ -243,6 +243,7 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
     storage_->PopOfflineMessageIterator(string(uid), boost::bind(&RouterServer::PopOfflineMsgDoneCB, this, string(uid), _1));
   } else if(IS_LOGOUT(type)) {
     VLOG(5) << type;
+    
     //TODO
     //LOG(ERROR) << value;
     //LOG(ERROR) << value.asString(); // exception
@@ -254,8 +255,22 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
 }
 
 void RouterServer::InsertUid(const UserID& uid, SessionServerID sid) {
+  VLOG(5) << "RouterServer::InsertUid " << uid;
   u2sMap_[uid] = sid;
-  VLOG(5) << "u2sMap size: " << u2sMap_.size() ;
+  VLOG(5) << "u2sMap size: " << u2sMap_.size();
+}
+
+void RouterServer::EraseUid(const UserID& uid) {
+  VLOG(5) << "RouterServer::EraseUid " << uid;
+  map<UserID, SessionServerID>::iterator iter;
+  iter = u2sMap_.find(uid);
+  if(iter == u2sMap_.end()) {
+    LOG(ERROR) << "uid " << uid << " not found.";
+    return;
+  }
+  u2sMap_.erase(iter);
+  VLOG(3) << "erase uid : " << uid;
+  VLOG(5) << "u2sMap size: " << u2sMap_.size();
 }
 
 SessionServerID RouterServer::FindServerIdByUid(const UserID& uid) const {
@@ -365,16 +380,16 @@ void RouterServer::ReplyError(struct evhttp_request* req) {
   VLOG(5) << "ReplyError";
   evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  const char * response = "{\"type\":\"error\"}\n"; //TODO
-  evbuffer_add(output_buffer, response, strlen(response)); // TODO
+  const char * response = "{\"type\":\"error\"}\n";
+  evbuffer_add(output_buffer, response, strlen(response)); 
   evhttp_send_reply(req, HTTP_BADREQUEST, "Error", output_buffer);
 }
 
 void RouterServer::ReplyOK(struct evhttp_request* req) {
   evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  const char * response = "{\"type\":\"ok\"}\n"; //TODO
-  evbuffer_add(output_buffer, response, strlen(response)); // TODO
+  const char * response = "{\"type\":\"ok\"}\n"; 
+  evbuffer_add(output_buffer, response, strlen(response)); 
   evhttp_send_reply(req, HTTP_OK, "OK", output_buffer);
 }
 
