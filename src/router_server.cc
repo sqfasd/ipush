@@ -201,7 +201,8 @@ void RouterServer::MakePubEvent(const char* uid, const char* data, size_t len) {
   SessionServerID sid = FindServerIdByUid(uid);
   if(sid == INVALID_SID) {
     LOG(INFO) << "uid " << uid << " is offline";
-    //to save the pub the content TODO
+    storage_->SaveOfflineMessage(uid, string(data, len), boost::bind(&RouterServer::PushOfflineMsgDoneCB, this, _1));
+    VLOG(5) << "storage_->SaveOfflineMessage" << uid << string(data, len);
   } else {
     CHECK(size_t(sid) < session_pub_clients_.size());
     session_pub_clients_[sid]->MakePubEvent(uid, data, len);
@@ -209,7 +210,7 @@ void RouterServer::MakePubEvent(const char* uid, const char* data, size_t len) {
   }
 }
 
-void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t len) {
+void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len) {
   VLOG(5) << "RouterServer::ChunkedMsgHandler";
   Json::Value value;
   Json::Reader reader;
@@ -230,7 +231,6 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
   }
   if(IS_MSG(type)) {
     VLOG(5) << type;
-    string uri = string_format("/pub?cname=12&content=%s", type);
     const char * uid = value["uid"].asCString();
     CHECK(uid != NULL);
     MakePubEvent(uid, buffer, len);
@@ -238,10 +238,9 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
     VLOG(5) << type;
     const char * uid = value["uid"].asCString();
     CHECK(uid != NULL);
-    InsertUid(uid, clientid);
-    LOG(INFO) << "uid: " << uid << " clientid: " << clientid;
-    // pop offline message
-    storage_->PopOfflineMessageIterator(uid, boost::bind(&RouterServer::PopOfflineMsgDoneCB, this, uid, _1));
+    InsertUid(uid, sid);
+    LOG(INFO) << "uid: " << uid << " sid: " << sid;
+    storage_->PopOfflineMessageIterator(string(uid), boost::bind(&RouterServer::PopOfflineMsgDoneCB, this, string(uid), _1));
   } else if(IS_LOGOUT(type)) {
     VLOG(5) << type;
     //TODO
@@ -269,7 +268,11 @@ SessionServerID RouterServer::FindServerIdByUid(const UserID& uid) const {
 }
 
 void RouterServer::PushOfflineMsgDoneCB(bool ok) {
-  VLOG(5) << "SaveOfflineMsgCB " << ok;
+  VLOG(5) << "PushOfflineMsgDoneCB " << ok;
+  if(!ok) {
+    LOG(ERROR) << "push failed";
+    return;
+  }
 }
 
 void RouterServer::AdminPubCB(struct evhttp_request* req, void *ctx) {
@@ -300,9 +303,9 @@ void RouterServer::AdminPubCB(struct evhttp_request* req, void *ctx) {
 }
 
 void RouterServer::AdminBroadcastCB(struct evhttp_request* req, void *ctx) {
-  //TODO
-  //RouterServer * self = static_cast<RouterServer*>(ctx);
   VLOG(5) << "RouterServer::AdminBroadcastCB";
+  
+  //TODO
 }
 
 void RouterServer::AdminCheckPresenceCB(struct evhttp_request* req, void *ctx) {
@@ -325,7 +328,6 @@ void RouterServer::AdminCheckOffMsgCB(struct evhttp_request* req, void *ctx) {
     return;
   }
   self->storage_->GetOfflineMessageIterator(uid, boost::bind(&RouterServer::GetOfflineMsgDoneCB, self, UserID(uid), req, _1));
-  //TODO
 }
 
 void RouterServer::SendReply(struct evhttp_request* req, const char* content, size_t len) {
@@ -336,17 +338,12 @@ void RouterServer::SendReply(struct evhttp_request* req, const char* content, si
 }
 
 void RouterServer::PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit) {
-  VLOG(5) << "PopOfflineMsgDoneCB";
-  SessionServerID sid = FindServerIdByUid(uid);
-  if(sid == INVALID_SID) {
-    // push back to offline message queue
-    return;
-  }
+  VLOG(5) << "PopOfflineMsgDoneCB uid: " << uid;
+  string msg;
   while(mit->HasNext()) {
-    string msg = mit->Next();
+    msg = mit->Next();
     VLOG(5) << msg;
-    //TODO
-    //session_pub_clients_[sid]->MakePubEvent();
+    MakePubEvent(uid.c_str(), msg.c_str(), msg.size());
   }
 }
 
