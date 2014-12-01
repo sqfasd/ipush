@@ -29,7 +29,7 @@ class SessionPubClient {
  private: // callbacks
   static void ConnCloseCB(struct evhttp_connection * conn, void *ctx);
  private:
-  static void ReqErrorCB(enum evhttp_request_error err, void * ctx);
+  //static void ReqErrorCB(enum evhttp_request_error err, void * ctx);
  private:
   static void PubDoneCB(struct evhttp_request* req, void * ctx);
   static void PubCompleteCB(struct evhttp_request* req, void *ctx);

@@ -38,8 +38,8 @@ void SessionPubClient::MakePubEvent(const char * uid, const char* data, size_t l
   VLOG(5) << "SessionPubClient::MakePubEvent";
   struct evhttp_request* req = evhttp_request_new(PubDoneCB, this);
   evbuffer_add(req->output_buffer, data, len);
-  evhttp_request_set_error_cb(req, ReqErrorCB);
-  evhttp_request_set_on_complete_cb(req, PubCompleteCB, this);
+  //evhttp_request_set_error_cb(req, ReqErrorCB);
+  //evhttp_request_set_on_complete_cb(req, PubCompleteCB, this);
   CHECK(data != NULL && len > 0);
   int r = evhttp_make_request(evhttpcon_, req, EVHTTP_REQ_POST, string_format("/pub?uid=%s", uid).c_str());
   CHECK(r == 0);
@@ -51,9 +51,8 @@ void SessionPubClient::InitConn() {
           << pub_host_ 
           << " pub_port: " 
           << pub_port_;
-  evhttpcon_ = evhttp_connection_base_bufferevent_new(
+  evhttpcon_ = evhttp_connection_base_new(
               evbase_, 
-              NULL, 
               NULL, 
               pub_host_.c_str(),
               pub_port_);
@@ -88,22 +87,22 @@ void SessionPubClient::PubDoneCB(struct evhttp_request* req, void * ctx) {
   }
 }
 
-void SessionPubClient::ReqErrorCB(enum evhttp_request_error err, void * ctx) {
-  switch(err) {
-    case EVREQ_HTTP_TIMEOUT:
-      LOG(ERROR) << "EVREQ_HTTP_TIMEOUT";
-      break;
-    default:
-      LOG(ERROR) << "ReqError hanppend"; 
-  }
-  //switch err {
-  //case EVREQ_HTTP_TIMEOUT:
-  //EVREQ_HTTP_EOF,
-  //EVREQ_HTTP_INVALID_HEADER,
-  //EVREQ_HTTP_BUFFER_ERROR,
-  //EVREQ_HTTP_REQUEST_CANCEL,
-  //EVREQ_HTTP_DATA_TOO_LONG 
-}
+//void SessionPubClient::ReqErrorCB(enum evhttp_request_error err, void * ctx) {
+//  switch(err) {
+//    case EVREQ_HTTP_TIMEOUT:
+//      LOG(ERROR) << "EVREQ_HTTP_TIMEOUT";
+//      break;
+//    default:
+//      LOG(ERROR) << "ReqError hanppend"; 
+//  }
+//  //switch err {
+//  //case EVREQ_HTTP_TIMEOUT:
+//  //EVREQ_HTTP_EOF,
+//  //EVREQ_HTTP_INVALID_HEADER,
+//  //EVREQ_HTTP_BUFFER_ERROR,
+//  //EVREQ_HTTP_REQUEST_CANCEL,
+//  //EVREQ_HTTP_DATA_TOO_LONG 
+//}
 
 void SessionPubClient::PubCompleteCB(struct evhttp_request* req, void * ctx) {
   VLOG(5) << "PubCompleteCB";

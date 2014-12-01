@@ -240,7 +240,7 @@ void RouterServer::ChunkedMsgHandler(size_t clientid, const char* buffer, size_t
     CHECK(uid != NULL);
     InsertUid(uid, clientid);
     LOG(INFO) << "uid: " << uid << " clientid: " << clientid;
-    // get offline message
+    // pop offline message
     storage_->PopOfflineMessageIterator(uid, boost::bind(&RouterServer::PopOfflineMsgDoneCB, this, uid, _1));
   } else if(IS_LOGOUT(type)) {
     VLOG(5) << type;
@@ -386,7 +386,7 @@ void RouterServer::ReplyOK(struct evhttp_request* req) {
 int main(int argc, char ** argv) {
   base::ParseCommandLineFlags(&argc, &argv, false);
   if(FLAGS_libevent_debug_log) {
-    event_enable_debug_logging(EVENT_DBG_ALL);
+    //event_enable_debug_logging(EVENT_DBG_ALL);
   }
   xcomet::RouterServer server;
   server.Start();

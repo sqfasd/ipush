@@ -40,8 +40,8 @@ void SessionSubClient::MakeSubEvent() {
   VLOG(5) << "MakeSubEvent";
   struct evhttp_request* req = evhttp_request_new(SubDoneCB, this);
   evhttp_request_set_chunked_cb(req, SubChunkCB);
-  evhttp_request_set_error_cb(req, ReqErrorCB);
-  evhttp_request_set_on_complete_cb(req, SubCompleteCB, this);
+  //evhttp_request_set_error_cb(req, ReqErrorCB);
+  //evhttp_request_set_on_complete_cb(req, SubCompleteCB, this);
   CHECK(sub_uri_.size());
   int r = evhttp_make_request(evhttpcon_, req, EVHTTP_REQ_GET, sub_uri_.c_str());
   CHECK(r == 0);
@@ -52,9 +52,8 @@ void SessionSubClient::InitConn() {
           << sub_host_ 
           << " sub_port: " 
           << sub_port_;
-  evhttpcon_ = evhttp_connection_base_bufferevent_new(
+  evhttpcon_ = evhttp_connection_base_new(
               evbase_, 
-              NULL, 
               NULL, 
               sub_host_.c_str(),
               sub_port_);
@@ -102,22 +101,22 @@ void SessionSubClient::SubChunkCB(struct evhttp_request* req, void * ctx) {
   VLOG(5) << "finished SubChunkCB";
 }
 
-void SessionSubClient::ReqErrorCB(enum evhttp_request_error err, void * ctx) {
-  switch(err) {
-    case EVREQ_HTTP_TIMEOUT:
-      LOG(ERROR) << "EVREQ_HTTP_TIMEOUT";
-      break;
-    default:
-      LOG(ERROR) << "ReqError hanppend"; 
-  }
-  //switch err {
-  //case EVREQ_HTTP_TIMEOUT:
-  //EVREQ_HTTP_EOF,
-  //EVREQ_HTTP_INVALID_HEADER,
-  //EVREQ_HTTP_BUFFER_ERROR,
-  //EVREQ_HTTP_REQUEST_CANCEL,
-  //EVREQ_HTTP_DATA_TOO_LONG 
-}
+//void SessionSubClient::ReqErrorCB(enum evhttp_request_error err, void * ctx) {
+//  switch(err) {
+//    case EVREQ_HTTP_TIMEOUT:
+//      LOG(ERROR) << "EVREQ_HTTP_TIMEOUT";
+//      break;
+//    default:
+//      LOG(ERROR) << "ReqError hanppend"; 
+//  }
+//  //switch err {
+//  //case EVREQ_HTTP_TIMEOUT:
+//  //EVREQ_HTTP_EOF,
+//  //EVREQ_HTTP_INVALID_HEADER,
+//  //EVREQ_HTTP_BUFFER_ERROR,
+//  //EVREQ_HTTP_REQUEST_CANCEL,
+//  //EVREQ_HTTP_DATA_TOO_LONG 
+//}
 
 
 void SessionSubClient::SubCompleteCB(struct evhttp_request* req, void * cxt) {

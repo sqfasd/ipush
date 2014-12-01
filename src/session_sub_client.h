@@ -41,7 +41,7 @@ class SessionSubClient {
   static void SubChunkCB(struct evhttp_request *req, void * ctx);// this class 
   static void SubCompleteCB(struct evhttp_request *req, void * ctx);
  private:
-  static void ReqErrorCB(enum evhttp_request_error err, void * ctx);
+  //static void ReqErrorCB(enum evhttp_request_error err, void * ctx);
  private:
   class RouterServer* parent_;
   struct event_base *evbase_;
