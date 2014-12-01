@@ -66,18 +66,28 @@ void RouterProxy::RegisterUser(const string& uid) {
   // users_.insert(uid);
   string msg = StringPrintf("{\"type\":\"login\", \"uid\":\"%s\",\"seq\":%d}",
       uid.c_str(), seq_++);
-  msg_buffer_.push_back(msg);
-  tail_++;
-  SendAll();
+  // msg_buffer_.push_back(msg);
+  // tail_++;
+  // SendAll();
+  if (session_.get()) {
+    session_->Send2(msg);
+  } else {
+    LOG(ERROR) << "session is not available";
+  }
 }
 
 void RouterProxy::UnregisterUser(const string& uid) {
   // users_.erase(uid);
   string msg = StringPrintf("{\"type\":\"logout\", \"uid\":\"%s\",\"seq\":%d}",
       uid.c_str(), seq_++);
-  msg_buffer_.push_back(msg);
-  tail_++;
-  SendAll();
+  // msg_buffer_.push_back(msg);
+  // tail_++;
+  // SendAll();
+  if (session_.get()) {
+    session_->Send2(msg);
+  } else {
+    LOG(ERROR) << "session is not available";
+  }
 }
 
 void RouterProxy::ChannelBroadcast(const string& cid, const string& content) {
