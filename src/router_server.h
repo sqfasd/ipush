@@ -72,8 +72,8 @@ class RouterServer {
   static void ClientErrorCB(int sock, short which, void *arg);
  private:
   void PushOfflineMsgDoneCB(bool ok);
-  void PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit);
-  void GetOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mid);
+  void PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit);
+  void GetOfflineMsgDoneCB(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit);
  private: 
   struct event_base *evbase_;
   scoped_ptr<Storage> storage_;
@@ -85,6 +85,7 @@ class RouterServer {
   static void AdminCheckPresenceCB(struct evhttp_request* req, void * ctx);
   static void AdminCheckOffMsgCB(struct evhttp_request* req, void *ctx);
   static void AcceptErrorCB(struct evconnlistener * listener , void *ctx);
+  static void SendReply(struct evhttp_request* req,  const char* content, size_t len);
  private:
   void ReplyError(struct evhttp_request* req);
   void ReplyOK(struct evhttp_request* req);

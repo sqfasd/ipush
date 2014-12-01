@@ -24,12 +24,18 @@ DEFINE_string(ssdb_path, "/tmp/ssdb_tmp", "");
 DEFINE_int32(retry_interval, 2, "seconds");
 DEFINE_bool(libevent_debug_log, false, "for debug logging");
 
-const struct timeval RETRY_TV = {FLAGS_retry_interval, 0};
+DEFINE_string(admin_uri_presence, "/presence", "");
+DEFINE_string(admin_uri_broadcast, "/broadcast", "");
+DEFINE_string(admin_uri_pub, "/pub", "");
+DEFINE_string(admin_uri_offmsg, "/offmsg", "");
+
 
 #define IS_LOGIN(type) (strcmp(type, "login") == 0)
 #define IS_LOGOUT(type) (strcmp(type, "logout") == 0)
 #define IS_MSG(type) (strcmp(type, "user_msg") == 0)
 #define IS_NOOP(type) (strcmp(type, "noop") == 0)
+
+const struct timeval RETRY_TV = {FLAGS_retry_interval, 0};
 
 namespace xcomet {
 
@@ -158,10 +164,10 @@ void RouterServer::InitStorage(const string& path) {
 
 void RouterServer::InitAdminHttp() {
   admin_http_ = evhttp_new(evbase_);
-  evhttp_set_cb(admin_http_, "/pub", AdminPubCB, this);
-  evhttp_set_cb(admin_http_, "/broadcast", AdminBroadcastCB, this);
-  evhttp_set_cb(admin_http_, "/presence", AdminCheckPresenceCB, this);
-  evhttp_set_cb(admin_http_, "/offmsg", AdminCheckOffMsgCB, this);
+  evhttp_set_cb(admin_http_, FLAGS_admin_uri_pub.c_str(), AdminPubCB, this);
+  evhttp_set_cb(admin_http_, FLAGS_admin_uri_broadcast.c_str(), AdminBroadcastCB, this);
+  evhttp_set_cb(admin_http_, FLAGS_admin_uri_presence.c_str(), AdminCheckPresenceCB, this);
+  evhttp_set_cb(admin_http_, FLAGS_admin_uri_offmsg.c_str(), AdminCheckOffMsgCB, this);
   
   struct evhttp_bound_socket* sock;
   sock = evhttp_bind_socket_with_handle(admin_http_, FLAGS_admin_listen_ip.c_str(), FLAGS_admin_listen_port);
@@ -302,20 +308,34 @@ void RouterServer::AdminBroadcastCB(struct evhttp_request* req, void *ctx) {
 void RouterServer::AdminCheckPresenceCB(struct evhttp_request* req, void *ctx) {
   RouterServer * self = static_cast<RouterServer*>(ctx);
   VLOG(5) << "RouterServer::AdminCheckPresenceCB";
-  evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
-  struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
   string response;
   string_format(response,  "{\"presence\": %d}", self->u2sMap_.size());
-  evbuffer_add(output_buffer, response.c_str(), response.size());
-  evhttp_send_reply(req, HTTP_OK, response.c_str(), output_buffer);
+  SendReply(req, response.c_str(), response.size());
   VLOG(5) << response;
 }
 
 void RouterServer::AdminCheckOffMsgCB(struct evhttp_request* req, void *ctx) {
+  RouterServer * self = static_cast<RouterServer*>(ctx);
+  
+  HttpQuery query(req);
+  const char * uid = query.GetStr("uid", NULL);
+  if (uid == NULL) {
+    LOG(ERROR) << "uid not found";
+    self->ReplyError(req);
+    return;
+  }
+  self->storage_->GetOfflineMessageIterator(uid, boost::bind(&RouterServer::GetOfflineMsgDoneCB, self, UserID(uid), req, _1));
   //TODO
 }
 
-void RouterServer::PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit) {
+void RouterServer::SendReply(struct evhttp_request* req, const char* content, size_t len) {
+  evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
+  struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
+  evbuffer_add(output_buffer, content, len);
+  evhttp_send_reply(req, HTTP_OK, "OK", output_buffer);
+}
+
+void RouterServer::PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit) {
   VLOG(5) << "PopOfflineMsgDoneCB";
   SessionServerID sid = FindServerIdByUid(uid);
   if(sid == INVALID_SID) {
@@ -330,18 +350,26 @@ void RouterServer::PopOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit
   }
 }
 
-void RouterServer::GetOfflineMsgDoneCB(const UserID& uid, MessageIteratorPtr mit) {
+void RouterServer::GetOfflineMsgDoneCB(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit) {
   VLOG(5) << "RouterServer::GetOfflineMsgDoneCB";
+  string msg;
+  string msgs;
   while(mit->HasNext()) {
-    string s = mit->Next();
-    VLOG(5) << s;
+    msg = mit->Next();
+    msgs += msg;
+    VLOG(5) << msg;
   }
-  //TODO
+  string resp;
+  string_format(resp, "{uid: \"%s\", content: \"%s\"}", uid.c_str(), msgs.c_str());
+  SendReply(req, resp.c_str(), resp.size());
 }
 
 void RouterServer::ReplyError(struct evhttp_request* req) {
+  VLOG(5) << "ReplyError";
   evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
+  const char * response = "{\"type\":\"error\"}\n"; //TODO
+  evbuffer_add(output_buffer, response, strlen(response)); // TODO
   evhttp_send_reply(req, HTTP_BADREQUEST, "Error", output_buffer);
 }
 

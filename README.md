@@ -57,3 +57,7 @@ curl -v -d "@test.body" "http://localhost:9100/pub?uid=1"
 curl -v "http://localhost:9100/presence"
 ```
 
+```
+curl -v "http://localhost:9100/offmsg?uid=1"
+```
+
