@@ -18,7 +18,7 @@ class RouterProxy {
   ~RouterProxy();
   void SendHeartbeat();
   void ResetSession(struct evhttp_request* req);
-  void RegisterUser(const string& uid);
+  void RegisterUser(const string& uid, int seq);
   void UnregisterUser(const string& uid);
 
   // TODO session will not redirect msg, use router server directly

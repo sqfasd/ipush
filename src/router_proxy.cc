@@ -13,7 +13,8 @@ RouterProxy::~RouterProxy() {
 }
 
 void RouterProxy::OnSessionDisconnected() {
-  LOG(WARNING) << "RouterProxy disconnected";
+  LOG(ERROR) << "RouterProxy disconnected";
+  session_.reset();
 }
 
 void RouterProxy::ResetSession(struct evhttp_request* req) {
@@ -61,11 +62,11 @@ void RouterProxy::Redirect(struct evhttp_request* pub_req) {
   }
 }
 
-void RouterProxy::RegisterUser(const string& uid) {
+void RouterProxy::RegisterUser(const string& uid, int seq) {
   LOG(INFO) << "RegisterUser: " << uid;
   // users_.insert(uid);
   string msg = StringPrintf("{\"type\":\"login\", \"uid\":\"%s\",\"seq\":%d}",
-      uid.c_str(), seq_++);
+      uid.c_str(), seq);
   // msg_buffer_.push_back(msg);
   // tail_++;
   // SendAll();
