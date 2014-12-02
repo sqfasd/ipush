@@ -67,4 +67,22 @@ MessageIteratorPtr Storage::GetOfflineMessageIteratorSync(const string uid) {
   return MessageIteratorPtr(new MessageIterator(mq));
 }
 
+void Storage::GetMessageIterator(
+    const string& uid,
+    int64_t start,
+    int64_t end,
+    boost::function<void (MessageIteratorPtr)> cb) {
+  worker_->Do<MessageIteratorPtr>(boost::bind(&Storage::GetMessageIteratorSync, this, uid, start, end), cb);
+}
+
+MessageIteratorPtr Storage::GetMessageIteratorSync(const string uid, int64_t start, int64_t end) {
+  vector<string> result;
+  ssdb_->qslice(uid, start, end, &result);
+  base::shared_ptr<queue<string> > mq(new queue<string>());
+  for(size_t i = 0; i < result.size(); ++i ) {
+    mq->push(result[i]);
+  }
+  return MessageIteratorPtr(new MessageIterator(mq));
+}
+
 }  // namespace xcomet
