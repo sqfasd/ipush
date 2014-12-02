@@ -37,6 +37,10 @@ class DLinkedList {
 	bool Empty() const {
 		return size_ == 0;
 	}
+
+  bool Size() const {
+    return size_;
+  }
 	
 	void Remove(T t) {
 		this->size_--;
