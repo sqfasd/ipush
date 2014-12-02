@@ -236,25 +236,40 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
     //CHECK(uid != NULL);
     //MakePubEvent(uid, buffer, len);
   } else if(IS_LOGIN(type)) {
-    VLOG(5) << value;
-    const char * uid = value["uid"].asCString();
+    VLOG(5) << type;
+    const char * uid;
+    int seq;
+    try {
+      value["uid"].asCString();
+      seq = value["seq"].asInt(); //TODO testing
+    } catch (...) {
+      LOG(ERROR) << "uid or seq not found";
+      return;
+    }
     if(uid == NULL) {
       LOG(ERROR) << "uid not found";
       return;
     }
-    int seq;
-    try {
-      seq = value["seq"].asInt(); //TODO testing
-    } catch (...) {
-      LOG(ERROR) << "seq not found";
-      return;
-    }
     InsertUid(uid, sid);
-    LOG(INFO) << "uid: " << uid << " sid: " << sid;
-    storage_->GetMessageIterator(string(uid), seq, -1, boost::bind(&RouterServer::GetMsgToPubCB, this, string(uid), _1));
+    VLOG(5) << "uid: " << uid << " sid: " << sid << " seq:" << seq;
+    // if seq = -1, not pub message.
+    if(seq >=0) {
+      storage_->GetMessageIterator(string(uid), seq, -1, boost::bind(&RouterServer::GetMsgToPubCB, this, string(uid), _1));
+    }
   } else if(IS_LOGOUT(type)) {
     VLOG(5) << type;
-    //TODO
+    const char* uid;
+    try {
+      value["uid"].asCString();
+    } catch (...) {
+      LOG(ERROR) << "uid not found";
+      return;
+    }
+    if(uid == NULL) {
+      LOG(ERROR) << "uid not found";
+      return;
+    }
+    EraseUid(uid);
   } else if(IS_NOOP(type)) {
     VLOG(5) << type;
   } else {
