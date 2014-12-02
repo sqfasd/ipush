@@ -201,8 +201,6 @@ void RouterServer::MakePubEvent(const char* uid, const char* data, size_t len) {
   SessionServerID sid = FindServerIdByUid(uid);
   if(sid == INVALID_SID) {
     LOG(INFO) << "uid " << uid << " is offline";
-    storage_->SaveOfflineMessage(uid, string(data, len), boost::bind(&RouterServer::PushOfflineMsgDoneCB, this, _1));
-    VLOG(5) << "storage_->SaveOfflineMessage" << uid << string(data, len);
   } else {
     CHECK(size_t(sid) < session_pub_clients_.size());
     session_pub_clients_[sid]->MakePubEvent(uid, data, len);
@@ -231,16 +229,12 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
   }
   if(IS_MSG(type)) {
     VLOG(5) << type;
-    // this branch is out of date
-    //const char * uid = value["uid"].asCString();
-    //CHECK(uid != NULL);
-    //MakePubEvent(uid, buffer, len);
   } else if(IS_LOGIN(type)) {
     VLOG(5) << type;
     const char * uid;
     int seq;
     try {
-      value["uid"].asCString();
+      uid = value["uid"].asCString();
       seq = value["seq"].asInt(); //TODO testing
     } catch (...) {
       LOG(ERROR) << "uid or seq not found";
@@ -260,7 +254,7 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
     VLOG(5) << type;
     const char* uid;
     try {
-      value["uid"].asCString();
+      uid = value["uid"].asCString();
     } catch (...) {
       LOG(ERROR) << "uid not found";
       return;
@@ -335,6 +329,8 @@ void RouterServer::AdminPubCB(struct evhttp_request* req, void *ctx) {
     self->ReplyError(req);
     return;
   }
+  self->storage_->SaveOfflineMessage(uid, string(bufferstr, len), boost::bind(&RouterServer::PushOfflineMsgDoneCB, self, _1));
+  VLOG(5) << "storage_->SaveOfflineMessage" << uid << string(bufferstr, len);
   self->MakePubEvent(uid, bufferstr, len);
   self->ReplyOK(req);
   VLOG(5) << "reply ok";
