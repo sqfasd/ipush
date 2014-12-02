@@ -14,6 +14,7 @@ User::User(const string& uid,
       queue_index_(-1),
       uid_(uid),
       type_(type), 
+      channel_id_("-1"),
       server_(serv) {
   VLOG(3) << "User construct";
   session_.SetDisconnectCallback(

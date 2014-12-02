@@ -14,6 +14,7 @@ class User;
 class UserCircleQueue;
 class SessionServer;
 typedef base::shared_ptr<User> UserPtr;
+typedef map<string, UserPtr> UserMap;
 
 class User {
  public:
@@ -25,11 +26,13 @@ class User {
   User(const string& uid, int type, struct evhttp_request* req, SessionServer& serv);
   ~User();
   void SetType(int type) {type_ = type;}
-  int GetType() {return type_;}
-  string GetUid() {return uid_;}
+  int GetType() const {return type_;}
+  string GetId() const {return uid_;}
   void Send(const string& content);
   void Close();
   void SendHeartbeat();
+  string GetChannelId() const {return channel_id_;}
+  void SetChannelId(const string& cid) {channel_id_ = cid;}
 
  private:
   void OnSessionDisconnected();
@@ -39,11 +42,13 @@ class User {
   int queue_index_;
   string uid_;
   int type_;
+  string channel_id_;
 
   SessionServer& server_;
 
   friend class DLinkedList<User*>;
   friend class UserCircleQueue;
+  friend class Channel;
 };
 
 class UserCircleQueue {

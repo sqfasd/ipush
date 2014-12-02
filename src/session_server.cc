@@ -35,7 +35,8 @@ void SessionServer::Sub(struct evhttp_request* req) {
 
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
-  if (uid.empty()) {
+  int seq = query.GetInt("seq", -1);
+  if (uid.empty() || seq < 0) {
     evhttp_send_reply(req, 410, "Invalid parameters", NULL);
     return;
   }
@@ -55,7 +56,7 @@ void SessionServer::Sub(struct evhttp_request* req) {
   } else {
     user.reset(new User(uid, type, req, *this));
     users_[uid] = user;
-    router_.RegisterUser(uid);
+    router_.RegisterUser(uid, seq);
   }
   timeout_queue_.PushUserBack(user.get());
 }
@@ -81,7 +82,7 @@ void SessionServer::Pub(struct evhttp_request* req) {
     UserMap::iterator iter = users_.find(uid);
     if (iter != users_.end()) {
       UserPtr user = iter->second;
-      LOG(INFO) << "send to user: " << user->GetUid();
+      LOG(INFO) << "send to user: " << user->GetId();
       if (post_buffer->empty()) {
         user->Send(content);
       } else {
@@ -117,12 +118,22 @@ void SessionServer::Pub(struct evhttp_request* req) {
 void SessionServer::Unsub(struct evhttp_request* req) {
 }
 
-// /createroom?uid=123
-// return roomid
+// /createroom?cid=123
 void SessionServer::CreateRoom(struct evhttp_request* req) {
 }
 
+// /destroyroom?cid=123
 void SessionServer::DestroyRoom(struct evhttp_request* req) {
+  CHECK_HTTP_GET();
+  HttpQuery query(req);
+  string cid = query.GetStr("cid", "");
+  if (cid.empty()) {
+    LOG(WARNING) << "cid should not be empty";
+    evhttp_send_reply(req, 410, "Invalid parameters", NULL);
+    return;
+  }
+  channels_.erase(cid);
+  ReplyOK(req);
 }
 
 // /broadcast?content=hello
@@ -135,16 +146,75 @@ void SessionServer::RSub(struct evhttp_request* req) {
   router_.ResetSession(req);
   UserMap::iterator it;
   for (it = users_.begin(); it != users_.end(); ++it) {
-    router_.RegisterUser(it->first);
+    router_.RegisterUser(it->first, -1);
   }
 }
 
-// /join?cid=123&uid=456&resource=work
+// /join?cid=123&uid=456
 void SessionServer::Join(struct evhttp_request* req) {
+  CHECK_HTTP_GET();
+  HttpQuery query(req);
+  string uid = query.GetStr("uid", "");
+  string cid = query.GetStr("cid", "");
+  if (uid.empty() || cid.empty()) {
+    LOG(WARNING) << "uid and cid should not be empty";
+    evhttp_send_reply(req, 410, "Invalid parameters", NULL);
+    return;
+  }
+  UserPtr user;
+  UserMap::iterator uit = users_.find(uid);
+  if (uit == users_.end()) {
+    LOG(WARNING) << "user not found: " << uid;
+    evhttp_send_reply(req, 404, "Not Found", NULL);
+    return;
+  } else {
+    user = uit->second;
+  }
+
+  ChannelPtr channel;
+  ChannelMap::iterator cit = channels_.find(cid);
+  if (cit != channels_.end()) {
+    channel = cit->second;
+  } else {
+    channel.reset(new Channel(cid));
+    channels_[cid] = channel;
+  }
+  channel->AddUser(user.get());
+  ReplyOK(req);
 }
 
 // /leave?cid=123&uid=456&resource=work
 void SessionServer::Leave(struct evhttp_request* req) {
+  CHECK_HTTP_GET();
+  HttpQuery query(req);
+  string uid = query.GetStr("uid", "");
+  string cid = query.GetStr("cid", "");
+  if (uid.empty() || cid.empty()) {
+    LOG(WARNING) << "uid and cid should not be empty";
+    evhttp_send_reply(req, 410, "Invalid parameters", NULL);
+    return;
+  }
+  UserPtr user;
+  UserMap::iterator uit = users_.find(uid);
+  if (uit == users_.end()) {
+    LOG(WARNING) << "user not found: " << uid;
+    evhttp_send_reply(req, 404, "Not Found", NULL);
+    return;
+  } else {
+    user = uit->second;
+  }
+
+  ChannelPtr channel;
+  ChannelMap::iterator cit = channels_.find(cid);
+  if (cit == channels_.end()) {
+    LOG(WARNING) << "channel not found: " << cid;
+    evhttp_send_reply(req, 404, "Not Found", NULL);
+    return;
+  } else {
+    channel = cit->second;
+    channel->RemoveUser(user.get());
+  }
+  ReplyOK(req);
 }
 
 void SessionServer::OnTimer() {
@@ -167,11 +237,22 @@ void SessionServer::OnTimer() {
   }
 }
 
+void SessionServer::RemoveUserFromChannel(User* user) {
+  ChannelMap::iterator cit = channels_.find(user->GetChannelId());
+  if (cit != channels_.end()) {
+    cit->second->RemoveUser(user);
+    if (cit->second->GetUserCount() == 0) {
+      channels_.erase(cit);
+    }
+  }
+}
+
 void SessionServer::RemoveUser(User* user) {
-  const string& uid = user->GetUid();
+  const string& uid = user->GetId();
   LOG(INFO) << "RemoveUser: " << uid;
   timeout_queue_.RemoveUser(user);
   router_.UnregisterUser(uid);
+  RemoveUserFromChannel(user);
   users_.erase(uid);
 }
 

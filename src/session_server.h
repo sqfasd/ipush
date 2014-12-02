@@ -13,9 +13,6 @@ namespace xcomet {
 
 class SessionServer {
  public:
-  typedef map<string, UserPtr> UserMap;
-  typedef map<string, Channel*> ChannelMap;
-
   static SessionServer& Instance() {
     return *Singleton<SessionServer>::get();
   }
@@ -37,6 +34,7 @@ class SessionServer {
   SessionServer();
   ~SessionServer();
   void ReplyOK(struct evhttp_request* req);
+  void RemoveUserFromChannel(User* user);
 
   UserMap users_;
   ChannelMap channels_;
