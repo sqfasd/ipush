@@ -28,6 +28,11 @@ class Storage {
                                  boost::function<void (MessageIteratorPtr)> cb);
   MessageIteratorPtr GetOfflineMessageIteratorSync(const string uid);
 
+  void GetMessageIterator(const string& uid, int64_t start, int64_t end, 
+                                boost::function<void (MessageIteratorPtr)> cb);
+  
+  MessageIteratorPtr GetMessageIteratorSync(const string uid, int64_t start, int64_t end);
+
   //void RemoveOfflineMessages(const string& uid, base::Callback1<bool>* cb);
   //bool RemoveOfflineMessagesSync(const string& uid);
 

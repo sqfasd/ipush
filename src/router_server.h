@@ -63,6 +63,7 @@ class RouterServer {
  private:
   SessionServerID FindServerIdByUid(const UserID& uid) const;
   void InsertUid(const UserID& uid, SessionServerID sid);
+  void EraseUid(const UserID& uid) ;
  private:
   vector<pair<string, size_t> > subcliaddrs_;
   vector<pair<string, size_t> > pubcliaddrs_;
@@ -72,8 +73,9 @@ class RouterServer {
   static void ClientErrorCB(int sock, short which, void *arg);
  private:
   void PushOfflineMsgDoneCB(bool ok);
-  void PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit);
-  void GetOfflineMsgDoneCB(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit);
+  //void PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit);
+  void GetMsgToPubCB(UserID uid, MessageIteratorPtr mit);
+  void GetMsgToReplyCB(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit);
  private: 
   struct event_base *evbase_;
   scoped_ptr<Storage> storage_;
