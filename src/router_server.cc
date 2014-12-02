@@ -231,22 +231,30 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
   }
   if(IS_MSG(type)) {
     VLOG(5) << type;
-    const char * uid = value["uid"].asCString();
-    CHECK(uid != NULL);
-    MakePubEvent(uid, buffer, len);
+    // this branch is out of date
+    //const char * uid = value["uid"].asCString();
+    //CHECK(uid != NULL);
+    //MakePubEvent(uid, buffer, len);
   } else if(IS_LOGIN(type)) {
-    VLOG(5) << type;
+    VLOG(5) << value;
     const char * uid = value["uid"].asCString();
-    CHECK(uid != NULL);
+    if(uid == NULL) {
+      LOG(ERROR) << "uid not found";
+      return;
+    }
+    int seq;
+    try {
+      seq = value["seq"].asInt(); //TODO testing
+    } catch (...) {
+      LOG(ERROR) << "seq not found";
+      return;
+    }
     InsertUid(uid, sid);
     LOG(INFO) << "uid: " << uid << " sid: " << sid;
-    storage_->PopOfflineMessageIterator(string(uid), boost::bind(&RouterServer::PopOfflineMsgDoneCB, this, string(uid), _1));
+    storage_->GetMessageIterator(string(uid), seq, -1, boost::bind(&RouterServer::GetMsgToPubCB, this, string(uid), _1));
   } else if(IS_LOGOUT(type)) {
     VLOG(5) << type;
-    
     //TODO
-    //LOG(ERROR) << value;
-    //LOG(ERROR) << value.asString(); // exception
   } else if(IS_NOOP(type)) {
     VLOG(5) << type;
   } else {
@@ -342,7 +350,7 @@ void RouterServer::AdminCheckOffMsgCB(struct evhttp_request* req, void *ctx) {
     self->ReplyError(req);
     return;
   }
-  self->storage_->GetOfflineMessageIterator(uid, boost::bind(&RouterServer::GetOfflineMsgDoneCB, self, UserID(uid), req, _1));
+  self->storage_->GetOfflineMessageIterator(uid, boost::bind(&RouterServer::GetMsgToReplyCB, self, UserID(uid), req, _1));
 }
 
 void RouterServer::SendReply(struct evhttp_request* req, const char* content, size_t len) {
@@ -352,8 +360,18 @@ void RouterServer::SendReply(struct evhttp_request* req, const char* content, si
   evhttp_send_reply(req, HTTP_OK, "OK", output_buffer);
 }
 
-void RouterServer::PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit) {
-  VLOG(5) << "PopOfflineMsgDoneCB uid: " << uid;
+//void RouterServer::PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit) {
+//  VLOG(5) << "PopOfflineMsgDoneCB uid: " << uid;
+//  string msg;
+//  while(mit->HasNext()) {
+//    msg = mit->Next();
+//    VLOG(5) << msg;
+//    MakePubEvent(uid.c_str(), msg.c_str(), msg.size());
+//  }
+//}
+
+void RouterServer::GetMsgToPubCB(UserID uid, MessageIteratorPtr mit) {
+  VLOG(5) << "GetMsgToPubCB";
   string msg;
   while(mit->HasNext()) {
     msg = mit->Next();
@@ -362,8 +380,8 @@ void RouterServer::PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit) {
   }
 }
 
-void RouterServer::GetOfflineMsgDoneCB(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit) {
-  VLOG(5) << "RouterServer::GetOfflineMsgDoneCB";
+void RouterServer::GetMsgToReplyCB(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit) {
+  VLOG(5) << "RouterServer::GetMsgToReplyCB";
   string msg;
   string msgs;
   while(mit->HasNext()) {
