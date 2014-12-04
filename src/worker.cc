@@ -1,5 +1,8 @@
 #include "src/worker.h"
 
+
+DEFINE_int32(msgqueue_max_size, 20000, "");
+
 namespace xcomet {
 
 Worker::Worker(struct event_base* evbase)

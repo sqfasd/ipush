@@ -78,6 +78,7 @@ void Storage::GetMessageIterator(
 MessageIteratorPtr Storage::GetMessageIteratorSync(const string uid, int64_t start, int64_t end) {
   vector<string> result;
   ssdb_->qslice(uid, start, end, &result);
+  VLOG(5) << "qslice " << start << "," << end;
   base::shared_ptr<queue<string> > mq(new queue<string>());
   for(size_t i = 0; i < result.size(); ++i ) {
     mq->push(result[i]);

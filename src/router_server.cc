@@ -248,6 +248,7 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
     VLOG(5) << "uid: " << uid << " sid: " << sid << " seq:" << seq;
     // if seq = -1, not pub message.
     if(seq >=0) {
+      VLOG(5) << "storage_->GetMessageIterator";
       storage_->GetMessageIterator(string(uid), seq, -1, boost::bind(&RouterServer::GetMsgToPubCB, this, string(uid), _1));
     }
   } else if(IS_LOGOUT(type)) {
