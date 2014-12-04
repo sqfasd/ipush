@@ -75,13 +75,29 @@ void SessionSubClient::SubDoneCB(struct evhttp_request *req, void *ctx) {
   VLOG(5) << "SessionSubClient::SubDoneCB";
   SessionSubClient* self = static_cast<SessionSubClient*>(ctx);
   CHECK(self);
-  char buffer[FLAGS_sub_read_buffer_size];
-  int nread;
 
-  if (req == NULL || evhttp_request_get_response_code(req) != 200) {
-    int errcode = EVUTIL_SOCKET_ERROR();
-    LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
-  }
+  int errcode;
+  int code;
+
+  do {
+    if (req == NULL) {
+      errcode = EVUTIL_SOCKET_ERROR();
+      LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
+      break;
+    }
+    code = evhttp_request_get_response_code(req);
+    if (code == 0) {
+      errcode = EVUTIL_SOCKET_ERROR();
+      LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
+      break;
+    }
+    
+    if (code != 200 ) {
+      LOG(ERROR) << "http response not ok.";
+      break;
+    }
+  } while(false);
+
   self->parent_->MakeCliErrEvent(new CliErrInfo(self->client_id_, "socket error", self->parent_));
 }
 

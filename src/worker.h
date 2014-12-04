@@ -9,6 +9,8 @@
 #include "src/include_std.h"
 #include "src/event_msgqueue.h"
 
+DECLARE_int32(task_queue_warning_size);
+
 namespace xcomet {
 
 class Task {
@@ -72,11 +74,19 @@ class Worker : public base::Thread {
   ~Worker();
 
   void Do(boost::function<void ()> runner, boost::function<void ()> cb) {
+    size_t taskq_size = task_queue_.Size();
+    if(taskq_size >= size_t(FLAGS_task_queue_warning_size)) {
+      LOG(WARNING) << "taskqueue is overloaded, size: " << taskq_size;
+    }
     task_queue_.Push(new TaskImpl<void>(runner, cb));
   }
 
   template <typename R>
   void Do(boost::function<R ()> runner, boost::function<void (R)> cb) {
+    size_t taskq_size = task_queue_.Size();
+    if(taskq_size >= size_t(FLAGS_task_queue_warning_size)) {
+      LOG(WARNING) << "taskqueue is overloaded, size: " << taskq_size;
+    }
     task_queue_.Push(new TaskImpl<R>(runner, cb));
   }
 

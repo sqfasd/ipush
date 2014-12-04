@@ -72,7 +72,7 @@ void SessionPubClient::ConnCloseCB(struct evhttp_connection* conn, void *ctx) {
 
 void SessionPubClient::PubDoneCB(struct evhttp_request* req, void * ctx) {
   VLOG(5) << "PubDoneCB";
-  SessionPubClient* self = static_cast<SessionPubClient*>(ctx);
+  //SessionPubClient* self = static_cast<SessionPubClient*>(ctx);
   char buffer[FLAGS_pub_read_buffer_size];
   int nread;
 

@@ -2,6 +2,7 @@
 
 
 DEFINE_int32(msgqueue_max_size, 20000, "");
+DEFINE_int32(task_queue_warning_size, 10000, "");
 
 namespace xcomet {
 
@@ -30,7 +31,7 @@ void Worker::RunInEventloop(void* data, void* self) {
 
 void Worker::Run() {
   while (true) {
-    VLOG(3) << "task queue size:" << task_queue_.Size();
+    VLOG(5) << "task queue size:" <<  task_queue_.Size();
     Task* task;
     task_queue_.Pop(task);
     if (task == NULL) {

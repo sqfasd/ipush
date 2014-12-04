@@ -408,7 +408,7 @@ void RouterServer::GetMsgToPubCB(
     i++;
   }
   // message is unfinished.
-  if(i == FLAGS_message_batch_size) {
+  if(i == size_t(FLAGS_message_batch_size)) {
     GetMsgToPub(uid, start + FLAGS_message_batch_size);
   }
 }
