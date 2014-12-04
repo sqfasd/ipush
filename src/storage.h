@@ -15,26 +15,26 @@ class Storage {
  public:
   Storage(struct event_base* evbase, const string& dir);
   ~Storage();
-  void SaveOfflineMessage(const string& uid,
+  void SaveMessage(const string& uid,
                           const string& content,
                           boost::function<void (bool)> cb);
-  bool SaveOfflineMessageSync(const string uid, const string content);
+  bool SaveMessageSync(const string uid, const string content);
 
-  void PopOfflineMessageIterator(const string& uid,
+  void PopMessageIterator(const string& uid,
                                  boost::function<void (MessageIteratorPtr)> cb);
-  MessageIteratorPtr PopOfflineMessageIteratorSync(const string uid);
+  MessageIteratorPtr PopMessageIteratorSync(const string uid);
 
-  void GetOfflineMessageIterator(const string& uid,
+  void GetMessageIterator(const string& uid,
                                  boost::function<void (MessageIteratorPtr)> cb);
-  MessageIteratorPtr GetOfflineMessageIteratorSync(const string uid);
+  MessageIteratorPtr GetMessageIteratorSync(const string uid);
 
   void GetMessageIterator(const string& uid, int64_t start, int64_t end, 
                                 boost::function<void (MessageIteratorPtr)> cb);
   
   MessageIteratorPtr GetMessageIteratorSync(const string uid, int64_t start, int64_t end);
 
-  //void RemoveOfflineMessages(const string& uid, base::Callback1<bool>* cb);
-  //bool RemoveOfflineMessagesSync(const string& uid);
+  //void RemoveMessages(const string& uid, base::Callback1<bool>* cb);
+  //bool RemoveMessagesSync(const string& uid);
 
  private:
   scoped_ptr<Worker> worker_;

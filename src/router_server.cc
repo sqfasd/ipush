@@ -313,8 +313,8 @@ SessionServerID RouterServer::FindServerIdByUid(const UserID& uid) const {
   return citer->second;
 }
 
-void RouterServer::PushOfflineMsgDoneCB(bool ok) {
-  VLOG(5) << "PushOfflineMsgDoneCB " << ok;
+void RouterServer::PushMsgDoneCB(bool ok) {
+  VLOG(5) << "PushMsgDoneCB " << ok;
   if(!ok) {
     LOG(ERROR) << "push failed";
     return;
@@ -343,8 +343,8 @@ void RouterServer::AdminPubCB(struct evhttp_request* req, void *ctx) {
     self->ReplyError(req);
     return;
   }
-  self->storage_->SaveOfflineMessage(uid, string(bufferstr, len), boost::bind(&RouterServer::PushOfflineMsgDoneCB, self, _1));
-  VLOG(5) << "storage_->SaveOfflineMessage" << uid << string(bufferstr, len);
+  self->storage_->SaveMessage(uid, string(bufferstr, len), boost::bind(&RouterServer::PushMsgDoneCB, self, _1));
+  VLOG(5) << "storage_->SaveMessage" << uid << string(bufferstr, len);
   self->MakePubEvent(uid, bufferstr, len);
   self->ReplyOK(req);
   VLOG(5) << "reply ok";
@@ -375,7 +375,7 @@ void RouterServer::AdminCheckOffMsgCB(struct evhttp_request* req, void *ctx) {
     self->ReplyError(req);
     return;
   }
-  self->storage_->GetOfflineMessageIterator(uid, boost::bind(&RouterServer::GetMsgToReplyCB, self, UserID(uid), req, _1));
+  self->storage_->GetMessageIterator(uid, boost::bind(&RouterServer::GetMsgToReplyCB, self, UserID(uid), req, _1));
 }
 
 void RouterServer::SendReply(struct evhttp_request* req, const char* content, size_t len) {
@@ -385,8 +385,8 @@ void RouterServer::SendReply(struct evhttp_request* req, const char* content, si
   evhttp_send_reply(req, HTTP_OK, "OK", output_buffer);
 }
 
-//void RouterServer::PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit) {
-//  VLOG(5) << "PopOfflineMsgDoneCB uid: " << uid;
+//void RouterServer::PopMsgDoneCB(UserID uid, MessageIteratorPtr mit) {
+//  VLOG(5) << "PopMsgDoneCB uid: " << uid;
 //  string msg;
 //  while(mit->HasNext()) {
 //    msg = mit->Next();
@@ -404,7 +404,7 @@ void RouterServer::GetMsgToPubCB(
   while(mit->HasNext()) {
     msg = mit->Next();
     VLOG(5) << msg;
-    //MakePubEvent(uid.c_str(), msg.c_str(), msg.size());
+    MakePubEvent(uid.c_str(), msg.c_str(), msg.size());
     i++;
   }
   // message is unfinished.

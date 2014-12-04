@@ -110,13 +110,13 @@ class StorageUnittest : public testing::Test {
 };
 
 TEST_F(StorageUnittest, SimpleTest) {
-  storage_->SaveOfflineMessage("u1", "m1",
+  storage_->SaveMessage("u1", "m1",
       boost::bind(&StorageUnittest::SaveDone, this, _1));
-  storage_->SaveOfflineMessage("u1", "m2",
+  storage_->SaveMessage("u1", "m2",
       boost::bind(&StorageUnittest::SaveDone, this, _1));
-  storage_->SaveOfflineMessage("u1", "m3",
+  storage_->SaveMessage("u1", "m3",
       boost::bind(&StorageUnittest::SaveDone, this, _1));
-  storage_->GetOfflineMessageIterator("u1",
+  storage_->GetMessageIterator("u1",
       boost::bind(&StorageUnittest::GetDone, this, "u1", _1));
   storage_->GetMessageIterator("u1", 1, -1,
       boost::bind(&StorageUnittest::GetDone2, this, "u1", _1));
@@ -126,7 +126,7 @@ TEST_F(StorageUnittest, SimpleTest) {
       boost::bind(&StorageUnittest::GetDone4, this, "u1", _1));
   storage_->GetMessageIterator("u1", 1, 10,
       boost::bind(&StorageUnittest::GetDone4, this, "u1", _1));
-  storage_->PopOfflineMessageIterator("u1",
+  storage_->PopMessageIterator("u1",
       boost::bind(&StorageUnittest::PopDone, this, "u1", _1));
 }
 

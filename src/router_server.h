@@ -72,8 +72,8 @@ class RouterServer {
  private: //callbacks
   static void ClientErrorCB(int sock, short which, void *arg);
  private:
-  void PushOfflineMsgDoneCB(bool ok);
-  //void PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit);
+  void PushMsgDoneCB(bool ok);
+  //void PopMsgDoneCB(UserID uid, MessageIteratorPtr mit);
   void GetMsgToPubCB(UserID uid, int64_t start, MessageIteratorPtr mit);
   void GetMsgToReplyCB(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit);
   void GetMsgToPub(const UserID& uid, int64_t start);

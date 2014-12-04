@@ -23,25 +23,25 @@ Storage::~Storage() {
   delete ssdb_;
 }
 
-void Storage::SaveOfflineMessage(
+void Storage::SaveMessage(
     const string& uid,
     const string& content,
     boost::function<void (bool)> cb) {
-  worker_->Do<bool>(boost::bind(&Storage::SaveOfflineMessageSync, this, uid, content), cb);
+  worker_->Do<bool>(boost::bind(&Storage::SaveMessageSync, this, uid, content), cb);
 }
 
-bool Storage::SaveOfflineMessageSync(const string uid, const string content) {
+bool Storage::SaveMessageSync(const string uid, const string content) {
   ssdb_->qpush_back(Bytes(uid), Bytes(content));
   return true;
 }
 
-void Storage::PopOfflineMessageIterator(
+void Storage::PopMessageIterator(
     const string& uid,
     boost::function<void (MessageIteratorPtr)> cb) {
-  worker_->Do<MessageIteratorPtr>(boost::bind(&Storage::PopOfflineMessageIteratorSync, this, uid), cb);
+  worker_->Do<MessageIteratorPtr>(boost::bind(&Storage::PopMessageIteratorSync, this, uid), cb);
 }
 
-MessageIteratorPtr Storage::PopOfflineMessageIteratorSync(const string uid) {
+MessageIteratorPtr Storage::PopMessageIteratorSync(const string uid) {
   string str1;
   base::shared_ptr<queue<string> > mq(new queue<string>());
   while (ssdb_->qpop_front(uid, &str1) > 0) {
@@ -50,13 +50,13 @@ MessageIteratorPtr Storage::PopOfflineMessageIteratorSync(const string uid) {
   return MessageIteratorPtr(new MessageIterator(mq));
 }
 
-void Storage::GetOfflineMessageIterator(
+void Storage::GetMessageIterator(
     const string& uid,
     boost::function<void (MessageIteratorPtr)> cb) {
-  worker_->Do<MessageIteratorPtr>(boost::bind(&Storage::GetOfflineMessageIteratorSync, this, uid), cb);
+  worker_->Do<MessageIteratorPtr>(boost::bind(&Storage::GetMessageIteratorSync, this, uid), cb);
 }
 
-MessageIteratorPtr Storage::GetOfflineMessageIteratorSync(const string uid) {
+MessageIteratorPtr Storage::GetMessageIteratorSync(const string uid) {
   vector<string> result;
   // TODO avoid inefficient copy
   ssdb_->qslice(uid, 0, -1, &result);
