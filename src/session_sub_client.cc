@@ -106,9 +106,7 @@ void SessionSubClient::SubChunkCB(struct evhttp_request* req, void * ctx) {
   VLOG(5) << "enter SubChunkCB";
   char buffer[FLAGS_sub_read_buffer_size];
   int nread;
-  //TODO check parse
 
-  //TODO when errno == EAGAIN
   while((nread = evbuffer_remove(evhttp_request_get_input_buffer(req), buffer, sizeof(buffer))) > 0) {
     VLOG(5) << "read buffer size: " << nread;
     VLOG(5) << "read buffer date: " << (string(buffer, nread - 1));

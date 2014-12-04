@@ -29,6 +29,7 @@
 #include "deps/base/scoped_ptr.h"
 #include "deps/base/callback.h"
 #include "src/storage.h"
+#include "utils.h"
 
 using namespace std;
 
@@ -51,10 +52,10 @@ class RouterServer {
   void ChunkedMsgHandler(size_t sid, const char* buffer, size_t len);
  private:
   void ResetSubClient(size_t id);
-  void InitSubCliAddrs(const string& ips, const string& ports);
+  void InitSubCliAddrs();
   void InitSubClients();
  private:
-  void InitPubCliAddrs(const string& ips, const string& ports);
+  void InitPubCliAddrs();
   void InitPubClients();
  private:
   void InitStorage(const string& path);
@@ -65,8 +66,8 @@ class RouterServer {
   void InsertUid(const UserID& uid, SessionServerID sid);
   void EraseUid(const UserID& uid) ;
  private:
-  vector<pair<string, size_t> > subcliaddrs_;
-  vector<pair<string, size_t> > pubcliaddrs_;
+  vector<string> subcliaddrs_;
+  vector<string> pubcliaddrs_;
   vector<shared_ptr<SessionSubClient> > session_sub_clients_;
   vector<shared_ptr<SessionPubClient> > session_pub_clients_;
  private: //callbacks

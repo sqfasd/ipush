@@ -11,16 +11,14 @@
 DEFINE_string(admin_listen_ip, "0.0.0.0", "");
 DEFINE_int32(admin_listen_port, 9100, "");
 
-DEFINE_string(sserver_sub_ips, "127.0.0.1|127.0.0.1", "");
-DEFINE_string(sserver_sub_ports, "8100|8200", "");
-DEFINE_string(sserver_sub_uri, "/stream?cname=12", "");
+DEFINE_string(sserver_sub_addrs, "127.0.0.1:8100,127.0.0.1:8200", "");
 
-DEFINE_string(sserver_pub_ips, "127.0.0.1|127.0.0.1", "");
-DEFINE_string(sserver_pub_ports, "8100|8200", "");
+DEFINE_string(sserver_sub_uri, "/rsub", "");
+
+DEFINE_string(sserver_pub_addrs, "127.0.0.1:8100,127.0.0.1:8200", "");
 
 DEFINE_string(ssdb_path, "/tmp/ssdb_tmp", "");
 
-//DEFINE_string(sserver_pub_uri, "/pub?cname=12&content=123", "");
 DEFINE_int32(retry_interval, 2, "seconds");
 DEFINE_bool(libevent_debug_log, false, "for debug logging");
 
@@ -52,9 +50,9 @@ RouterServer::~RouterServer() {
 }
 
 void RouterServer::Start() {
-  InitSubCliAddrs(FLAGS_sserver_sub_ips, FLAGS_sserver_sub_ports);
+  InitSubCliAddrs();
   InitSubClients();
-  InitPubCliAddrs(FLAGS_sserver_pub_ips, FLAGS_sserver_pub_ports);
+  InitPubCliAddrs();
   InitPubClients();
   InitStorage(FLAGS_ssdb_path);
   InitAdminHttp();
@@ -66,67 +64,51 @@ void RouterServer::ResetSubClient(size_t id) {
   CHECK(session_sub_clients_.size());
   CHECK(subcliaddrs_.size());
   CHECK(id < subcliaddrs_.size()) ;
+  string ip;
+  int port;
+  ParseIpPort(subcliaddrs_[id], ip, port);
   session_sub_clients_[id].reset(
                 new SessionSubClient(
                     this,
                     evbase_, 
                     id,
-                    //ClientErrorCB,
-                    subcliaddrs_[id].first, 
-                    subcliaddrs_[id].second,
+                    ip,
+                    port,
                     FLAGS_sserver_sub_uri
                     )
               );
   session_sub_clients_[id]->MakeSubEvent();
 }
 
-void RouterServer::InitSubCliAddrs(const string& ipsstr, const string& portsstr) {
-  VLOG(5) << FLAGS_sserver_sub_ips ;
-  VLOG(5) << FLAGS_sserver_sub_ports ;
-  vector<string> ips;
-  vector<string> ports;
-  SplitString(ipsstr, '|', &ips);
-  SplitString(portsstr, '|', &ports);
-  CHECK(ips.size());
-  CHECK(ips.size() == ports.size());
-  subcliaddrs_.resize(ips.size());
-  LOG(INFO) << "subcliaddrs_ size : " << subcliaddrs_.size();
-  for(size_t i = 0; i < subcliaddrs_.size(); i++) {
-    subcliaddrs_[i].first = ips[i];
-    subcliaddrs_[i].second = atoi(ports[i].c_str());
-  }
+void RouterServer::InitSubCliAddrs() {
+  VLOG(5) << FLAGS_sserver_sub_addrs ;
+  vector<string> addrs;
+  SplitString(FLAGS_sserver_sub_addrs, ',', &subcliaddrs_);
+  CHECK(addrs.size());
 }
 
-void RouterServer::InitPubCliAddrs(const string& ipsstr, const string& portsstr) {
-  VLOG(5) << FLAGS_sserver_pub_ips ;
-  VLOG(5) << FLAGS_sserver_pub_ports ;
-  vector<string> ips;
-  vector<string> ports;
-  SplitString(ipsstr, '|', &ips);
-  SplitString(portsstr, '|', &ports);
-  CHECK(ips.size());
-  CHECK(ips.size() == ports.size());
-  pubcliaddrs_.resize(ips.size());
-  LOG(INFO) << "pubcliaddrs_ size : " << pubcliaddrs_.size();
-  for(size_t i = 0; i < pubcliaddrs_.size(); i++) {
-    pubcliaddrs_[i].first = ips[i];
-    pubcliaddrs_[i].second = atoi(ports[i].c_str());
-  }
+void RouterServer::InitPubCliAddrs() {
+  VLOG(5) << FLAGS_sserver_pub_addrs ;
+  vector<string> addrs;
+  SplitString(FLAGS_sserver_pub_addrs, ',', &pubcliaddrs_);
+  CHECK(addrs.size());
 }
 
 void RouterServer::InitSubClients() {
   CHECK(session_sub_clients_.empty());
+  string ip;
+  int port;
   for (size_t i = 0; i < subcliaddrs_.size(); i++) {
-    VLOG(5) << "new SessionSubClient " << subcliaddrs_[i].first << "," << subcliaddrs_[i].second;
+    ParseIpPort(subcliaddrs_[i], ip, port);
+    VLOG(5) << "new SessionSubClient " << ip << "," << port;
     session_sub_clients_.push_back(
                 shared_ptr<SessionSubClient>(
                     new SessionSubClient(
                         this,
                         evbase_, 
                         i,
-                        //ClientErrorCB,
-                        subcliaddrs_[i].first, 
-                        subcliaddrs_[i].second,
+                        ip,
+                        port,
                         FLAGS_sserver_sub_uri
                         )
                     )
@@ -140,17 +122,19 @@ void RouterServer::InitSubClients() {
 
 void RouterServer::InitPubClients() {
   CHECK(session_pub_clients_.empty());
+  string ip;
+  int port;
   for (size_t i = 0; i < pubcliaddrs_.size(); i++) {
-    VLOG(5) << "new SessionPubClient " << pubcliaddrs_[i].first << "," << pubcliaddrs_[i].second;
+    ParseIpPort(pubcliaddrs_[i], ip, port);
+    VLOG(5) << "new SessionPubClient " << ip << "," << port;
     session_pub_clients_.push_back(
                 shared_ptr<SessionPubClient>(
                     new SessionPubClient(
                         this,
                         evbase_, 
                         i,
-                        //ClientErrorCB,
-                        pubcliaddrs_[i].first, 
-                        pubcliaddrs_[i].second
+                        ip,
+                        port
                         )
                     )
                 );

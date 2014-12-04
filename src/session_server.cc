@@ -5,8 +5,8 @@
 #include <event2/listener.h>
 #include "base/logging.h"
 #include "base/flags.h"
-#include "base/string_util.h"
 #include "base/shared_ptr.h"
+#include "utils.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9100, "");
@@ -307,16 +307,6 @@ static void TimerHandler(evutil_socket_t sig, short events, void *user_data) {
   SessionServer::Instance().OnTimer();
 }
 
-void ParseIpPort(const string& address, string& ip, int& port) {
-  size_t pos = address.find(':');
-  if (pos == string::npos) {
-    ip = "";
-    port = 0;
-    return;
-  }
-  ip = address.substr(0, pos);
-  port = StringToInt(address.substr(pos+1, address.length()));
-}
 
 void SetupClientHandler(struct evhttp* http, struct event_base* evbase) {
   evhttp_set_cb(http, "/sub", SubHandler, evbase);
