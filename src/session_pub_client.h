@@ -14,7 +14,6 @@ namespace xcomet {
 class SessionPubClient {
  public:
   SessionPubClient(
-      class RouterServer* parent,
       struct event_base *evbase,
       size_t client_id,
       const string& pub_host, 
@@ -34,7 +33,6 @@ class SessionPubClient {
   static void PubDoneCB(struct evhttp_request* req, void * ctx);
   static void PubCompleteCB(struct evhttp_request* req, void *ctx);
  private:
-  class RouterServer* parent_;
   struct event_base *evbase_;
  private:
   size_t client_id_;

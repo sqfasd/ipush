@@ -14,14 +14,12 @@ namespace xcomet {
 using Limonp::string_format;
 
 SessionPubClient::SessionPubClient(
-            class RouterServer* parent,
             struct event_base* evbase, 
             size_t client_id,
             const string& pub_host,
             int pub_port
             )
     : 
-        parent_(parent),
         evbase_(evbase), 
         client_id_(client_id),
         pub_host_(pub_host),

@@ -130,7 +130,6 @@ void RouterServer::InitPubClients() {
     session_pub_clients_.push_back(
                 shared_ptr<SessionPubClient>(
                     new SessionPubClient(
-                        this,
                         evbase_, 
                         i,
                         ip,
