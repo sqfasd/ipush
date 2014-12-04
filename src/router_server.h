@@ -74,8 +74,9 @@ class RouterServer {
  private:
   void PushOfflineMsgDoneCB(bool ok);
   //void PopOfflineMsgDoneCB(UserID uid, MessageIteratorPtr mit);
-  void GetMsgToPubCB(UserID uid, MessageIteratorPtr mit);
+  void GetMsgToPubCB(UserID uid, int64_t start, MessageIteratorPtr mit);
   void GetMsgToReplyCB(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit);
+  void GetMsgToPub(const UserID& uid, int64_t start);
  private: 
   struct event_base *evbase_;
   scoped_ptr<Storage> storage_;

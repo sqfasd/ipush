@@ -23,7 +23,7 @@ class MessageIterator {
   }
   std::string Next() {
     string msg = msgs_->front();
-    VLOG(3) << "Next: msg=" << msg;
+    VLOG(6) << "Next: msg=" << msg;
     msgs_->pop();
     return msg;
   }

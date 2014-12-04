@@ -29,6 +29,7 @@ DEFINE_string(admin_uri_broadcast, "/broadcast", "");
 DEFINE_string(admin_uri_pub, "/pub", "");
 DEFINE_string(admin_uri_offmsg, "/offmsg", "");
 
+DEFINE_int64(message_batch_size, 100, "get message limit 100");
 
 #define IS_LOGIN(type) (strcmp(type, "login") == 0)
 #define IS_LOGOUT(type) (strcmp(type, "logout") == 0)
@@ -231,16 +232,16 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
     VLOG(5) << type;
   } else if(IS_LOGIN(type)) {
     VLOG(5) << type;
-    const char * uid;
-    int seq;
+    string uid;
+    int64_t seq;
     try {
-      uid = value["uid"].asCString();
-      seq = value["seq"].asInt(); //TODO testing
+      uid = value["uid"].asString();
+      seq = value["seq"].asInt64(); //TODO testing
     } catch (...) {
       LOG(ERROR) << "uid or seq not found";
       return;
     }
-    if(uid == NULL) {
+    if(uid.empty()) {
       LOG(ERROR) << "uid not found";
       return;
     }
@@ -248,8 +249,9 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
     VLOG(5) << "uid: " << uid << " sid: " << sid << " seq:" << seq;
     // if seq = -1, not pub message.
     if(seq >=0) {
-      VLOG(5) << "storage_->GetMessageIterator";
-      storage_->GetMessageIterator(string(uid), seq, -1, boost::bind(&RouterServer::GetMsgToPubCB, this, string(uid), _1));
+      GetMsgToPub(uid, seq);
+    } else {
+      VLOG(4) << "seq :" << seq; 
     }
   } else if(IS_LOGOUT(type)) {
     VLOG(5) << type;
@@ -270,6 +272,17 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
   } else {
     LOG(ERROR) << "type is illegal";
   }
+}
+
+void RouterServer::GetMsgToPub(const UserID& uid, int64_t start) {
+  int64_t end = start + FLAGS_message_batch_size - 1;
+  VLOG(5) << "GetMsgToPub , uid " << uid << " start:" << start << " end:" << end;
+  storage_->GetMessageIterator(
+              uid,
+              start, 
+              end, 
+              boost::bind(&RouterServer::GetMsgToPubCB, this, uid, start, _1)
+              );
 }
 
 void RouterServer::InsertUid(const UserID& uid, SessionServerID sid) {
@@ -382,13 +395,21 @@ void RouterServer::SendReply(struct evhttp_request* req, const char* content, si
 //  }
 //}
 
-void RouterServer::GetMsgToPubCB(UserID uid, MessageIteratorPtr mit) {
-  VLOG(5) << "GetMsgToPubCB";
+void RouterServer::GetMsgToPubCB(
+            UserID uid, int64_t start, MessageIteratorPtr mit
+            ) {
+  VLOG(5) << "GetMsgToPubCB, uid:" << uid << " start: "<< start;
   string msg;
+  size_t i = 0;
   while(mit->HasNext()) {
     msg = mit->Next();
     VLOG(5) << msg;
-    MakePubEvent(uid.c_str(), msg.c_str(), msg.size());
+    //MakePubEvent(uid.c_str(), msg.c_str(), msg.size());
+    i++;
+  }
+  // message is unfinished.
+  if(i == FLAGS_message_batch_size) {
+    GetMsgToPub(uid, start + FLAGS_message_batch_size);
   }
 }
 

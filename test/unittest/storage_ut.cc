@@ -53,10 +53,20 @@ class StorageUnittest : public testing::Test {
   }
 
   void GetDone3(string uid, MessageIteratorPtr mit) {
-    LOG(INFO) << "Storage GetDone2";
+    LOG(INFO) << "Storage GetDone3";
     CHECK(uid == "u1");
     CHECK(mit->HasNext());
     CHECK(mit->Next() == "m2");
+    CHECK(!mit->HasNext());
+  }
+
+  void GetDone4(string uid, MessageIteratorPtr mit) {
+    LOG(INFO) << "Storage GetDone4";
+    CHECK(uid == "u1");
+    CHECK(mit->HasNext());
+    CHECK(mit->Next() == "m2");
+    CHECK(mit->HasNext());
+    CHECK(mit->Next() == "m3");
     CHECK(!mit->HasNext());
   }
  
@@ -112,6 +122,10 @@ TEST_F(StorageUnittest, SimpleTest) {
       boost::bind(&StorageUnittest::GetDone2, this, "u1", _1));
   storage_->GetMessageIterator("u1", 1, 1,
       boost::bind(&StorageUnittest::GetDone3, this, "u1", _1));
+  storage_->GetMessageIterator("u1", 1, 2,
+      boost::bind(&StorageUnittest::GetDone4, this, "u1", _1));
+  storage_->GetMessageIterator("u1", 1, 10,
+      boost::bind(&StorageUnittest::GetDone4, this, "u1", _1));
   storage_->PopOfflineMessageIterator("u1",
       boost::bind(&StorageUnittest::PopDone, this, "u1", _1));
 }

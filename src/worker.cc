@@ -30,6 +30,7 @@ void Worker::RunInEventloop(void* data, void* self) {
 
 void Worker::Run() {
   while (true) {
+    VLOG(3) << "task queue size:" << task_queue_.Size();
     Task* task;
     task_queue_.Pop(task);
     if (task == NULL) {
