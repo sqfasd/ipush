@@ -19,7 +19,6 @@ DEFINE_string(sserver_pub_addrs, "127.0.0.1:8100,127.0.0.1:8200", "");
 
 DEFINE_string(ssdb_path, "/tmp/ssdb_tmp", "");
 
-DEFINE_int32(retry_interval, 2, "seconds");
 DEFINE_bool(libevent_debug_log, false, "for debug logging");
 
 DEFINE_string(admin_uri_presence, "/presence", "");
@@ -33,8 +32,6 @@ DEFINE_int64(message_batch_size, 100, "get message limit 100");
 #define IS_LOGOUT(type) (strcmp(type, "logout") == 0)
 #define IS_MSG(type) (strcmp(type, "user_msg") == 0)
 #define IS_NOOP(type) (strcmp(type, "noop") == 0)
-
-const struct timeval RETRY_TV = {FLAGS_retry_interval, 0};
 
 namespace xcomet {
 
@@ -82,16 +79,14 @@ void RouterServer::ResetSubClient(size_t id) {
 
 void RouterServer::InitSubCliAddrs() {
   VLOG(5) << FLAGS_sserver_sub_addrs ;
-  vector<string> addrs;
   SplitString(FLAGS_sserver_sub_addrs, ',', &subcliaddrs_);
-  CHECK(addrs.size());
+  CHECK(subcliaddrs_.size());
 }
 
 void RouterServer::InitPubCliAddrs() {
   VLOG(5) << FLAGS_sserver_pub_addrs ;
-  vector<string> addrs;
   SplitString(FLAGS_sserver_pub_addrs, ',', &pubcliaddrs_);
-  CHECK(addrs.size());
+  CHECK(pubcliaddrs_.size());
 }
 
 void RouterServer::InitSubClients() {
@@ -165,20 +160,13 @@ void RouterServer::AcceptErrorCB(struct evconnlistener * listener, void * ctx) {
   LOG(ERROR) << "RouterServer::AcceptErrorCB";
 }
 
-void RouterServer::ClientErrorCB(int sock, short which, void *arg) {
-  VLOG(5) << "ClientErrorCB";
-  CliErrInfo * err = static_cast<CliErrInfo*>(arg);
-  CHECK(err != NULL);
-  err->router->ResetSubClient(err->id);
-  delete err;
-}
-
-void RouterServer::MakeCliErrEvent(CliErrInfo* clierr) {
-  VLOG(5) << "MakeCliErrEvent";
-  struct event * everr = event_new(evbase_, -1, EV_READ|EV_TIMEOUT, ClientErrorCB, static_cast<void *>(clierr));
-  event_add(everr, &RETRY_TV);
-  LOG(INFO) << "event_add error_event : timeout " << FLAGS_retry_interval;
-} 
+//void RouterServer::ClientErrorCB(int sock, short which, void *arg) {
+//  VLOG(5) << "ClientErrorCB";
+//  CliErrInfo * err = static_cast<CliErrInfo*>(arg);
+//  CHECK(err != NULL);
+//  err->router->ResetSubClient(err->id);
+//  delete err;
+//}
 
 void RouterServer::MakePubEvent(const char* uid, const char* data, size_t len) {
   VLOG(5) << "RouterServer::MakePubEvent";

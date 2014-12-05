@@ -47,7 +47,6 @@ class RouterServer {
   ~RouterServer();
  public:
   void Start();
-  void MakeCliErrEvent(CliErrInfo* clierr);
   void MakePubEvent(const char* uid, const char* data, size_t len);
   void ChunkedMsgHandler(size_t sid, const char* buffer, size_t len);
  private:

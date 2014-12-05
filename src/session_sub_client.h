@@ -9,14 +9,6 @@
 
 namespace xcomet {
 
-struct CliErrInfo {
-  size_t id;
-  string error;
-  class RouterServer* router;
-  CliErrInfo(size_t id_, const string& err, class RouterServer* parent) : id(id_), error(err), router(parent) {
-  }
-};
-
 class SessionSubClient {
  public:
   SessionSubClient(
@@ -29,19 +21,19 @@ class SessionSubClient {
       );
   ~SessionSubClient();
  public:
+  void Reconnect();
+  void MakeReSubEvent();
   void MakeSubEvent();
-  void MakePubEvent(const char* pub_uri);
  private:
   void InitConn();
   void CloseConn();
- private: // callbacks
+ private: 
+  static void ReSubCB(int sock, short which, void * ctx);
   static void ConnCloseCB(struct evhttp_connection * conn, void *ctx);
  private:
   static void SubDoneCB(struct evhttp_request *req, void * ctx);// this class
   static void SubChunkCB(struct evhttp_request *req, void * ctx);// this class 
   static void SubCompleteCB(struct evhttp_request *req, void * ctx);
- private:
-  //static void ReqErrorCB(enum evhttp_request_error err, void * ctx);
  private:
   class RouterServer* parent_;
   struct event_base *evbase_;

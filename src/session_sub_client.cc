@@ -9,7 +9,11 @@
 
 DEFINE_int32(sub_read_buffer_size,  4096, "");
 
+DEFINE_int32(retry_interval, 2, "seconds");
+
 namespace xcomet {
+
+const struct timeval RETRY_TV = {FLAGS_retry_interval, 0};
 
 using Limonp::string_format;
 
@@ -34,6 +38,11 @@ SessionSubClient::SessionSubClient(
 
 SessionSubClient::~SessionSubClient() {
   CloseConn();
+}
+
+void SessionSubClient::Reconnect() {
+  CloseConn();
+  InitConn();
 }
 
 void SessionSubClient::MakeSubEvent() {
@@ -98,7 +107,21 @@ void SessionSubClient::SubDoneCB(struct evhttp_request *req, void *ctx) {
     }
   } while(false);
 
-  self->parent_->MakeCliErrEvent(new CliErrInfo(self->client_id_, "socket error", self->parent_));
+  self->MakeReSubEvent();
+}
+
+void SessionSubClient::MakeReSubEvent() {
+  struct event * ev = event_new(evbase_, -1, EV_READ|EV_TIMEOUT, ReSubCB, this);
+  event_add(ev, &RETRY_TV);
+  LOG(INFO) << "make resubevent : timeout " << FLAGS_retry_interval;
+}
+
+void SessionSubClient::ReSubCB(int sock, short which, void * ctx) {
+  VLOG(5) << "SessionSubClient::ReSubCB";
+  SessionSubClient* self = static_cast<SessionSubClient*>(ctx);
+  CHECK(self);
+  self->Reconnect();
+  self->MakeSubEvent();
 }
 
 void SessionSubClient::SubChunkCB(struct evhttp_request* req, void * ctx) {
