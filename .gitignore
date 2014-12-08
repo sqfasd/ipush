@@ -15,3 +15,5 @@ t.*
 build
 node_modules
 .git
+*.lo
+*.log
