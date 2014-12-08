@@ -343,6 +343,12 @@ void evhttp_send_reply(struct evhttp_request *req, int code,
 void evhttp_send_reply_start(struct evhttp_request *req, int code,
     const char *reason);
 
+
+// added by xuexibao.cn
+void
+evhttp_send_reply_start_bidirection(struct evhttp_request *req, int code,
+    const char *reason, void (*read_cb)(void *), void* ctx);
+
 /**
    Send another data chunk as part of an ongoing chunked reply.
 

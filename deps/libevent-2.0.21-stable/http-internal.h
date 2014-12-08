@@ -104,6 +104,12 @@ struct evhttp_connection {
 
 	struct event_base *base;
 	struct evdns_base *dns_base;
+
+    // added xuexibao.cn
+    void (*myreadcb)(void *);
+    // added xuexibao.cn
+    void *myreadcb_arg;
+    
 };
 
 /* A callback for an http server */

@@ -192,6 +192,9 @@ static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request
 /* callbacks for bufferevent */
 static void evhttp_read_cb(struct bufferevent *, void *);
 static void evhttp_write_cb(struct bufferevent *, void *);
+// added by xuexibao.cn
+static void evhttp_myread_cb(struct bufferevent *, void *);
+
 static void evhttp_error_cb(struct bufferevent *bufev, short what, void *arg);
 static int evhttp_decode_uri_internal(const char *uri, size_t length,
     char *ret, int decode_plus);
@@ -393,6 +396,27 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	    evhttp_write_cb,
 	    evhttp_error_cb,
 	    evcon);
+}
+
+static void
+evhttp_write_buffer_bidirection(struct evhttp_connection *evcon,
+    void (*cb)(struct evhttp_connection *, void *), void *arg, void (*read_cb)(void *), void* readctx)
+{
+	event_debug(("%s: preparing to write buffer\n", __func__));
+
+	/* Set call back */
+	evcon->cb = cb;
+	evcon->cb_arg = arg;
+    evcon->myreadcb = read_cb;
+    evcon->myreadcb_arg = readctx;
+
+	bufferevent_setcb(evcon->bufev,
+	    evhttp_myread_cb, 
+	    evhttp_write_cb,
+	    evhttp_error_cb,
+	    evcon);
+
+	bufferevent_enable(evcon->bufev, EV_WRITE|EV_READ);
 }
 
 static void
@@ -758,6 +782,16 @@ evhttp_write_cb(struct bufferevent *bufev, void *arg)
 	/* Activate our call back */
 	if (evcon->cb != NULL)
 		(*evcon->cb)(evcon, evcon->cb_arg);
+}
+
+static void
+evhttp_myread_cb(struct bufferevent *bufev, void *arg)
+{
+	struct evhttp_connection *evcon = arg;
+
+	/* Activate our call back */
+	if (evcon->myreadcb != NULL)
+		(*evcon->myreadcb)(evcon->myreadcb_arg);
 }
 
 /**
@@ -2455,6 +2489,29 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
 	}
 	evhttp_make_header(req->evcon, req);
 	evhttp_write_buffer(req->evcon, NULL, NULL);
+}
+
+void
+evhttp_send_reply_start_bidirection(struct evhttp_request *req, int code,
+            const char *reason, void (*read_cb)(void *), void* ctx)
+{
+	evhttp_response_code(req, code, reason);
+	if (evhttp_find_header(req->output_headers, "Content-Length") == NULL &&
+	    REQ_VERSION_ATLEAST(req, 1, 1) &&
+	    evhttp_response_needs_body(req)) {
+		/*
+		 * prefer HTTP/1.1 chunked encoding to closing the connection;
+		 * note RFC 2616 section 4.4 forbids it with Content-Length:
+		 * and it's not necessary then anyway.
+		 */
+		evhttp_add_header(req->output_headers, "Transfer-Encoding",
+		    "chunked");
+		req->chunked = 1;
+	} else {
+		req->chunked = 0;
+	}
+	evhttp_make_header(req->evcon, req);
+	evhttp_write_buffer_bidirection(req->evcon, NULL, NULL, read_cb, ctx);
 }
 
 void
