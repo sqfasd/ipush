@@ -40,3 +40,4 @@ test/test-init
 test/test-ratelim
 test/test-time
 test/test-weof
+autom4te.cache
