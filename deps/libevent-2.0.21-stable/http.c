@@ -187,6 +187,11 @@ static const char *evhttp_response_phrase_internal(int code);
 static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, ev_socklen_t);
 static void evhttp_write_buffer(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
+
+/* added by xuexibao.cn */
+static void evhttp_write_buffer_bi(struct evhttp_connection *,
+    void (*)(struct evhttp_connection *, void *), void *);
+
 static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
 
 /* callbacks for bufferevent */
@@ -399,24 +404,22 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 }
 
 static void
-evhttp_write_buffer_bidirection(struct evhttp_connection *evcon,
-    void (*cb)(struct evhttp_connection *, void *), void *arg, void (*read_cb)(void *), void* readctx)
+evhttp_write_buffer_bi(struct evhttp_connection *evcon,
+    void (*cb)(struct evhttp_connection *, void *), void *arg)
 {
 	event_debug(("%s: preparing to write buffer\n", __func__));
 
 	/* Set call back */
 	evcon->cb = cb;
 	evcon->cb_arg = arg;
-    evcon->myreadcb = read_cb;
-    evcon->myreadcb_arg = readctx;
+
+	bufferevent_enable(evcon->bufev, EV_WRITE|EV_READ);
 
 	bufferevent_setcb(evcon->bufev,
 	    evhttp_myread_cb, 
 	    evhttp_write_cb,
 	    evhttp_error_cb,
 	    evcon);
-
-	bufferevent_enable(evcon->bufev, EV_WRITE|EV_READ);
 }
 
 static void
@@ -2492,7 +2495,7 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
 }
 
 void
-evhttp_send_reply_start_bidirection(struct evhttp_request *req, int code,
+evhttp_send_reply_start_bi(struct evhttp_request *req, int code,
             const char *reason, void (*read_cb)(void *), void* ctx)
 {
 	evhttp_response_code(req, code, reason);
@@ -2510,8 +2513,12 @@ evhttp_send_reply_start_bidirection(struct evhttp_request *req, int code,
 	} else {
 		req->chunked = 0;
 	}
+
+  req->evcon->myreadcb = read_cb;
+  req->evcon->myreadcb_arg = ctx;
+
 	evhttp_make_header(req->evcon, req);
-	evhttp_write_buffer_bidirection(req->evcon, NULL, NULL, read_cb, ctx);
+	evhttp_write_buffer_bi(req->evcon, NULL, NULL);
 }
 
 void
@@ -2538,6 +2545,32 @@ evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
 		evbuffer_add(output, "\r\n", 2);
 	}
 	evhttp_write_buffer(evcon, NULL, NULL);
+}
+
+void
+evhttp_send_reply_chunk_bi(struct evhttp_request *req, struct evbuffer *databuf)
+{
+	struct evhttp_connection *evcon = req->evcon;
+	struct evbuffer *output;
+
+	if (evcon == NULL)
+		return;
+
+	output = bufferevent_get_output(evcon->bufev);
+
+	if (evbuffer_get_length(databuf) == 0)
+		return;
+	if (!evhttp_response_needs_body(req))
+		return;
+	if (req->chunked) {
+		evbuffer_add_printf(output, "%x\r\n",
+				    (unsigned)evbuffer_get_length(databuf));
+	}
+	evbuffer_add_buffer(output, databuf);
+	if (req->chunked) {
+		evbuffer_add(output, "\r\n", 2);
+	}
+	evhttp_write_buffer_bi(evcon, NULL, NULL);
 }
 
 void
