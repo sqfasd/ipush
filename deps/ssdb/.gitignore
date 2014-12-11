@@ -28,5 +28,4 @@ api/php/a.php
 api/php/c.php
 api/java/Test.java
 src/util/test_sorted_set
-deps/snappy-1.1.0/autom4te.cache/
-tools/ssdb-cli.bat
+
