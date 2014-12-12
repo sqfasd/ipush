@@ -12,16 +12,22 @@ namespace xcomet {
 using std::string;
 
 HttpClient::HttpClient(struct event_base* evbase,
-    const HttpClientOption& option)
+    const HttpClientOption& option, void *cb_arg)
     : evbase_(evbase),
       evconn_(NULL),
-      option_(option) {
+      evreq_(NULL),
+      option_(option),
+      cb_arg_(cb_arg) {
   evconn_ = evhttp_connection_base_new(evbase_,
                                        NULL,
                                        option_.host.c_str(),
                                        option_.port);
+  evreq_ = evhttp_request_new(&HttpClient::OnRequestDone, this);
+  CHECK(evreq_);
+  evhttp_request_set_chunked_cb(evreq_, &HttpClient::OnChunk);
   CHECK(evconn_);
   evhttp_connection_set_closecb(evconn_, OnClose, this);
+
 }
 
 HttpClient::~HttpClient() {
@@ -31,32 +37,39 @@ HttpClient::~HttpClient() {
   }
 }
 
-void HttpClient::StartRequest() {
-  struct evhttp_request* req = evhttp_request_new(&HttpClient::OnRequestDone, this);
-  evhttp_request_set_chunked_cb(req, &HttpClient::OnChunk);
+void HttpClient::Send(const string& data) {
+  struct evbuffer* buf = evhttp_request_get_output_buffer(evreq_);
+  evbuffer_add(buf, data.c_str(), data.size());
+  VLOG(6) << "Send:" << data;
+}
 
-  struct evkeyvalq* output_headers = evhttp_request_get_output_headers(req);
+void HttpClient::SendChunk(const string& data) {
+  struct evbuffer* buf = evhttp_request_get_output_buffer(evreq_);
+  evbuffer_add_printf(buf, "%s\n", data.c_str());
+  evhttp_send_reply_chunk(evreq_, buf);
+  VLOG(6) << "SendChunk:" << data;
+}
+
+void HttpClient::StartRequest() {
+  struct evkeyvalq* output_headers = evhttp_request_get_output_headers(evreq_);
   evhttp_add_header(output_headers, "Host", option_.host.c_str());
 
   enum evhttp_cmd_type cmd = option_.method;
   if (cmd == EVHTTP_REQ_POST && !option_.data.empty()) {
-    evbuffer_add(req->output_buffer,
-                 option_.data.c_str(),
-                 option_.data.length());
     evhttp_add_header(output_headers,
                       "Content-Type",
                       "application/x-www-form-urlencoded");
-    VLOG(6) << "post data: " << option_.data;
+    Send(option_.data);
   }
 
   const char* uri = option_.path.empty() ? "/" : option_.path.c_str();
-  int ret = evhttp_make_request(evconn_, req, cmd, uri);
+  int ret = evhttp_make_request(evconn_, evreq_, cmd, uri);
   if(ret != 0) {
     LOG(ERROR) << "evhttp_make_request failed!!!";
   }
 }
 
-void HttpClient::OnRequestDone(struct evhttp_request* req, void* ctx) {
+void HttpClient::OnRequestDone(struct evhttp_request* evreq_, void* ctx) {
   VLOG(5) << "HttpClient::OnRequestDone";
   HttpClient* self = (HttpClient*)ctx;
   CHECK(self);
@@ -65,12 +78,12 @@ void HttpClient::OnRequestDone(struct evhttp_request* req, void* ctx) {
   int code;
 
   do {
-    if (req == NULL) {
+    if (evreq_ == NULL) {
       errcode = EVUTIL_SOCKET_ERROR();
       LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
       break;
     }
-    code = evhttp_request_get_response_code(req);
+    code = evhttp_request_get_response_code(evreq_);
     if (code == 0) {
       errcode = EVUTIL_SOCKET_ERROR();
       LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
@@ -85,7 +98,7 @@ void HttpClient::OnRequestDone(struct evhttp_request* req, void* ctx) {
 
   fprintf(stdout, "request sucess:\n");
 
-  struct evbuffer* evbuf = evhttp_request_get_input_buffer(req);   
+  struct evbuffer* evbuf = evhttp_request_get_input_buffer(evreq_);   
   int len = evbuffer_get_length(evbuf);
   string buffer;
   buffer.resize(len);
@@ -93,21 +106,21 @@ void HttpClient::OnRequestDone(struct evhttp_request* req, void* ctx) {
   CHECK(nread == len);
   
   if (self->request_done_cb_) {
-    self->request_done_cb_(self, buffer);
+    self->request_done_cb_(self, buffer, self->cb_arg_);
   }
 }
 
-void HttpClient::OnChunk(struct evhttp_request* req, void* ctx) {
+void HttpClient::OnChunk(struct evhttp_request* evreq_, void* ctx) {
   VLOG(5) << "HttpClient::OnChunk";
   HttpClient* self = (HttpClient*)ctx;
-  struct evbuffer* evbuf = evhttp_request_get_input_buffer(req);   
+  struct evbuffer* evbuf = evhttp_request_get_input_buffer(evreq_);   
   int len = evbuffer_get_length(evbuf);
   string buffer;
   buffer.resize(len);
   int nread = evbuffer_remove(evbuf, (char*)buffer.c_str(), buffer.size());
   CHECK(len == nread);
   if (self->chunk_cb_) {
-    self->chunk_cb_(self, buffer);
+    self->chunk_cb_(self, buffer, self->cb_arg_);
   }
 }
 
@@ -115,7 +128,7 @@ void HttpClient::OnClose(struct evhttp_connection* conn, void *ctx) {
   VLOG(5) << "HttpClient::OnClose";
   HttpClient *self = (HttpClient*)ctx;
   if (self->close_cb_) {
-    self->close_cb_(self);
+    self->close_cb_(self, self->cb_arg_);
   }
 }
 

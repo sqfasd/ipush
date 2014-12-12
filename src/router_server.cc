@@ -47,152 +47,86 @@ RouterServer::~RouterServer() {
 }
 
 void RouterServer::Start() {
-  InitSubCliAddrs();
   InitSubClients();
-  InitPubCliAddrs();
-  InitPubClients();
-  InitStorage(FLAGS_ssdb_path);
+  InitStorage();
   InitAdminHttp();
   event_base_dispatch(evbase_);
 }
 
-void RouterServer::ResetSubClient(size_t id) {
-  VLOG(5) << "ResetSubClient";
-  CHECK(session_sub_clients_.size());
-  CHECK(subcliaddrs_.size());
-  CHECK(id < subcliaddrs_.size()) ;
-  string ip;
-  int port;
-  ParseIpPort(subcliaddrs_[id], ip, port);
-  session_sub_clients_[id].reset(
-                new SessionSubClient(
-                    this,
-                    evbase_, 
-                    id,
-                    ip,
-                    port,
-                    FLAGS_sserver_sub_uri
-                    )
-              );
-  session_sub_clients_[id]->MakeSubEvent();
-}
-
-void RouterServer::InitSubCliAddrs() {
-  VLOG(5) << FLAGS_sserver_sub_addrs ;
-  SplitString(FLAGS_sserver_sub_addrs, ',', &subcliaddrs_);
-  CHECK(subcliaddrs_.size());
-}
-
-void RouterServer::InitPubCliAddrs() {
-  VLOG(5) << FLAGS_sserver_pub_addrs ;
-  SplitString(FLAGS_sserver_pub_addrs, ',', &pubcliaddrs_);
-  CHECK(pubcliaddrs_.size());
-}
-
 void RouterServer::InitSubClients() {
-  CHECK(session_sub_clients_.empty());
-  string ip;
-  int port;
-  for (size_t i = 0; i < subcliaddrs_.size(); i++) {
-    ParseIpPort(subcliaddrs_[i], ip, port);
-    VLOG(5) << "new SessionSubClient " << ip << "," << port;
-    session_sub_clients_.push_back(
-                shared_ptr<SessionSubClient>(
-                    new SessionSubClient(
-                        this,
-                        evbase_, 
-                        i,
-                        ip,
-                        port,
-                        FLAGS_sserver_sub_uri
-                        )
-                    )
-                );
+  vector<string> addrs;
+  SplitString(FLAGS_sserver_sub_addrs, ',', &addrs);
+  CHECK(addrs.size());
+  CHECK(sub_clients_.empty());
+  for (size_t i = 0; i < addrs.size(); i++) {
+    HttpClientOption option;
+    option.id = (int)i;
+    ParseIpPort(addrs[i], option.host, option.port);
+    option.method = EVHTTP_REQ_GET;
+    option.path = FLAGS_sserver_sub_uri;
+
+    VLOG(5) << "new HttpClient " << option;
+    shared_ptr<HttpClient> client(new HttpClient(evbase_, option, this));
+    client->SetRequestDoneCallback(OnSubRequestDone);
+    client->SetChunkCallback(OnSubMsg);
+
+    sub_clients_.push_back(client);
   }
-  // init request events
-  for(size_t i = 0; i < session_sub_clients_.size(); i++) {
-    session_sub_clients_[i]->MakeSubEvent();
+  for(size_t i = 0; i < sub_clients_.size(); i++) {
+    sub_clients_[i]->StartRequest();
   }
 }
 
-void RouterServer::InitPubClients() {
-  CHECK(session_pub_clients_.empty());
-  string ip;
-  int port;
-  for (size_t i = 0; i < pubcliaddrs_.size(); i++) {
-    ParseIpPort(pubcliaddrs_[i], ip, port);
-    VLOG(5) << "new SessionPubClient " << ip << "," << port;
-    session_pub_clients_.push_back(
-                shared_ptr<SessionPubClient>(
-                    new SessionPubClient(
-                        evbase_, 
-                        i,
-                        ip,
-                        port
-                        )
-                    )
-                );
-  }
-}
-
-void RouterServer::InitStorage(const string& path) {
-  LOG(INFO) << "InitStorage path:" << path;
-  storage_.reset(new Storage(evbase_, path));
-  
+void RouterServer::InitStorage() {
+  LOG(INFO) << "InitStorage path:" << FLAGS_ssdb_path;
+  storage_.reset(new Storage(evbase_, FLAGS_ssdb_path));
 }
 
 void RouterServer::InitAdminHttp() {
   admin_http_ = evhttp_new(evbase_);
-  evhttp_set_cb(admin_http_, FLAGS_admin_uri_pub.c_str(), AdminPubCB, this);
-  evhttp_set_cb(admin_http_, FLAGS_admin_uri_broadcast.c_str(), AdminBroadcastCB, this);
-  evhttp_set_cb(admin_http_, FLAGS_admin_uri_presence.c_str(), AdminCheckPresenceCB, this);
-  evhttp_set_cb(admin_http_, FLAGS_admin_uri_offmsg.c_str(), AdminCheckOffMsgCB, this);
+  evhttp_set_cb(admin_http_, FLAGS_admin_uri_pub.c_str(), OnAdminPub, this);
+  evhttp_set_cb(admin_http_, FLAGS_admin_uri_broadcast.c_str(), OnAdminBroadcast, this);
+  evhttp_set_cb(admin_http_, FLAGS_admin_uri_presence.c_str(), OnAdminCheckPresence, this);
+  evhttp_set_cb(admin_http_, FLAGS_admin_uri_offmsg.c_str(), OnAdminCheckOffMsg, this);
   
   struct evhttp_bound_socket* sock;
   sock = evhttp_bind_socket_with_handle(admin_http_, FLAGS_admin_listen_ip.c_str(), FLAGS_admin_listen_port);
   CHECK(sock) << "bind address failed" << strerror(errno);
   LOG(INFO) << "admin server listen on" << FLAGS_admin_listen_ip << " " << FLAGS_admin_listen_port;
   struct evconnlistener * listener = evhttp_bound_socket_get_listener(sock);
-  evconnlistener_set_error_cb(listener, AcceptErrorCB);
+  evconnlistener_set_error_cb(listener, OnAcceptError);
 }
 
-void RouterServer::AcceptErrorCB(struct evconnlistener * listener, void * ctx) {
-  LOG(ERROR) << "RouterServer::AcceptErrorCB";
+void RouterServer::OnAcceptError(struct evconnlistener * listener, void * ctx) {
+  LOG(ERROR) << "RouterServer::OnAcceptError";
 }
 
-//void RouterServer::ClientErrorCB(int sock, short which, void *arg) {
-//  VLOG(5) << "ClientErrorCB";
-//  CliErrInfo * err = static_cast<CliErrInfo*>(arg);
-//  CHECK(err != NULL);
-//  err->router->ResetSubClient(err->id);
-//  delete err;
+//void RouterServer::MakePubEvent(const char* uid, const char* data, size_t len) {
+//  VLOG(5) << "RouterServer::MakePubEvent";
+//  Sid sid = FindSidByUid(uid);
+//  if(sid == INVALID_SID) {
+//    LOG(INFO) << "uid " << uid << " is offline";
+//  } else {
+//    CHECK(size_t(sid) < session_pub_clients_.size());
+//    //session_pub_clients_[sid]->MakePubEvent(uid, data, len);
+//    VLOG(5) << "session_pub_clients_[sid]->MakePubEvent";
+//  }
 //}
 
-void RouterServer::MakePubEvent(const char* uid, const char* data, size_t len) {
-  VLOG(5) << "RouterServer::MakePubEvent";
-  SessionServerID sid = FindServerIdByUid(uid);
-  if(sid == INVALID_SID) {
-    LOG(INFO) << "uid " << uid << " is offline";
-  } else {
-    CHECK(size_t(sid) < session_pub_clients_.size());
-    session_pub_clients_[sid]->MakePubEvent(uid, data, len);
-    VLOG(5) << "session_pub_clients_[sid]->MakePubEvent";
-  }
-}
-
-void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len) {
-  VLOG(5) << "RouterServer::ChunkedMsgHandler";
+void RouterServer::OnSubMsg(const HttpClient* client, const string& msg, void *ctx) {
+  VLOG(5) << "RouterServer::OnSubMsg";
+  RouterServer* self  = (RouterServer*)ctx;
   Json::Value value;
   Json::Reader reader;
-  if(!reader.parse(buffer, buffer + len, value)) {
-    LOG(ERROR) << "json parse failed, data" << string(buffer, len);
+  if(!reader.parse(msg, value)) {
+    LOG(ERROR) << "json parse failed, msg:" << msg;
     return;
   }
   const char* type = NULL;
   try {
     type = value["type"].asCString();
   } catch (...) {
-    LOG(ERROR) << "json catch exception :" << string(buffer, len);
+    LOG(ERROR) << "json catch exception :" << msg;
     return;
   }
   if (type == NULL) {
@@ -216,11 +150,12 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
       LOG(ERROR) << "uid not found";
       return;
     }
-    InsertUid(uid, sid);
+    Sid sid = client->GetOption().id;
+    self->InsertUid(uid, sid);
     VLOG(5) << "uid: " << uid << " sid: " << sid << " seq:" << seq;
     // if seq = -1, not pub message.
     if(seq >=0) {
-      GetMsgToPub(uid, seq);
+      self->GetMsg(uid, seq, boost::bind(&RouterServer::OnGetMsg, self, uid, seq, _1));
     } else {
       VLOG(4) << "seq :" << seq; 
     }
@@ -237,7 +172,7 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
       LOG(ERROR) << "uid not found";
       return;
     }
-    EraseUid(uid);
+    self->EraseUid(uid);
   } else if(IS_NOOP(type)) {
     VLOG(5) << type;
   } else {
@@ -245,18 +180,20 @@ void RouterServer::ChunkedMsgHandler(size_t sid, const char* buffer, size_t len)
   }
 }
 
-void RouterServer::GetMsgToPub(const UserID& uid, int64_t start) {
-  int64_t end = start + FLAGS_message_batch_size - 1;
-  VLOG(5) << "GetMsgToPub , uid " << uid << " start:" << start << " end:" << end;
-  storage_->GetMessageIterator(
-              uid,
-              start, 
-              end, 
-              boost::bind(&RouterServer::GetMsgToPubCB, this, uid, start, _1)
-              );
+void RouterServer::OnSubRequestDone(const HttpClient* client, const string& resp, void *ctx) {
+  VLOG(5) << "RouterServer::OnSubRequestDone";
+  RouterServer* self = (RouterServer*)ctx;
+  CHECK(self);
 }
 
-void RouterServer::InsertUid(const UserID& uid, SessionServerID sid) {
+void RouterServer::GetMsg(const UserID& uid, int64_t start, 
+            boost::function<void (MessageIteratorPtr)> cb) {
+  int64_t end = start + FLAGS_message_batch_size - 1;
+  VLOG(5) << "GetMsg uid " << uid << " start:" << start << " end:" << end;
+  storage_->GetMessageIterator(uid, start, end, cb);
+}
+
+void RouterServer::InsertUid(const UserID& uid, Sid sid) {
   VLOG(5) << "RouterServer::InsertUid " << uid;
   u2sMap_[uid] = sid;
   VLOG(5) << "u2sMap size: " << u2sMap_.size();
@@ -264,7 +201,7 @@ void RouterServer::InsertUid(const UserID& uid, SessionServerID sid) {
 
 void RouterServer::EraseUid(const UserID& uid) {
   VLOG(5) << "RouterServer::EraseUid " << uid;
-  map<UserID, SessionServerID>::iterator iter;
+  map<UserID, Sid>::iterator iter;
   iter = u2sMap_.find(uid);
   if(iter == u2sMap_.end()) {
     LOG(ERROR) << "uid " << uid << " not found.";
@@ -275,8 +212,8 @@ void RouterServer::EraseUid(const UserID& uid) {
   VLOG(5) << "u2sMap size: " << u2sMap_.size();
 }
 
-SessionServerID RouterServer::FindServerIdByUid(const UserID& uid) const {
-  map<UserID, SessionServerID>::const_iterator citer;
+Sid RouterServer::FindSidByUid(const UserID& uid) const {
+  map<UserID, Sid>::const_iterator citer;
   citer = u2sMap_.find(uid);
   if(citer == u2sMap_.end()) {
     return INVALID_SID;
@@ -284,21 +221,20 @@ SessionServerID RouterServer::FindServerIdByUid(const UserID& uid) const {
   return citer->second;
 }
 
-void RouterServer::PushMsgDoneCB(bool ok) {
-  VLOG(5) << "PushMsgDoneCB " << ok;
+void RouterServer::OnPushMsgDone(bool ok) {
+  VLOG(5) << "OnPushMsgDone " << ok;
   if(!ok) {
     LOG(ERROR) << "push failed";
     return;
   }
 }
 
-void RouterServer::AdminPubCB(struct evhttp_request* req, void *ctx) {
+void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
   RouterServer * self = static_cast<RouterServer*>(ctx);
-  VLOG(5) << "RouterServer::AdminPubCB";
+  VLOG(5) << "RouterServer::OnAdminPub";
 
   HttpQuery query(req);
   const char * uid = query.GetStr("uid", NULL);
-  //const char * content = query.GetStr("content", NULL);
   if (uid == NULL) {
     LOG(ERROR) << "uid not found";
     self->ReplyError(req);
@@ -314,29 +250,28 @@ void RouterServer::AdminPubCB(struct evhttp_request* req, void *ctx) {
     self->ReplyError(req);
     return;
   }
-  self->storage_->SaveMessage(uid, string(bufferstr, len), boost::bind(&RouterServer::PushMsgDoneCB, self, _1));
+  self->storage_->SaveMessage(uid, string(bufferstr, len), boost::bind(&RouterServer::OnPushMsgDone, self, _1));
   VLOG(5) << "storage_->SaveMessage" << uid << string(bufferstr, len);
-  self->MakePubEvent(uid, bufferstr, len);
-  self->ReplyOK(req);
+  //self->MakePubEvent(uid, bufferstr, len);
+  //self->ReplyOK(req);
   VLOG(5) << "reply ok";
 }
 
-void RouterServer::AdminBroadcastCB(struct evhttp_request* req, void *ctx) {
-  VLOG(5) << "RouterServer::AdminBroadcastCB";
+void RouterServer::OnAdminBroadcast(struct evhttp_request* req, void *ctx) {
+  VLOG(5) << "RouterServer::OnAdminBroadcast";
   
-  //TODO
 }
 
-void RouterServer::AdminCheckPresenceCB(struct evhttp_request* req, void *ctx) {
+void RouterServer::OnAdminCheckPresence(struct evhttp_request* req, void *ctx) {
   RouterServer * self = static_cast<RouterServer*>(ctx);
-  VLOG(5) << "RouterServer::AdminCheckPresenceCB";
+  VLOG(5) << "RouterServer::OnAdminCheckPresence";
   string response;
   string_format(response,  "{\"presence\": %d}", self->u2sMap_.size());
   SendReply(req, response.c_str(), response.size());
   VLOG(5) << response;
 }
 
-void RouterServer::AdminCheckOffMsgCB(struct evhttp_request* req, void *ctx) {
+void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
   RouterServer * self = static_cast<RouterServer*>(ctx);
   
   HttpQuery query(req);
@@ -346,7 +281,7 @@ void RouterServer::AdminCheckOffMsgCB(struct evhttp_request* req, void *ctx) {
     self->ReplyError(req);
     return;
   }
-  self->storage_->GetMessageIterator(uid, boost::bind(&RouterServer::GetMsgToReplyCB, self, UserID(uid), req, _1));
+  self->storage_->GetMessageIterator(uid, boost::bind(&RouterServer::OnGetMsgToReply, self, UserID(uid), req, _1));
 }
 
 void RouterServer::SendReply(struct evhttp_request* req, const char* content, size_t len) {
@@ -356,36 +291,27 @@ void RouterServer::SendReply(struct evhttp_request* req, const char* content, si
   evhttp_send_reply(req, HTTP_OK, "OK", output_buffer);
 }
 
-//void RouterServer::PopMsgDoneCB(UserID uid, MessageIteratorPtr mit) {
-//  VLOG(5) << "PopMsgDoneCB uid: " << uid;
-//  string msg;
-//  while(mit->HasNext()) {
-//    msg = mit->Next();
-//    VLOG(5) << msg;
-//    MakePubEvent(uid.c_str(), msg.c_str(), msg.size());
-//  }
-//}
-
-void RouterServer::GetMsgToPubCB(
+void RouterServer::OnGetMsg(
             UserID uid, int64_t start, MessageIteratorPtr mit
             ) {
-  VLOG(5) << "GetMsgToPubCB, uid:" << uid << " start: "<< start;
+  VLOG(5) << "OnGetMsg, uid:" << uid << " start: "<< start;
   string msg;
   size_t i = 0;
   while(mit->HasNext()) {
     msg = mit->Next();
     VLOG(5) << msg;
-    MakePubEvent(uid.c_str(), msg.c_str(), msg.size());
+    //MakePubEvent(uid.c_str(), msg.c_str(), msg.size());
     i++;
   }
   // message is unfinished.
   if(i == size_t(FLAGS_message_batch_size)) {
-    GetMsgToPub(uid, start + FLAGS_message_batch_size);
+    int64_t nextstart = start + FLAGS_message_batch_size;
+    GetMsg(uid, nextstart, boost::bind(&RouterServer::OnGetMsg, this, uid, nextstart, _1));
   }
 }
 
-void RouterServer::GetMsgToReplyCB(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit) {
-  VLOG(5) << "RouterServer::GetMsgToReplyCB";
+void RouterServer::OnGetMsgToReply(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit) {
+  VLOG(5) << "RouterServer::OnGetMsgToReply";
   string msg;
   string msgs;
   while(mit->HasNext()) {
