@@ -25,6 +25,7 @@ ADD_EXECUTABLE(router_server
   worker.cc
   event_msgqueue.c
   utils.cc
+  http_client.cc
 )
 TARGET_LINK_LIBRARIES(router_server
   base
