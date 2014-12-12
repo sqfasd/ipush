@@ -17,7 +17,16 @@ app.set('view engine', 'html');
 app.set('views', __dirname + '/views');
 
 app.get('/', function(req, res) {
-  res.render('index', config.default_push_server);
+  res.render('login');
+});
+app.get('/login', function(req, res) {
+  res.render('room',
+             {
+               push_server: config.default_push_server,
+               uid: req.query.uid,
+               cid: req.query.cid,
+               is_teacher: req.query.user_type == 1,
+             });
 });
 app.post('/upload_image', function(req, res) {
   var name = req.body.name;

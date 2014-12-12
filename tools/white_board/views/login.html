@@ -1,0 +1,11 @@
+<% include header.html %>
+
+<form method='get' action='/login'>
+  <input name='uid' type='text' placeholder='input user name' />
+  <input name='cid' type='text' placeholder='input room name' />
+  <label><input name="user_type" type="radio" value="1" />老师</label>
+  <label><input name="user_type" type="radio" value="2" checked/>学生</label>
+  <input type='submit' value='Enter' />
+</form>
+
+<% include footer.html %>
