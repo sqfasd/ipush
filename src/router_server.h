@@ -26,7 +26,7 @@
 
 #include "deps/base/scoped_ptr.h"
 #include "deps/base/callback.h"
-#include "src/storage.h"
+#include "src/database.h"
 #include "src/http_client.h"
 #include "utils.h"
 
@@ -55,7 +55,7 @@ class RouterServer {
   void OpenSubClient(Sid sid);
   void CloseSubClient(Sid sid);
 
-  void InitStorage();
+  void InitDatabase();
   void InitAdminHttp();
   
   Sid  FindSidByUid(const UserID& uid) const;
@@ -88,7 +88,7 @@ class RouterServer {
   struct event_base *evbase_;
   struct evhttp* admin_http_;
 
-  scoped_ptr<Storage> storage_;
+  scoped_ptr<Database> database_;
 };
 
 } // namespace xcomet

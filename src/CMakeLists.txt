@@ -24,6 +24,7 @@ ADD_EXECUTABLE(router_server
   event_msgqueue.c
   utils.cc
   http_client.cc
+  database.cc
 )
 TARGET_LINK_LIBRARIES(router_server
   base
@@ -31,6 +32,7 @@ TARGET_LINK_LIBRARIES(router_server
   event
   jsoncpp
   ssdb
+  ssdb-client
   net #ssdb net
   util # ssdb util
   leveldb
