@@ -19,6 +19,8 @@ User::User(const string& uid,
   VLOG(3) << "User construct";
   session_.SetDisconnectCallback(
       base::NewOneTimeCallback(this, &User::OnSessionDisconnected));
+  session_.SetMessageCallback(boost::bind(&SessionServer::OnUserMessage,
+                              &server_, uid_, _1));
 }
 
 User::~User() {
@@ -28,6 +30,13 @@ User::~User() {
 
 void User::Send(const std::string& content) {
   session_.Send(content);
+  if (type_ == COMET_TYPE_POLLING) {
+    Close();
+  }
+}
+
+void User::Send2(const string& content) {
+  session_.Send2(content);
   if (type_ == COMET_TYPE_POLLING) {
     Close();
   }

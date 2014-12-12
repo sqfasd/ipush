@@ -1,0 +1,147 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <script src="js/swfobject/swfobject.js" type="text/javascript"></script>
+  <script src="js/jsocket/jsocket.js" type="text/javascript"></script>
+  <script src="js/jsocket/jsocket.advanced.js" type="text/javascript"></script>
+  <script src="js/jquery/jquery-1.11.1.min.js"></script>
+  <script src="js/jquery/jquery.form.js"></script>
+  <title>white board</title>
+  <style>
+    body{background: black;}
+    #board{background: white;}
+    span{color: white;}
+    #board_image{background: white;}
+  </style>
+</head>
+
+<body>
+  <canvas id="board" width="400" height="400">
+	  <span>不支持canvas浏览器</span>
+  </canvas> <!--默认：宽300 高150-->
+  <input id='uid' type='text' value='' placeholder='input uid'/>
+  <input id='channel_id' type='text' value='' placeholder='input channel id'/>
+  <input type='submit' vlaue='connect' onclick='connect()' />
+  <img id='board_image' width='400' height='400' src='' />
+
+  <div id='my_socket'/>
+</body>
+
+<script type='text/javascript'>
+
+var host = "192.168.2.3";
+var port = 9000;
+var client = new jSocket(onReady, onConnect, onData, onClose);
+var board_canvas = document.getElementById('board');
+var board_context = board_canvas.getContext('2d');
+
+function get_channel_id() {
+  return document.getElementById('channel_id').value
+}
+
+function get_user_id() {
+  return document.getElementById('uid').value
+}
+
+function send(msg) {
+  var msg_str = JSON.stringify(msg);
+  client.write(msg_str.length + 2 + '\r\n');
+  client.write(msg_str + '\r\n');
+}
+
+function update_board() {
+  var image = board_canvas.toDataURL();
+  $.ajax({
+    type : 'POST',
+    url: '/upload_image',
+    data: {
+      image_data: image,
+      name: 'channel' + get_channel_id() + '_' + Date.now() + '.png'
+    },
+    success: function(data) {
+      console.log(data);
+      if (data.error) {
+        alert('upload image internal error: ' + data.error);
+      } else {
+        var msg = {
+          type: 'channel',
+          channel_id: get_channel_id(),
+          image_uri: data.image_uri,
+        };
+        send(msg);
+      }
+    }
+  });
+}
+
+function setup_canvas() {
+	board_canvas.onmousedown = function(ev) {
+		var ev = ev || window.event;
+		board_context.moveTo(ev.clientX-board_canvas.offsetLeft,ev.clientY-board_canvas.offsetTop);
+		document.onmousemove = function(ev) {
+			var ev = ev || window.event;
+			board_context.lineTo(ev.clientX-board_canvas.offsetLeft,ev.clientY-board_canvas.offsetTop);
+			board_context.stroke();
+		};
+		document.onmouseup = function() {
+			document.onmousemove = null;
+			document.onmouseup = null;
+      console.log('onmouseup');
+      update_board();
+		};
+	};
+}
+
+function onReady() {
+  console.log('ready: ' + host + ', ' + port);
+  client.connect(host, port);
+}
+
+function onConnect(success, msg) {
+  console.log('connect');
+  if (success) {
+    var header = 'GET /sub?uid=' + get_user_id() + '&seq=-1 HTTP/1.1\r\n' +
+                 'User-Agent: white_board_demo/0.1.0\r\n' +
+                 'Accept: */*\r\n' +
+                 '\r\n'
+    client.write(header);
+  } else {
+    console.error('Connection to the server could not be estabilished: ' + msg);
+  }
+}
+
+function onData(data) {
+  console.log('Received from socket: ' + data);
+  if (data.indexOf("HTTP/1.1 200 OK") != -1) {
+    var msg = {
+      type: 'join',
+      uid: get_user_id(),
+      channel_id: get_channel_id(),
+    };
+    send(msg);
+
+    setup_canvas();
+  } else {
+    console.log("this chunkdata");
+    try {
+      var json = JSON.parse(data.substring(data.indexOf('{'), data.indexOf('}')+1));
+      if (json.type && json.type == 'channel' && json.image_uri) {
+        document.getElementById('board_image').src = json.image_uri;
+      }
+    } catch (e) {
+      console.log('json parse error: ' + e);
+    }
+  }
+}
+
+function onClose() {
+  console.log('on close');
+}
+
+function connect() {
+  client.setup('my_socket', 'js/jsocket/flash/jsocket.swf');
+}
+
+</script>
+</html>

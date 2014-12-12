@@ -26,19 +26,23 @@ class Channel {
   string GetId() const {return id_;}
   int GetUserCount() const {return users_.Size();}
   void AddUser(User* user) {
+    VLOG(3) << "channel AddUser: " << id_ << ", " << user->GetId();
     users_.PushBack(user);
     user->SetChannelId(id_);
+    VLOG(3) << "channel size: " << users_.Size();
   }
 
   void RemoveUser(User* user) {
+    VLOG(3) << "channel RemoveUser: " << id_ << ", " << user->GetId();
     users_.Remove(user);
     user->SetChannelId("-1");
   }
   void Broadcast(const string& content) {
+    VLOG(3) << "channel size: " << users_.Size(); 
     DLinkedList<User*>::Iterator it = users_.GetIterator();
     while (User* user = it.Next()) {
-      LOG(INFO) << "channel Broadcast: " << user->GetId();
-      user->Send(content);
+      VLOG(3) << "channel Broadcast to: " << user->GetId();
+      user->Send2(content);
     }
   }
 

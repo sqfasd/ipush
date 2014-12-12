@@ -1,6 +1,7 @@
 #ifndef SRC_USER_H_
 #define SRC_USER_H_
 
+#include <boost/bind.hpp>
 #include "deps/base/dlist.h"
 #include "deps/base/shared_ptr.h"
 #include "src/include_std.h"
@@ -29,6 +30,7 @@ class User {
   int GetType() const {return type_;}
   string GetId() const {return uid_;}
   void Send(const string& content);
+  void Send2(const string& content);
   void Close();
   void SendHeartbeat();
   string GetChannelId() const {return channel_id_;}

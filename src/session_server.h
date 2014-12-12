@@ -27,6 +27,7 @@ class SessionServer {
   void Join(struct evhttp_request* req);
   void Leave(struct evhttp_request* req);
   void OnTimer();
+  void OnUserMessage(const string& uid, base::shared_ptr<string> message);
 
   void RemoveUser(User* user);
 
@@ -35,6 +36,7 @@ class SessionServer {
   ~SessionServer();
   void ReplyOK(struct evhttp_request* req);
   void RemoveUserFromChannel(User* user);
+  void DoJoin(const string& uid, const string& cid, struct evhttp_request* req);
 
   UserMap users_;
   ChannelMap channels_;

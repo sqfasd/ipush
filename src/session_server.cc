@@ -3,8 +3,9 @@
 #include <evhttp.h>
 #include <event2/event.h>
 #include <event2/listener.h>
-#include "base/logging.h"
-#include "base/flags.h"
+#include "deps/jsoncpp/include/json/json.h"
+#include "deps/base/logging.h"
+#include "deps/base/flags.h"
 #include "base/shared_ptr.h"
 #include "utils.h"
 
@@ -36,7 +37,7 @@ void SessionServer::Sub(struct evhttp_request* req) {
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   int seq = query.GetInt("seq", -1);
-  if (uid.empty() || seq < 0) {
+  if (uid.empty()) {
     evhttp_send_reply(req, 410, "Invalid parameters", NULL);
     return;
   }
@@ -161,26 +162,7 @@ void SessionServer::Join(struct evhttp_request* req) {
     evhttp_send_reply(req, 410, "Invalid parameters", NULL);
     return;
   }
-  UserPtr user;
-  UserMap::iterator uit = users_.find(uid);
-  if (uit == users_.end()) {
-    LOG(WARNING) << "user not found: " << uid;
-    evhttp_send_reply(req, 404, "Not Found", NULL);
-    return;
-  } else {
-    user = uit->second;
-  }
-
-  ChannelPtr channel;
-  ChannelMap::iterator cit = channels_.find(cid);
-  if (cit != channels_.end()) {
-    channel = cit->second;
-  } else {
-    channel.reset(new Channel(cid));
-    channels_[cid] = channel;
-  }
-  channel->AddUser(user.get());
-  ReplyOK(req);
+  DoJoin(uid, cid, req);
 }
 
 // /leave?cid=123&uid=456&resource=work
@@ -237,6 +219,29 @@ void SessionServer::OnTimer() {
   }
 }
 
+void SessionServer::OnUserMessage(const string& uid,
+                                  base::shared_ptr<string> message) {
+  LOG(INFO) << uid << ": " << *message;
+  Json::Value json;
+  Json::Reader reader;
+  reader.parse(*message, json);
+  // TODO process other message typ
+  const string& type = json["type"].asCString();
+  if (type == "channel") {
+    const string& cid = json["channel_id"].asCString();
+    ChannelMap::iterator cit = channels_.find(cid);
+    if (cit == channels_.end()) {
+      LOG(WARNING) << "channel not found: " << cid;
+    } else {
+      cit->second->Broadcast(*message);
+    }
+  } else if (type == "join") {
+    const string& uid = json["uid"].asCString();
+    const string& cid = json["channel_id"].asCString();
+    DoJoin(uid, cid, NULL);
+  }
+}
+
 void SessionServer::RemoveUserFromChannel(User* user) {
   ChannelMap::iterator cit = channels_.find(user->GetChannelId());
   if (cit != channels_.end()) {
@@ -261,6 +266,44 @@ void SessionServer::ReplyOK(struct evhttp_request* req) {
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
   evbuffer_add_printf(output_buffer, "{\"type\":\"ok\"}\n"); //TODO
   evhttp_send_reply(req, 200, "OK", output_buffer);
+}
+
+void SessionServer::DoJoin(const string& uid,
+    const string& cid,
+    struct evhttp_request* req) {
+  UserPtr user;
+  UserMap::iterator uit = users_.find(uid);
+  if (uit == users_.end()) {
+    LOG(WARNING) << "user not found: " << uid;
+    if (req != NULL) {
+      evhttp_send_reply(req, 404, "Not Found", NULL);
+    }
+    return;
+  } else {
+    user = uit->second;
+  }
+
+  ChannelPtr channel;
+  ChannelMap::iterator cit = channels_.find(cid);
+  if (cit != channels_.end()) {
+    channel = cit->second;
+  } else {
+    channel.reset(new Channel(cid));
+    channels_[cid] = channel;
+  }
+  VLOG(3) << "do join channel: " << uid << ", " << cid;
+  if (user->GetChannelId() != cid &&
+      user->GetChannelId() != "-1") {
+    LOG(WARNING) << "already in channel: " << user->GetChannelId();
+    if (req != NULL) {
+      evhttp_send_reply(req, 407, "Already in channel", NULL);
+    }
+  } else {
+    channel->AddUser(user.get());
+  }
+  if (req != NULL) {
+    ReplyOK(req);
+  }
 }
 
 }  // namespace xcomet

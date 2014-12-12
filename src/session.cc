@@ -1,4 +1,6 @@
 #include "src/session.h"
+
+#include "base/string_util.h"
 #include "src/session_server.h"
 
 namespace xcomet {
@@ -6,7 +8,8 @@ namespace xcomet {
 Session::Session(struct evhttp_request* req)
     : req_(req),
       closed_(false),
-      disconnect_callback_(NULL) {
+      disconnect_callback_(NULL),
+      next_msg_max_len_(0) {
   SendHeader();
 }
 
@@ -23,7 +26,7 @@ void Session::Send(const std::string& content) {
 void Session::Send2(const std::string& content) {
   struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
   evbuffer_add_printf(buf, "%s\n", content.c_str());
-  evhttp_send_reply_chunk(req_, buf);
+  evhttp_send_reply_chunk_bi(req_, buf);
 }
 
 void Session::SendHeartbeat() {
@@ -34,7 +37,7 @@ void Session::SendChunk(const string& type, const string& content) {
   struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
   evbuffer_add_printf(buf, "{\"type\": \"%s\",\"content\":\"%s\"}\n",
                       type.c_str(), content.c_str());
-  evhttp_send_reply_chunk(req_, buf);
+  evhttp_send_reply_chunk_bi(req_, buf);
 }
 
 void Session::Close() {
@@ -54,15 +57,49 @@ void Session::OnDisconnect(struct evhttp_connection* evconn, void* arg) {
   }
 }
 
-void Session::SendHeader() {
+struct bufferevent* Session::GetBufferEvent() {
   CHECK(req_ != NULL);
   CHECK(req_->evcon);
   CHECK(req_->output_headers);
-	bufferevent_enable(evhttp_connection_get_bufferevent(req_->evcon), EV_READ);
+  struct bufferevent* bev = evhttp_connection_get_bufferevent(req_->evcon);
+  CHECK(bev != NULL);
+  return bev;
+}
+
+void Session::OnReceive(void* arg) {
+  Session* self = (Session*)arg;
+  self->OnReceive();
+}
+
+void Session::OnReceive() {
+  struct bufferevent* bev = GetBufferEvent();
+  struct evbuffer* input = bufferevent_get_input(bev);
+  if (next_msg_max_len_ == 0) {
+    size_t n;
+    char* size = evbuffer_readln(input, &n, EVBUFFER_EOL_CRLF);
+    next_msg_max_len_ = StringToInt(size);
+    LOG(INFO) << "message len: " << size;
+  } else {
+    int len = evbuffer_get_length(input);
+    LOG(INFO) << "total buffer length: " << len;
+    if (len >= next_msg_max_len_) {
+      base::shared_ptr<string> message(new string());
+      message->resize(next_msg_max_len_);
+      evbuffer_remove(input, (char*)message->c_str(), next_msg_max_len_);
+      next_msg_max_len_ = 0;
+      if (message_callback_) {
+        message_callback_(message);
+      }
+    }
+  }
+}
+
+void Session::SendHeader() {
 	evhttp_connection_set_closecb(req_->evcon, OnDisconnect, this);
+
 	evhttp_add_header(req_->output_headers, "Connection", "keep-alive");
 	evhttp_add_header(req_->output_headers, "Content-Type", "text/html; charset=utf-8");
-	evhttp_send_reply_start(req_, HTTP_OK, "OK");
+	evhttp_send_reply_start_bi(req_, HTTP_OK, "OK", OnReceive, this);
 }
 
 void Session::Reset(struct evhttp_request* req) {
