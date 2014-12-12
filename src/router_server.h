@@ -55,15 +55,18 @@ class RouterServer {
   void InitStorage();
   void InitAdminHttp();
   
-  Sid FindSidByUid(const UserID& uid) const;
+  Sid  FindSidByUid(const UserID& uid) const;
   void InsertUid(const UserID& uid, Sid sid);
   void EraseUid(const UserID& uid) ;
 
   void OnPushMsgDone(bool ok);
+
   void OnGetMsg(UserID uid, int64_t start, MessageIteratorPtr mit);
   void OnGetMsgToReply(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit);
 
   void GetMsg(const UserID& uid, int64_t start, boost::function<void (MessageIteratorPtr)> cb);
+
+  void SendUserMsg(const UserID& uid, const string& msg);
 
   static void OnAdminPub(struct evhttp_request* req, void *ctx);
   static void OnAdminBroadcast(struct evhttp_request* req, void *ctx);
@@ -73,8 +76,8 @@ class RouterServer {
 
   static void SendReply(struct evhttp_request* req,  const char* content, size_t len);
 
-  void ReplyError(struct evhttp_request* req);
-  void ReplyOK(struct evhttp_request* req);
+  static void ReplyError(struct evhttp_request* req);
+  static void ReplyOK(struct evhttp_request* req);
 
   map<UserID, Sid> u2sMap_;
   vector<shared_ptr<HttpClient> > sub_clients_;

@@ -101,17 +101,16 @@ void RouterServer::OnAcceptError(struct evconnlistener * listener, void * ctx) {
   LOG(ERROR) << "RouterServer::OnAcceptError";
 }
 
-//void RouterServer::MakePubEvent(const char* uid, const char* data, size_t len) {
-//  VLOG(5) << "RouterServer::MakePubEvent";
-//  Sid sid = FindSidByUid(uid);
-//  if(sid == INVALID_SID) {
-//    LOG(INFO) << "uid " << uid << " is offline";
-//  } else {
-//    CHECK(size_t(sid) < session_pub_clients_.size());
-//    //session_pub_clients_[sid]->MakePubEvent(uid, data, len);
-//    VLOG(5) << "session_pub_clients_[sid]->MakePubEvent";
-//  }
-//}
+void RouterServer::SendUserMsg(const UserID& uid, const string& msg) {
+  VLOG(5) << "RouterServer::SendUserMsg";
+  Sid sid = FindSidByUid(uid);
+  if(sid == INVALID_SID) {
+    LOG(INFO) << "uid " << uid << " is offline";
+  } else {
+    CHECK(size_t(sid) < sub_clients_.size());
+    sub_clients_[sid]->SendChunk(msg);
+  }
+}
 
 void RouterServer::OnSubMsg(const HttpClient* client, const string& msg, void *ctx) {
   VLOG(5) << "RouterServer::OnSubMsg";
@@ -237,7 +236,7 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
   const char * uid = query.GetStr("uid", NULL);
   if (uid == NULL) {
     LOG(ERROR) << "uid not found";
-    self->ReplyError(req);
+    ReplyError(req);
     return;
   }
   
@@ -247,13 +246,14 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
   const char * bufferstr = (const char*)evbuffer_pullup(input_buffer, len);
   if(bufferstr == NULL) {
     LOG(ERROR) << "evbuffer_pullup return null";
-    self->ReplyError(req);
+    ReplyError(req);
     return;
   }
-  self->storage_->SaveMessage(uid, string(bufferstr, len), boost::bind(&RouterServer::OnPushMsgDone, self, _1));
-  VLOG(5) << "storage_->SaveMessage" << uid << string(bufferstr, len);
-  //self->MakePubEvent(uid, bufferstr, len);
-  //self->ReplyOK(req);
+  string msg(bufferstr, len);
+  self->storage_->SaveMessage(uid, msg, boost::bind(&RouterServer::OnPushMsgDone, self, _1));
+  VLOG(5) << "storage_->SaveMessage" << uid << ","<< msg;
+  self->SendUserMsg(uid, msg);
+  ReplyOK(req);
   VLOG(5) << "reply ok";
 }
 
@@ -278,14 +278,13 @@ void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
   const char * uid = query.GetStr("uid", NULL);
   if (uid == NULL) {
     LOG(ERROR) << "uid not found";
-    self->ReplyError(req);
+    ReplyError(req);
     return;
   }
   self->storage_->GetMessageIterator(uid, boost::bind(&RouterServer::OnGetMsgToReply, self, UserID(uid), req, _1));
 }
 
 void RouterServer::SendReply(struct evhttp_request* req, const char* content, size_t len) {
-  evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
   evbuffer_add(output_buffer, content, len);
   evhttp_send_reply(req, HTTP_OK, "OK", output_buffer);

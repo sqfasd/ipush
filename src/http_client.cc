@@ -18,6 +18,7 @@ HttpClient::HttpClient(struct event_base* evbase,
       evreq_(NULL),
       option_(option),
       cb_arg_(cb_arg) {
+  VLOG(5) << option_;
   evconn_ = evhttp_connection_base_new(evbase_,
                                        NULL,
                                        option_.host.c_str(),
@@ -51,14 +52,13 @@ void HttpClient::SendChunk(const string& data) {
 }
 
 void HttpClient::StartRequest() {
+  VLOG(5) << "HttpClient::StartRequest()";
   struct evkeyvalq* output_headers = evhttp_request_get_output_headers(evreq_);
   evhttp_add_header(output_headers, "Host", option_.host.c_str());
 
   enum evhttp_cmd_type cmd = option_.method;
   if (cmd == EVHTTP_REQ_POST && !option_.data.empty()) {
-    evhttp_add_header(output_headers,
-                      "Content-Type",
-                      "application/x-www-form-urlencoded");
+    evhttp_add_header(evreq_->output_headers, "Content-Type", "text/json; charset=utf-8");
     Send(option_.data);
   }
 

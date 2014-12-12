@@ -38,9 +38,9 @@ inline ostream& operator << (ostream& os, const HttpClientOption& option) {
   os << "id:" << option.id << ","
      << "host:" << option.host << ","
      << "port:" << option.port << ","
-     << "method" << option.method << ","
-     << "path" << option.path << ","
-     << "data" << option.data;
+     << "method:" << option.method << ","
+     << "path:" << option.path << ","
+     << "data:" << option.data;
   return os;
 }
 
