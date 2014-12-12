@@ -51,7 +51,10 @@ class RouterServer {
   static void OnSubMsg(const HttpClient* client, const string& msg, void *ctx);
   static void OnSubRequestDone(const HttpClient* client, const string& resp, void*ctx);
 
-  void InitSubClients();
+  void OpenSubClients();
+  void OpenSubClient(Sid sid);
+  void CloseSubClient(Sid sid);
+
   void InitStorage();
   void InitAdminHttp();
   

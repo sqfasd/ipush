@@ -47,18 +47,19 @@ RouterServer::~RouterServer() {
 }
 
 void RouterServer::Start() {
-  InitSubClients();
+  OpenSubClients();
   InitStorage();
   InitAdminHttp();
   event_base_dispatch(evbase_);
 }
 
-void RouterServer::InitSubClients() {
+void RouterServer::OpenSubClients() {
   vector<string> addrs;
   SplitString(FLAGS_sserver_sub_addrs, ',', &addrs);
   CHECK(addrs.size());
   CHECK(sub_clients_.empty());
-  for (size_t i = 0; i < addrs.size(); i++) {
+  sub_clients_.resize(addrs.size());
+  for (size_t i = 0; i < sub_clients_.size(); i++) {
     HttpClientOption option;
     option.id = (int)i;
     ParseIpPort(addrs[i], option.host, option.port);
@@ -66,15 +67,24 @@ void RouterServer::InitSubClients() {
     option.path = FLAGS_sserver_sub_uri;
 
     VLOG(5) << "new HttpClient " << option;
-    shared_ptr<HttpClient> client(new HttpClient(evbase_, option, this));
-    client->SetRequestDoneCallback(OnSubRequestDone);
-    client->SetChunkCallback(OnSubMsg);
+    sub_clients_[i].reset(new HttpClient(evbase_, option, this));
+    OpenSubClient(i);
+  }
+}
 
-    sub_clients_.push_back(client);
-  }
-  for(size_t i = 0; i < sub_clients_.size(); i++) {
-    sub_clients_[i]->StartRequest();
-  }
+void RouterServer::OpenSubClient(Sid sid) {
+  VLOG(4) << "RouterServer::OpenSubClient " << sid;
+  CHECK(sid >= 0 && size_t(sid) < sub_clients_.size());
+  sub_clients_[sid]->Init();
+  sub_clients_[sid]->SetRequestDoneCallback(OnSubRequestDone);
+  sub_clients_[sid]->SetChunkCallback(OnSubMsg);
+  sub_clients_[sid]->StartRequest();
+}
+
+void RouterServer::CloseSubClient(Sid sid) {
+  VLOG(4) << "RouterServer::CloseSubClient " << sid;
+  CHECK(sid >= 0 && size_t(sid) < sub_clients_.size());
+  sub_clients_[sid]->Free();
 }
 
 void RouterServer::InitStorage() {
@@ -183,7 +193,12 @@ void RouterServer::OnSubRequestDone(const HttpClient* client, const string& resp
   VLOG(5) << "RouterServer::OnSubRequestDone";
   RouterServer* self = (RouterServer*)ctx;
   CHECK(self);
+
+  Sid sid = client->GetOption().id;
+  CHECK(sid >= 0 && size_t(sid) < self->sub_clients_.size());
+  self->sub_clients_[sid]->DelayRetry(HttpClient::OnRetry);
 }
+
 
 void RouterServer::GetMsg(const UserID& uid, int64_t start, 
             boost::function<void (MessageIteratorPtr)> cb) {

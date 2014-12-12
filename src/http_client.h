@@ -21,6 +21,9 @@ struct HttpClientOption {
   enum evhttp_cmd_type method;
   std::string path;
   std::string data;
+  HttpClientOption(): 
+    id(-1), host(), port(-1), method(), path(), data("") {
+  }
 };
 
 inline ostream& operator << (ostream& os, enum evhttp_cmd_type cmd_type) {
@@ -50,10 +53,15 @@ typedef void (*ChunkCallback)(const HttpClient* client, const string&, void *ctx
 typedef void (*RequestDoneCallback)(const HttpClient* client, const string&, void *ctx);
 typedef void (*CloseCallback)(const HttpClient* client, void *ctx);
 
+typedef void (*EventCallback)(int sock, short which, void *ctx);
+
 class HttpClient {
  public:
   HttpClient(struct event_base* evbase, const HttpClientOption& option, void *cb_arg);
   ~HttpClient();
+
+  void Init();
+  void Free();
 
   void SetRequestDoneCallback(RequestDoneCallback cb) {
     request_done_cb_ = cb;
@@ -72,10 +80,15 @@ class HttpClient {
     return option_;
   }
 
+  void DelayRetry(EventCallback cb);
+  static void OnRetry(int sock, short which, void * ctx);
+
  private:
   static void OnRequestDone(struct evhttp_request* req, void* ctx);
   static void OnChunk(struct evhttp_request* req, void* ctx);
   static void OnClose(struct evhttp_connection* conn, void *ctx);
+
+  static bool IsResponseOK(evhttp_request* req);
 
   struct event_base* evbase_;
   struct evhttp_connection* evconn_;
@@ -87,7 +100,6 @@ class HttpClient {
   ChunkCallback chunk_cb_;
   CloseCallback close_cb_;
   void *cb_arg_;
-
 };
 
 } // namespace xcomet
