@@ -3,7 +3,6 @@ PROJECT(xcomet)
 CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
 
 INCLUDE_DIRECTORIES(
-  /usr/local/include
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/deps
   ${PROJECT_SOURCE_DIR}/deps/jsoncpp/include
@@ -12,11 +11,10 @@ INCLUDE_DIRECTORIES(
   ${PROJECT_SOURCE_DIR}/deps/gtest/include
   ${PROJECT_SOURCE_DIR}/deps/libevent
   ${PROJECT_SOURCE_DIR}/deps/libevent/include
+  /usr/local/include
 )
 
 LINK_DIRECTORIES(
-  /usr/local/lib
-  /usr/lib64/mysql
   ${PROJECT_SOURCE_DIR}/deps/ssdb/src/ssdb
   ${PROJECT_SOURCE_DIR}/deps/ssdb/src/net
   ${PROJECT_SOURCE_DIR}/deps/ssdb/src/util
@@ -24,6 +22,8 @@ LINK_DIRECTORIES(
   ${PROJECT_SOURCE_DIR}/deps/ssdb/deps/jemalloc-3.3.1/lib
   ${PROJECT_SOURCE_DIR}/deps/ssdb/deps/leveldb-1.14.0
   ${PROJECT_SOURCE_DIR}/deps/libevent/.libs
+  /usr/local/lib
+  /usr/lib64/mysql
 )
 
 ADD_DEFINITIONS(-DHAVE_NETINET_IN_H -D__STDC_FORMAT_MACROS)

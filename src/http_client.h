@@ -15,6 +15,7 @@
 namespace xcomet {
 
 struct HttpClientOption {
+  int id;
   std::string host;
   int port;
   enum evhttp_cmd_type method;
@@ -22,18 +23,38 @@ struct HttpClientOption {
   std::string data;
 };
 
-class HttpClient;
-//typedef std::function<void (const HttpClient*, const std::string&)> RequestDoneCallback;
-//typedef std::function<void (const HttpClient*, const std::string&)> ChunkCallback;
+inline ostream& operator << (ostream& os, enum evhttp_cmd_type cmd_type) {
+  switch(cmd_type) {
+    case EVHTTP_REQ_GET:
+        return os << "GET";
+    case EVHTTP_REQ_POST:
+        return os << "POST";
+    default:
+        return os << "OTHERS";
+  }
+}
 
-typedef void (*ChunkCallback)(const HttpClient*, const string&);
-typedef void (*RequestDoneCallback)(const HttpClient*, const string&);
-typedef void (*CloseCallback)(const HttpClient*);
+inline ostream& operator << (ostream& os, const HttpClientOption& option) {
+  os << "id:" << option.id << ","
+     << "host:" << option.host << ","
+     << "port:" << option.port << ","
+     << "method:" << option.method << ","
+     << "path:" << option.path << ","
+     << "data:" << option.data;
+  return os;
+}
+
+class HttpClient;
+
+typedef void (*ChunkCallback)(const HttpClient* client, const string&, void *ctx);
+typedef void (*RequestDoneCallback)(const HttpClient* client, const string&, void *ctx);
+typedef void (*CloseCallback)(const HttpClient* client, void *ctx);
 
 class HttpClient {
  public:
-  HttpClient(struct event_base* evbase, const HttpClientOption& option);
+  HttpClient(struct event_base* evbase, const HttpClientOption& option, void *cb_arg);
   ~HttpClient();
+
   void SetRequestDoneCallback(RequestDoneCallback cb) {
     request_done_cb_ = cb;
   }
@@ -44,6 +65,12 @@ class HttpClient {
     close_cb_ = cb;
   }
   void StartRequest();
+  void Send(const string& data);
+  void SendChunk(const string& data);
+
+  const HttpClientOption& GetOption() const {
+    return option_;
+  }
 
  private:
   static void OnRequestDone(struct evhttp_request* req, void* ctx);
@@ -52,12 +79,15 @@ class HttpClient {
 
   struct event_base* evbase_;
   struct evhttp_connection* evconn_;
+  struct evhttp_request* evreq_;
+
+  HttpClientOption option_;
 
   RequestDoneCallback request_done_cb_;
   ChunkCallback chunk_cb_;
   CloseCallback close_cb_;
+  void *cb_arg_;
 
-  HttpClientOption option_;
 };
 
 } // namespace xcomet

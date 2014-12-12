@@ -1,8 +1,6 @@
 #ifndef ROUTER_SERVER_H
 #define ROUTER_SERVER_H
 
-#include "session_sub_client.h"
-#include "session_pub_client.h"
 #include "deps/base/shared_ptr.h"
 
 #include <netinet/in.h>
@@ -29,6 +27,7 @@
 #include "deps/base/scoped_ptr.h"
 #include "deps/base/callback.h"
 #include "src/storage.h"
+#include "src/http_client.h"
 #include "utils.h"
 
 using namespace std;
@@ -36,8 +35,8 @@ using namespace std;
 namespace xcomet {
 
 typedef string UserID;
-typedef int SessionServerID; 
-const SessionServerID INVALID_SID = -1;
+typedef int Sid; 
+const Sid INVALID_SID = -1;
 
 using base::shared_ptr;
 
@@ -47,44 +46,46 @@ class RouterServer {
   ~RouterServer();
 
   void Start();
-  void MakePubEvent(const char* uid, const char* data, size_t len);
-  void ChunkedMsgHandler(size_t sid, const char* buffer, size_t len);
  private:
-  void ResetSubClient(size_t id);
-  void InitSubCliAddrs();
-  void InitSubClients();
 
-  void InitPubCliAddrs();
-  void InitPubClients();
-  void InitStorage(const string& path);
+  static void OnSubMsg(const HttpClient* client, const string& msg, void *ctx);
+  static void OnSubRequestDone(const HttpClient* client, const string& resp, void*ctx);
+
+  void InitSubClients();
+  void InitStorage();
+  void InitAdminHttp();
   
-  SessionServerID FindServerIdByUid(const UserID& uid) const;
-  void InsertUid(const UserID& uid, SessionServerID sid);
+  Sid  FindSidByUid(const UserID& uid) const;
+  void InsertUid(const UserID& uid, Sid sid);
   void EraseUid(const UserID& uid) ;
 
-  static void ClientErrorCB(int sock, short which, void *arg);
-  void PushMsgDoneCB(bool ok);
-  void GetMsgToPubCB(UserID uid, int64_t start, MessageIteratorPtr mit);
-  void GetMsgToReplyCB(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit);
-  void GetMsgToPub(const UserID& uid, int64_t start);
-  void InitAdminHttp();
-  static void AdminPubCB(struct evhttp_request* req, void *ctx);
-  static void AdminBroadcastCB(struct evhttp_request* req, void *ctx);
-  static void AdminCheckPresenceCB(struct evhttp_request* req, void * ctx);
-  static void AdminCheckOffMsgCB(struct evhttp_request* req, void *ctx);
-  static void AcceptErrorCB(struct evconnlistener * listener , void *ctx);
-  static void SendReply(struct evhttp_request* req,  const char* content, size_t len);
-  void ReplyError(struct evhttp_request* req);
-  void ReplyOK(struct evhttp_request* req);
+  void OnPushMsgDone(bool ok);
 
-  map<UserID, SessionServerID> u2sMap_;
-  vector<string> subcliaddrs_;
-  vector<string> pubcliaddrs_;
-  vector<shared_ptr<SessionSubClient> > session_sub_clients_;
-  vector<shared_ptr<SessionPubClient> > session_pub_clients_;
+  void OnGetMsg(UserID uid, int64_t start, MessageIteratorPtr mit);
+  void OnGetMsgToReply(UserID uid, struct evhttp_request * req, MessageIteratorPtr mit);
+
+  void GetMsg(const UserID& uid, int64_t start, boost::function<void (MessageIteratorPtr)> cb);
+
+  void SendUserMsg(const UserID& uid, const string& msg);
+
+  static void OnAdminPub(struct evhttp_request* req, void *ctx);
+  static void OnAdminBroadcast(struct evhttp_request* req, void *ctx);
+  static void OnAdminCheckPresence(struct evhttp_request* req, void * ctx);
+  static void OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx);
+  static void OnAcceptError(struct evconnlistener * listener , void *ctx);
+
+  static void SendReply(struct evhttp_request* req,  const char* content, size_t len);
+
+  static void ReplyError(struct evhttp_request* req);
+  static void ReplyOK(struct evhttp_request* req);
+
+  map<UserID, Sid> u2sMap_;
+  vector<shared_ptr<HttpClient> > sub_clients_;
+
   struct event_base *evbase_;
-  scoped_ptr<Storage> storage_;
   struct evhttp* admin_http_;
+
+  scoped_ptr<Storage> storage_;
 };
 
 } // namespace xcomet
