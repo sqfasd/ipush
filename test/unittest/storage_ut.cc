@@ -8,7 +8,7 @@
 #include "deps/base/scoped_ptr.h"
 #include "deps/base/callback.h"
 #include "src/include_std.h"
-#include "src/storage.h"
+#include "src/local_storage.h"
 
 namespace xcomet {
 class StorageUnittest : public testing::Test {
@@ -74,7 +74,7 @@ class StorageUnittest : public testing::Test {
   virtual void SetUp() {
     evbase_ = event_base_new();
     CHECK(evbase_) << "create event_base failed";
-    storage_.reset(new Storage(evbase_, "/tmp/ssdb_tmp"));
+    storage_.reset(new LocalStorage(evbase_, "/tmp/ssdb_tmp"));
 
     thread_.reset(new base::ThreadRunner(
           base::NewOneTimeCallback(this, &StorageUnittest::Run)));

@@ -48,7 +48,7 @@ RouterServer::~RouterServer() {
 
 void RouterServer::Start() {
   OpenSubClients();
-  InitDatabase();
+  InitStorage();
   InitAdminHttp();
   event_base_dispatch(evbase_);
 }
@@ -87,10 +87,10 @@ void RouterServer::CloseSubClient(Sid sid) {
   sub_clients_[sid]->Free();
 }
 
-void RouterServer::InitDatabase() {
-  LOG(INFO) << "InitDatabase path:" << FLAGS_ssdb_path;
-  DatabaseOption option;
-  database_.reset(new Database(evbase_));
+void RouterServer::InitStorage() {
+  LOG(INFO) << "InitStorage path:" << FLAGS_ssdb_path;
+  RemoteStorageOption option;
+  storage_.reset(new RemoteStorage(evbase_));
 }
 
 void RouterServer::InitAdminHttp() {
@@ -205,7 +205,7 @@ void RouterServer::GetMsg(const UserID& uid, int64_t start,
             boost::function<void (MessageIteratorPtr)> cb) {
   int64_t end = start + FLAGS_message_batch_size - 1;
   VLOG(5) << "GetMsg uid " << uid << " start:" << start << " end:" << end;
-  database_->GetMessageIterator(uid, start, end, cb);
+  storage_->GetMessageIterator(uid, start, end, cb);
 }
 
 void RouterServer::InsertUid(const UserID& uid, Sid sid) {
@@ -266,8 +266,8 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
     return;
   }
   string msg(bufferstr, len);
-  self->database_->SaveMessage(uid, msg, boost::bind(&RouterServer::OnPushMsgDone, self, _1));
-  VLOG(5) << "database_->SaveMessage" << uid << ","<< msg;
+  self->storage_->SaveMessage(uid, msg, boost::bind(&RouterServer::OnPushMsgDone, self, _1));
+  VLOG(5) << "storage_->SaveMessage" << uid << ","<< msg;
   self->SendUserMsg(uid, msg);
   ReplyOK(req);
   VLOG(5) << "reply ok";
@@ -297,7 +297,7 @@ void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
     ReplyError(req);
     return;
   }
-  self->database_->GetMessageIterator(uid, boost::bind(&RouterServer::OnGetMsgToReply, self, UserID(uid), req, _1));
+  self->storage_->GetMessageIterator(uid, boost::bind(&RouterServer::OnGetMsgToReply, self, UserID(uid), req, _1));
 }
 
 void RouterServer::SendReply(struct evhttp_request* req, const char* content, size_t len) {

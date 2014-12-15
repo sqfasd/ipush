@@ -7,7 +7,7 @@ ADD_EXECUTABLE(unittest.run
   storage_ut.cc
   ../../src/worker.cc
   ../../src/event_msgqueue.c
-  ../../src/storage.cc
+  ../../src/local_storage.cc
 )
 
 TARGET_LINK_LIBRARIES(unittest.run

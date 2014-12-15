@@ -19,12 +19,12 @@ TARGET_LINK_LIBRARIES(session_server
 
 ADD_EXECUTABLE(router_server
   router_server.cc
-  storage.cc
+  local_storage.cc
+  remote_storage.cc
   worker.cc
   event_msgqueue.c
   utils.cc
   http_client.cc
-  database.cc
 )
 TARGET_LINK_LIBRARIES(router_server
   base

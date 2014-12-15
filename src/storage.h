@@ -13,33 +13,24 @@ namespace xcomet {
 
 class Storage {
  public:
-  Storage(struct event_base* evbase, const string& dir);
-  ~Storage();
-  void SaveMessage(const string& uid,
+  virtual ~Storage() {};
+  virtual void SaveMessage(const string& uid,
                           const string& content,
-                          boost::function<void (bool)> cb);
-  bool SaveMessageSync(const string uid, const string content);
+                          boost::function<void (bool)> cb) = 0;
+  virtual bool SaveMessageSync(const string uid, const string content) = 0;
 
-  void PopMessageIterator(const string& uid,
-                                 boost::function<void (MessageIteratorPtr)> cb);
-  MessageIteratorPtr PopMessageIteratorSync(const string uid);
+  virtual void PopMessageIterator(const string& uid,
+                                 boost::function<void (MessageIteratorPtr)> cb) = 0;
+  virtual MessageIteratorPtr PopMessageIteratorSync(const string uid) = 0;
 
-  void GetMessageIterator(const string& uid,
-                                 boost::function<void (MessageIteratorPtr)> cb);
-  MessageIteratorPtr GetMessageIteratorSync(const string uid);
+  virtual void GetMessageIterator(const string& uid,
+                                 boost::function<void (MessageIteratorPtr)> cb) = 0;
+  virtual MessageIteratorPtr GetMessageIteratorSync(const string uid) = 0;
 
-  void GetMessageIterator(const string& uid, int64_t start, int64_t end, 
-                                boost::function<void (MessageIteratorPtr)> cb);
+  virtual void GetMessageIterator(const string& uid, int64_t start, int64_t end, 
+                                boost::function<void (MessageIteratorPtr)> cb) = 0;
   
-  MessageIteratorPtr GetMessageIteratorSync(const string uid, int64_t start, int64_t end);
-
-  //void RemoveMessages(const string& uid, base::Callback1<bool>* cb);
-  //bool RemoveMessagesSync(const string& uid);
-
- private:
-  scoped_ptr<Worker> worker_;
-  SSDB* ssdb_;
-  const string dir_;
+  virtual MessageIteratorPtr GetMessageIteratorSync(const string uid, int64_t start, int64_t end) = 0;
 };
 }  // namespace xcomet
 #endif  // SRC_STORAGE_H_

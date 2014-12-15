@@ -1,4 +1,4 @@
-#include "src/database.h"
+#include "src/remote_storage.h"
 #include "deps/base/logging.h"
 
 DEFINE_string(db_host, "127.0.0.1", "ssdb");
@@ -6,7 +6,7 @@ DEFINE_int32(db_port, 8888, "ssdb");
 
 namespace xcomet {
 
-Database::Database(struct event_base* evbase) 
+RemoteStorage::RemoteStorage(struct event_base* evbase) 
     : worker_(new Worker(evbase)) {
   option_.host = FLAGS_db_host;
   option_.port = FLAGS_db_port;
@@ -14,36 +14,56 @@ Database::Database(struct event_base* evbase)
   CHECK(client_.get());
 }
 
-Database::Database(struct event_base* evbase, const DatabaseOption& option)
+RemoteStorage::RemoteStorage(struct event_base* evbase, const RemoteStorageOption& option)
     : worker_(new Worker(evbase)), 
       option_(option) {
   client_.reset(ssdb::Client::connect(option_.host.c_str(), option_.port));
   CHECK(client_.get());
 }
 
-Database::~Database() {
+RemoteStorage::~RemoteStorage() {
 }
 
-void Database::SaveMessage(
+void RemoteStorage::SaveMessage(
     const string& uid,
     const string& content,
     boost::function<void (bool)> cb) {
-  worker_->Do<bool>(boost::bind(&Database::SaveMessageSync, this, uid, content), cb);
+  worker_->Do<bool>(boost::bind(&RemoteStorage::SaveMessageSync, this, uid, content), cb);
 }
 
-bool Database::SaveMessageSync(const string uid, const string content) {
+bool RemoteStorage::SaveMessageSync(const string uid, const string content) {
   ssdb::Status s;
   s = client_->qpush(uid, content);
   return s.ok();
 }
 
-void Database::GetMessageIterator(
+void RemoteStorage::PopMessageIterator(
     const string& uid,
     boost::function<void (MessageIteratorPtr)> cb) {
-  worker_->Do<MessageIteratorPtr>(boost::bind(&Database::GetMessageIteratorSync, this, uid), cb);
+  worker_->Do<MessageIteratorPtr>(boost::bind(&RemoteStorage::PopMessageIteratorSync, this, uid), cb);
 }
 
-MessageIteratorPtr Database::GetMessageIteratorSync(const string uid) {
+MessageIteratorPtr RemoteStorage::PopMessageIteratorSync(const string uid) {
+  string str1;
+  base::shared_ptr<queue<string> > mq(new queue<string>());
+  ssdb::Status s;
+  while(true){
+    s = client_->qpop(uid, &str1);
+    if(!s.ok()){
+      break;
+    }
+    mq->push(str1);
+  }
+  return MessageIteratorPtr(new MessageIterator(mq));
+}
+
+void RemoteStorage::GetMessageIterator(
+    const string& uid,
+    boost::function<void (MessageIteratorPtr)> cb) {
+  worker_->Do<MessageIteratorPtr>(boost::bind(&RemoteStorage::GetMessageIteratorSync, this, uid), cb);
+}
+
+MessageIteratorPtr RemoteStorage::GetMessageIteratorSync(const string uid) {
   vector<string> result;
   // TODO avoid inefficient copy
   client_->qslice(uid, 0, -1, &result);
@@ -54,15 +74,15 @@ MessageIteratorPtr Database::GetMessageIteratorSync(const string uid) {
   return MessageIteratorPtr(new MessageIterator(mq));
 }
 
-void Database::GetMessageIterator(
+void RemoteStorage::GetMessageIterator(
     const string& uid,
     int64_t start,
     int64_t end,
     boost::function<void (MessageIteratorPtr)> cb) {
-  worker_->Do<MessageIteratorPtr>(boost::bind(&Database::GetMessageIteratorSync, this, uid, start, end), cb);
+  worker_->Do<MessageIteratorPtr>(boost::bind(&RemoteStorage::GetMessageIteratorSync, this, uid, start, end), cb);
 }
 
-MessageIteratorPtr Database::GetMessageIteratorSync(const string uid, int64_t start, int64_t end) {
+MessageIteratorPtr RemoteStorage::GetMessageIteratorSync(const string uid, int64_t start, int64_t end) {
   vector<string> result;
   base::shared_ptr<queue<string> > mq(new queue<string>());
   ssdb::Status s = client_->qslice(uid, start, end, &result);
