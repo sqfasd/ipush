@@ -201,14 +201,13 @@ void SessionServer::Leave(struct evhttp_request* req) {
 
 void SessionServer::OnTimer() {
   VLOG(3) << "OnTimer";
-  DLinkedList<User*> timeout_users = timeout_queue_.PopFront();
+  DLinkedList<User*> timeout_users = timeout_queue_.GetFront();
   DLinkedList<User*>::Iterator it = timeout_users.GetIterator();
   while (User* user = it.Next()) {
     if (user->GetType() == User::COMET_TYPE_POLLING) {
       user->Close();
     } else {
       user->SendHeartbeat();
-      timeout_queue_.PushUserBack(user);
     }
   }
   timeout_queue_.IncHead();

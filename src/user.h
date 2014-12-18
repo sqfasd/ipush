@@ -58,6 +58,10 @@ class UserCircleQueue {
   UserCircleQueue(int max_size) : size_(max_size), head_(0) {
     buffer_.resize(size_);
   }
+
+  DLinkedList<User*> GetFront() {
+    return buffer_[head_];
+  }
   
   DLinkedList<User*> PopFront() {
     DLinkedList<User*> ret = buffer_[head_];
