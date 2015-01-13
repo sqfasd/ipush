@@ -13,8 +13,8 @@ class Session {
  public:
   Session(struct evhttp_request* req);
   ~Session();
-  void Send(const string& content);
-  void Send2(const string& content);
+  void SendPacket(const string& packet_str);
+  void Send(const string& from_id, const string& type, const string& content);
   void SendHeartbeat();
   void Close();
   void Reset(struct evhttp_request* req);
@@ -31,7 +31,7 @@ class Session {
   static void OnReceive(void* arg);
   void OnReceive();
   void SendHeader();
-  void SendChunk(const string& type, const string& content);
+  void SendChunk(const char* data);
 
   struct evhttp_request* req_;
   bool closed_;

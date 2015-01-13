@@ -29,7 +29,7 @@ void RouterProxy::ResetSession(struct evhttp_request* req) {
 void RouterProxy::SendAll() {
   if (session_.get()) {
     while (offset_ < tail_) {
-      session_->Send2(msg_buffer_[offset_]);
+      session_->SendPacket(msg_buffer_[offset_]);
       offset_++;
     }
   }
@@ -71,7 +71,7 @@ void RouterProxy::RegisterUser(const string& uid, int seq) {
   // tail_++;
   // SendAll();
   if (session_.get()) {
-    session_->Send2(msg);
+    session_->SendPacket(msg);
   } else {
     LOG(ERROR) << "session is not available";
   }
@@ -85,7 +85,7 @@ void RouterProxy::UnregisterUser(const string& uid) {
   // tail_++;
   // SendAll();
   if (session_.get()) {
-    session_->Send2(msg);
+    session_->SendPacket(msg);
   } else {
     LOG(ERROR) << "session is not available";
   }

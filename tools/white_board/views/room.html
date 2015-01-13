@@ -59,7 +59,7 @@ function update_board() {
         var msg = {
           type: 'channel',
           channel_id: get_channel_id(),
-          image_uri: data.image_uri,
+          content: data.image_uri,
         };
         send(msg);
       }
@@ -93,7 +93,7 @@ function onReady() {
 function onConnect(success, msg) {
   console.log('connect');
   if (success) {
-    var header = 'GET /sub?uid=' + get_user_id() + '&seq=-1 HTTP/1.1\r\n' +
+    var header = 'GET /connect?uid=' + get_user_id() + '&seq=-1 HTTP/1.1\r\n' +
                  'User-Agent: white_board_demo/0.1.0\r\n' +
                  'Accept: */*\r\n' +
                  '\r\n'
@@ -107,7 +107,7 @@ function onData(data) {
   console.log('Received from socket: ' + data);
   if (data.indexOf("HTTP/1.1 200 OK") != -1) {
     var msg = {
-      type: 'join',
+      type: 'sub',
       uid: get_user_id(),
       channel_id: get_channel_id(),
     };
@@ -125,8 +125,8 @@ function onData(data) {
     <% if (!is_teacher) { %>
     try {
       var json = JSON.parse(data.substring(data.indexOf('{'), data.indexOf('}')+1));
-      if (json.type && json.type == 'channel' && json.image_uri) {
-        document.getElementById('board_image').src = json.image_uri;
+      if (json.type && json.type == 'channel' && json.content) {
+        document.getElementById('board_image').src = json.content;
       }
     } catch (e) {
       console.log('json parse error: ' + e);

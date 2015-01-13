@@ -20,7 +20,8 @@ class Channel {
   int GetUserCount() const {return users_.size();}
   void AddUser(User* user);
   void RemoveUser(User* user);
-  void Broadcast(const string& content);
+  void Broadcast(const string& packet_str) const;
+  void Broadcast(const string& from, const string& content) const;
 
  private:
   string id_;

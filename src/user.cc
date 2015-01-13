@@ -14,7 +14,6 @@ User::User(const string& uid,
       queue_index_(-1),
       uid_(uid),
       type_(type), 
-      channel_id_("-1"),
       server_(serv) {
   VLOG(3) << "User construct";
   session_.SetDisconnectCallback(
@@ -28,15 +27,17 @@ User::~User() {
   // TODO if not closed, close it
 }
 
-void User::Send(const std::string& content) {
-  session_.Send(content);
+void User::SendPacket(const std::string& pakcet_str) {
+  session_.SendPacket(pakcet_str);
   if (type_ == COMET_TYPE_POLLING) {
     Close();
   }
 }
 
-void User::Send2(const string& content) {
-  session_.Send2(content);
+void User::Send(const string& from_id,
+                const string& type,
+                const string& content) {
+  session_.Send(from_id, type, content);
   if (type_ == COMET_TYPE_POLLING) {
     Close();
   }

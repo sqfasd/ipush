@@ -1,5 +1,6 @@
 #include "src/session.h"
 
+#include "deps/jsoncpp/include/json/json.h"
 #include "base/string_util.h"
 #include "src/session_server.h"
 
@@ -19,24 +20,28 @@ Session::~Session() {
   }
 }
 
-void Session::Send(const std::string& content) {
-  SendChunk("data", content);
+void Session::SendPacket(const std::string& packet_str) {
+  SendChunk(packet_str.c_str());
 }
 
-void Session::Send2(const std::string& content) {
-  struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
-  evbuffer_add_printf(buf, "%s\n", content.c_str());
-  evhttp_send_reply_chunk_bi(req_, buf);
+void Session::Send(const string& from_id,
+                   const string& type,
+                   const string& content) {
+  Json::Value json;
+  json["from"] = from_id;
+  json["type"] = type;
+  json["content"] = content;
+  Json::FastWriter writer;
+  SendChunk(writer.write(json).c_str());
 }
 
 void Session::SendHeartbeat() {
-  SendChunk("noop", "");
+  SendChunk("\"type\":\"noop\"");
 }
 
-void Session::SendChunk(const string& type, const string& content) {
+void Session::SendChunk(const char* data) {
   struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
-  evbuffer_add_printf(buf, "{\"type\": \"%s\",\"content\":\"%s\"}\n",
-                      type.c_str(), content.c_str());
+  evbuffer_add_printf(buf, "%s\n", data);
   evhttp_send_reply_chunk_bi(req_, buf);
 }
 

@@ -29,12 +29,13 @@ class User {
   void SetType(int type) {type_ = type;}
   int GetType() const {return type_;}
   string GetId() const {return uid_;}
-  void Send(const string& content);
-  void Send2(const string& content);
+  void SendPacket(const string& packet_str);
+  void Send(const string& from_id, const string& type, const string& content);
   void Close();
   void SendHeartbeat();
-  string GetChannelId() const {return channel_id_;}
-  void SetChannelId(const string& cid) {channel_id_ = cid;}
+  const set<string>& GetChannelIds() const {return channel_ids_;}
+  void SubChannel(const string& cid) {channel_ids_.insert(cid);}
+  void UnsubChannel(const string& cid) {channel_ids_.erase(cid);}
 
  private:
   void OnSessionDisconnected();
@@ -44,7 +45,7 @@ class User {
   int queue_index_;
   string uid_;
   int type_;
-  string channel_id_;
+  set<string> channel_ids_;
 
   SessionServer& server_;
 

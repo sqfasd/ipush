@@ -17,15 +17,13 @@ class SessionServer {
     return *Singleton<SessionServer>::get();
   }
 
+  void Connect(struct evhttp_request* req);
   void Sub(struct evhttp_request* req);
   void Pub(struct evhttp_request* req);
   void Unsub(struct evhttp_request* req);
-  void CreateRoom(struct evhttp_request* req);
-  void DestroyRoom(struct evhttp_request* req);
+  void Disconnect(struct evhttp_request* req);
   void Broadcast(struct evhttp_request* req);
   void RSub(struct evhttp_request* req);
-  void Join(struct evhttp_request* req);
-  void Leave(struct evhttp_request* req);
   void OnTimer();
   void OnUserMessage(const string& uid, base::shared_ptr<string> message);
 
@@ -36,7 +34,8 @@ class SessionServer {
   ~SessionServer();
   void ReplyOK(struct evhttp_request* req);
   void RemoveUserFromChannel(User* user);
-  void DoJoin(const string& uid, const string& cid, struct evhttp_request* req);
+  void DoSub(const string& uid, const string& cid, struct evhttp_request* req);
+  void DoUnsub(const string& uid, const string& cid, struct evhttp_request* req);
 
   UserMap users_;
   ChannelMap channels_;
