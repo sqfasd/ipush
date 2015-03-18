@@ -82,7 +82,7 @@ void Session::OnReceive() {
   if (next_msg_max_len_ == 0) {
     size_t n;
     char* size = evbuffer_readln(input, &n, EVBUFFER_EOL_CRLF);
-    next_msg_max_len_ = StringToInt(size);
+    next_msg_max_len_ = HexStringToInt(size);
     LOG(INFO) << "message len: " << size;
   } else {
     int len = evbuffer_get_length(input);

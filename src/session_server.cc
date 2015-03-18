@@ -32,7 +32,7 @@ SessionServer::SessionServer()
 SessionServer::~SessionServer() {
 }
 
-// /connect?uid=123&password=456&seq=111type=1|2
+// /connect?uid=123&token=ABCDE&seq=111type=1|2
 void SessionServer::Connect(struct evhttp_request* req) {
   CHECK_HTTP_GET();
 
@@ -179,7 +179,7 @@ void SessionServer::Unsub(struct evhttp_request* req) {
 }
 
 void SessionServer::OnTimer() {
-  VLOG(3) << "OnTimer";
+  VLOG(5) << "OnTimer";
   DLinkedList<User*> timeout_users = timeout_queue_.GetFront();
   DLinkedList<User*>::Iterator it = timeout_users.GetIterator();
   if (FLAGS_is_server_heartbeat) {
@@ -204,47 +204,42 @@ void SessionServer::OnTimer() {
   }
 }
 
-void SessionServer::OnUserMessage(const string& uid,
+void SessionServer::OnUserMessage(const string& from_uid,
                                   base::shared_ptr<string> message) {
-  LOG(INFO) << uid << ": " << *message;
+  LOG(INFO) << from_uid << ": " << *message;
   Json::Value json;
   Json::Reader reader;
   reader.parse(*message, json);
   // TODO process other message typ
   const string& type = json["type"].asString();
   if (type == "send") {
-    const string& from = json["from"].asString();
     const string& to = json["to"].asString();
     const string& content = json["content"].asString();
     UserMap::iterator uit = users_.find(to);
     if (uit == users_.end()) {
       LOG(WARNING) << "user not found: " << to;
     } else {
-      uit->second->Send(from, "send", content);
+      uit->second->Send(from_uid, "send", content);
     }
   } else if (type == "channel") {
-    const string& from = json["from"].asString();
     const string& cid = json["channel_id"].asString();
     const string& content = json["content"].asString();
     ChannelMap::iterator cit = channels_.find(cid);
     if (cit == channels_.end()) {
       LOG(WARNING) << "channel not found: " << cid;
     } else {
-      cit->second->Broadcast(from, content);
+      cit->second->Broadcast(from_uid, content);
     }
   } else if (type == "sub") {
-    const string& uid = json["uid"].asString();
     const string& cid = json["channel_id"].asString();
-    DoSub(uid, cid, NULL);
+    DoSub(from_uid, cid, NULL);
   } else if (type == "unsub") {
-    const string& uid = json["uid"].asString();
     const string& cid = json["channel_id"].asString();
-    DoUnsub(uid, cid, NULL);
+    DoUnsub(from_uid, cid, NULL);
   } else if (type == "noop") {
-    const string& uid = json["uid"].asString();
-    UserMap::iterator uit = users_.find(uid);
+    UserMap::iterator uit = users_.find(from_uid);
     if (uit == users_.end()) {
-      LOG(WARNING) << "user not found: " << uid;
+      LOG(WARNING) << "user not found: " << from_uid;
     } else {
       timeout_queue_.PushUserBack(uit->second.get());
     }
