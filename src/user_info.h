@@ -3,6 +3,8 @@
 
 #include "src/include_std.h"
 
+namespace xcomet {
+
 class UserInfo {
  public:
   UserInfo(const string& uid) :uid_(uid) {}
@@ -17,4 +19,6 @@ class UserInfo {
   string uid_;
   set<string> channel_ids_;
 };
+
+}  // namespace xcomet
 #endif  // SRC_USER_INFO_H_
