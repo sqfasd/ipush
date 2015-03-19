@@ -30,7 +30,7 @@ void Session::Send(const string& from_id,
   Json::Value json;
   json["from"] = from_id;
   json["type"] = type;
-  json["content"] = content;
+  json["body"] = content;
   Json::FastWriter writer;
   SendChunk(writer.write(json).c_str());
 }

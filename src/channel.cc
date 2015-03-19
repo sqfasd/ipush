@@ -40,7 +40,7 @@ void Channel::Broadcast(const string& from, const string& content) const {
   json["type"] = "channel";
   json["from"] = from;
   json["to"] = id_;
-  json["content"] = content;
+  json["body"] = content;
   Json::FastWriter writer;
   string packet_str = writer.write(json);
   map<string, User*>::const_iterator it = users_.begin();

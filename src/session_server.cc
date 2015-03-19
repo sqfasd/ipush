@@ -45,7 +45,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
   }
 
   int type = query.GetInt("type", 1);
-  // string token = query.GetStr("token", "");
+  string token = query.GetStr("token", "");
   // TODO check request parameters
 
   UserPtr user;
@@ -214,21 +214,21 @@ void SessionServer::OnUserMessage(const string& from_uid,
   const string& type = json["type"].asString();
   if (type == "send") {
     const string& to = json["to"].asString();
-    const string& content = json["content"].asString();
+    const string& body = json["body"].asString();
     UserMap::iterator uit = users_.find(to);
     if (uit == users_.end()) {
       LOG(WARNING) << "user not found: " << to;
     } else {
-      uit->second->Send(from_uid, "send", content);
+      uit->second->Send(from_uid, "send", body);
     }
   } else if (type == "channel") {
     const string& cid = json["channel_id"].asString();
-    const string& content = json["content"].asString();
+    const string& body = json["body"].asString();
     ChannelMap::iterator cit = channels_.find(cid);
     if (cit == channels_.end()) {
       LOG(WARNING) << "channel not found: " << cid;
     } else {
-      cit->second->Broadcast(from_uid, content);
+      cit->second->Broadcast(from_uid, body);
     }
   } else if (type == "sub") {
     const string& cid = json["channel_id"].asString();
