@@ -64,7 +64,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
   timeout_queue_.PushUserBack(user.get());
 }
 
-// /pub?uid=123&content=hello
+// /pub?uid=123&content=hello&seq=1
 // /pub?cid=123&content=hello
 void SessionServer::Pub(struct evhttp_request* req) {
   // TODO process post
@@ -79,6 +79,7 @@ void SessionServer::Pub(struct evhttp_request* req) {
   HttpQuery query(req);
   string content = query.GetStr("content", "");
   string uid = query.GetStr("uid", "");
+  int seq = query.GetInt("seq", 0);
 
   if (!uid.empty()) {
     LOG(INFO) << "pub to user: " << content;
@@ -210,6 +211,7 @@ void SessionServer::OnUserMessage(const string& from_uid,
   Json::Value json;
   Json::Reader reader;
   reader.parse(*message, json);
+  CHECK(json.isMember("type"));
   // TODO process other message typ
   const string& type = json["type"].asString();
   if (type == "send") {
@@ -243,6 +245,7 @@ void SessionServer::OnUserMessage(const string& from_uid,
     } else {
       timeout_queue_.PushUserBack(uit->second.get());
     }
+  } else if (type == "ack") {
   }
 }
 
