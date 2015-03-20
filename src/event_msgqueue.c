@@ -1,12 +1,12 @@
 /*
  * event_msgqueue.c
- * 
+ *
  * Libevent threaded message passing primitives
- * 
+ *
  * Andrew Danforth <acd@weirdness.net>, October 2006
- * 
+ *
  * Copyright (c) Andrew Danforth, 2006
- * 
+ *
  */
 
 #include <stdlib.h>
@@ -82,7 +82,7 @@ static int circqueue_grow(struct circqueue *cq) {
    void **newents;
    unsigned int newsize = cq->array_elements << 1;
    unsigned int headchunklen = 0, tailchunklen = 0;
-   
+
    if (!(newents = malloc(sizeof(void *) * newsize)))
       return(-1);
 
@@ -111,7 +111,7 @@ static int circqueue_push_tail(struct circqueue *cq, void *elem) {
    if (cq->max_entries) {
       if (cq->count == cq->max_entries)
          return(-1);
-   } else if (circqueue_is_full(cq) && circqueue_grow(cq) != 0) 
+   } else if (circqueue_is_full(cq) && circqueue_grow(cq) != 0)
       return(-1);
 
    cq->count++;
@@ -188,7 +188,7 @@ struct event_msgqueue *msgqueue_new(struct event_base *base, unsigned int max_si
    event_add(&msgq->queue_ev, NULL);
 
    msgq->unlock_between_callbacks = 1;
-   
+
    return(msgq);
 }
 
