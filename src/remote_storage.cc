@@ -151,7 +151,7 @@ int RemoteStorage::GetMaxSeqSync(const string uid) {
   string result;
   ssdb::Status s = client_->hget(uid, "max_seq", &result);
   if (!s.ok()) {
-    LOG(INFO) << "GetMaxSeqSync get last_ack failed";
+    LOG(ERROR) << "GetMaxSeqSync get last_ack failed";
     result = "0";
   }
   return StringToInt(result);
