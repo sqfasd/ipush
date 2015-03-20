@@ -47,15 +47,9 @@ void HttpClient::Free() {
 
 void HttpClient::Send(const string& data) {
   struct evbuffer* buf = evhttp_request_get_output_buffer(evreq_);
-  evbuffer_add(buf, data.c_str(), data.size());
-  VLOG(6) << "Send:" << data;
-}
-
-void HttpClient::SendChunk(const string& data) {
-  struct evbuffer* buf = evhttp_request_get_output_buffer(evreq_);
   evbuffer_add_printf(buf, "%s\n", data.c_str());
   evhttp_send_reply_chunk(evreq_, buf);
-  VLOG(6) << "SendChunk:" << data;
+  VLOG(6) << "Send to session:" << data;
 }
 
 void HttpClient::StartRequest() {

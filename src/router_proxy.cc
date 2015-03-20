@@ -1,11 +1,14 @@
-#include "deps/base/string_util.h"
 #include "src/router_proxy.h"
+
+#include <boost/bind.hpp>
+#include "deps/base/string_util.h"
 #include "src/http_query.h"
+#include "src/session_server.h"
 
 namespace xcomet {
 
-RouterProxy::RouterProxy()
-    : counter_(0) {
+RouterProxy::RouterProxy(SessionServer& serv)
+    : counter_(0), server_(serv) {
 }
 
 RouterProxy::~RouterProxy() {
@@ -16,30 +19,40 @@ void RouterProxy::OnSessionDisconnected() {
   session_.reset();
 }
 
+void RouterProxy::Redirect(base::shared_ptr<string> message) {
+  if (session_.get()) {
+    session_->SendPacket(*message);
+  } else {
+    LOG(ERROR) << "Redirect failed: session is not available";
+  }
+}
+
 void RouterProxy::ResetSession(struct evhttp_request* req) {
   session_.reset(new Session(req));
   session_->SetDisconnectCallback(
       base::NewOneTimeCallback(this, &RouterProxy::OnSessionDisconnected));
+  session_->SetMessageCallback(
+      boost::bind(&SessionServer::OnRouterMessage, &server_, _1));
 }
 
-void RouterProxy::RegisterUser(const string& uid, int seq) {
+void RouterProxy::LoginUser(const string& uid, int seq) {
   LOG(INFO) << "RegisterUser: " << uid;
   string msg = StringPrintf("{\"type\":\"login\", \"uid\":\"%s\"}",
       uid.c_str());
   if (session_.get()) {
     session_->SendPacket(msg);
   } else {
-    LOG(ERROR) << "session is not available";
+    LOG(ERROR) << "LoginUser failed: session is not available";
   }
 }
 
-void RouterProxy::UnregisterUser(const string& uid) {
+void RouterProxy::LogoutUser(const string& uid) {
   string msg = StringPrintf("{\"type\":\"logout\", \"uid\":\"%s\"}",
       uid.c_str());
   if (session_.get()) {
     session_->SendPacket(msg);
   } else {
-    LOG(ERROR) << "session is not available";
+    LOG(ERROR) << "LogoutUser failed: session is not available";
   }
 }
 

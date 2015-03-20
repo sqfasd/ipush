@@ -11,14 +11,17 @@
 
 namespace xcomet {
 
+class SessionServer;
+
 class RouterProxy {
  public:
-  RouterProxy();
+  RouterProxy(SessionServer& serv);
   ~RouterProxy();
   void SendHeartbeat();
+  void Redirect(base::shared_ptr<string> message);
   void ResetSession(struct evhttp_request* req);
-  void RegisterUser(const string& uid, int seq);
-  void UnregisterUser(const string& uid);
+  void LoginUser(const string& uid, int seq);
+  void LogoutUser(const string& uid);
 
   void SetCounter(int n) {counter_ = n;}
   int IncCounter() {return ++counter_;}
@@ -27,6 +30,7 @@ class RouterProxy {
 
   scoped_ptr<Session> session_;
   int counter_;
+  SessionServer& server_;
 };
 }  // namespace xcomet
 #endif  // SRC_ROUTER_PROXY_H_

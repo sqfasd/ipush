@@ -18,14 +18,13 @@ class SessionServer {
   }
 
   void Connect(struct evhttp_request* req);
-  void Sub(struct evhttp_request* req);
   void Pub(struct evhttp_request* req);
-  void Unsub(struct evhttp_request* req);
   void Disconnect(struct evhttp_request* req);
   void Broadcast(struct evhttp_request* req);
   void RSub(struct evhttp_request* req);
   void OnTimer();
   void OnUserMessage(const string& uid, base::shared_ptr<string> message);
+  void OnRouterMessage(base::shared_ptr<string> message);
 
   void RemoveUser(User* user);
 
@@ -34,11 +33,8 @@ class SessionServer {
   ~SessionServer();
   void ReplyOK(struct evhttp_request* req);
   void RemoveUserFromChannel(User* user);
-  void DoSub(const string& uid, const string& cid, struct evhttp_request* req);
-  void DoUnsub(const string& uid, const string& cid, struct evhttp_request* req);
 
   UserMap users_;
-  ChannelMap channels_;
   RouterProxy router_;
   UserCircleQueue timeout_queue_;
 

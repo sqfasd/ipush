@@ -10,6 +10,8 @@ using namespace std;
 
 void ParseIpPort(const string& address, string& ip, int& port);
 
+bool IsUserId(const string& id);
+
 } // namespace xcomet
 
 #endif

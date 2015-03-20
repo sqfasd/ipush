@@ -18,56 +18,45 @@ class StorageUnittest : public testing::Test {
     CHECK(ok);
   }
 
-  void PopDone(string uid, MessageIteratorPtr mit) {
-    LOG(INFO) << "Storage Pop Done";
+  void PopDone(string uid, MessageResult mr) {
+    LOG(INFO) << "Storage PopDone: " << mr->size();
     CHECK(uid == "u1");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m1");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m2");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m3");
-    CHECK(!mit->HasNext());
+    CHECK(mr->size() == 3);
+    CHECK(mr->at(0) == "m1");
+    CHECK(mr->at(1) == "m2");
+    CHECK(mr->at(2) == "m3");
   }
 
-  void GetDone(string uid, MessageIteratorPtr mit) {
-    LOG(INFO) << "Storage Get Done";
+  void GetDone(string uid, MessageResult mr) {
+    LOG(INFO) << "Storage GetDone: " << mr->size();
     CHECK(uid == "u1");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m1");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m2");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m3");
-    CHECK(!mit->HasNext());
+    CHECK(mr->size() == 3);
+    CHECK(mr->at(0) == "m1");
+    CHECK(mr->at(1) == "m2");
+    CHECK(mr->at(2) == "m3");
   }
 
-  void GetDone2(string uid, MessageIteratorPtr mit) {
-    LOG(INFO) << "Storage GetDone2";
+  void GetDone2(string uid, MessageResult mr) {
+    LOG(INFO) << "Storage GetDone2: " << mr->size();
     CHECK(uid == "u1");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m2");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m3");
-    CHECK(!mit->HasNext());
+    CHECK(mr->size() == 2);
+    CHECK(mr->at(0) == "m2");
+    CHECK(mr->at(1) == "m3");
   }
 
-  void GetDone3(string uid, MessageIteratorPtr mit) {
-    LOG(INFO) << "Storage GetDone3";
+  void GetDone3(string uid, MessageResult mr) {
+    LOG(INFO) << "Storage GetDone3: " << mr->size();
     CHECK(uid == "u1");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m2");
-    CHECK(!mit->HasNext());
+    CHECK(mr->size() == 1);
+    CHECK(mr->at(0) == "m2");
   }
 
-  void GetDone4(string uid, MessageIteratorPtr mit) {
-    LOG(INFO) << "Storage GetDone4";
+  void GetDone4(string uid, MessageResult mr) {
+    LOG(INFO) << "Storage GetDone4: " << mr->size();
     CHECK(uid == "u1");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m2");
-    CHECK(mit->HasNext());
-    CHECK(mit->Next() == "m3");
-    CHECK(!mit->HasNext());
+    CHECK(mr->size() == 2);
+    CHECK(mr->at(0) == "m2");
+    CHECK(mr->at(1) == "m3");
   }
  
  protected:
@@ -83,6 +72,7 @@ class StorageUnittest : public testing::Test {
 
   virtual void TearDown() {
     storage_.reset();
+    sleep(2);
     event_base_loopbreak(evbase_);
     thread_->Join();
   }
@@ -116,17 +106,17 @@ TEST_F(StorageUnittest, SimpleTest) {
       boost::bind(&StorageUnittest::SaveDone, this, _1));
   storage_->SaveMessage("u1", "m3",
       boost::bind(&StorageUnittest::SaveDone, this, _1));
-  storage_->GetMessageIterator("u1",
+  storage_->GetMessage("u1",
       boost::bind(&StorageUnittest::GetDone, this, "u1", _1));
-  storage_->GetMessageIterator("u1", 1, -1,
+  storage_->GetMessage("u1", 1, -1,
       boost::bind(&StorageUnittest::GetDone2, this, "u1", _1));
-  storage_->GetMessageIterator("u1", 1, 1,
+  storage_->GetMessage("u1", 1, 1,
       boost::bind(&StorageUnittest::GetDone3, this, "u1", _1));
-  storage_->GetMessageIterator("u1", 1, 2,
+  storage_->GetMessage("u1", 1, 2,
       boost::bind(&StorageUnittest::GetDone4, this, "u1", _1));
-  storage_->GetMessageIterator("u1", 1, 10,
+  storage_->GetMessage("u1", 1, 10,
       boost::bind(&StorageUnittest::GetDone4, this, "u1", _1));
-  storage_->PopMessageIterator("u1",
+  storage_->PopMessage("u1",
       boost::bind(&StorageUnittest::PopDone, this, "u1", _1));
 }
 

@@ -1,5 +1,7 @@
-#include "src/remote_storage.h"
+#include "deps/jsoncpp/include/json/json.h"
 #include "deps/base/logging.h"
+#include "deps/base/string_util.h"
+#include "src/remote_storage.h"
 
 DEFINE_string(db_host, "127.0.0.1", "ssdb");
 DEFINE_int32(db_port, 8888, "ssdb");
@@ -7,15 +9,16 @@ DEFINE_int32(db_port, 8888, "ssdb");
 namespace xcomet {
 
 RemoteStorage::RemoteStorage(struct event_base* evbase) 
-    : worker_(new Worker(evbase)) {
+    : Storage(evbase) {
   option_.host = FLAGS_db_host;
   option_.port = FLAGS_db_port;
   client_.reset(ssdb::Client::connect(option_.host.c_str(), option_.port));
   CHECK(client_.get());
 }
 
-RemoteStorage::RemoteStorage(struct event_base* evbase, const RemoteStorageOption& option)
-    : worker_(new Worker(evbase)), 
+RemoteStorage::RemoteStorage(struct event_base* evbase,
+                             const RemoteStorageOption& option)
+    : Storage(evbase), 
       option_(option) {
   client_.reset(ssdb::Client::connect(option_.host.c_str(), option_.port));
   CHECK(client_.get());
@@ -24,77 +27,134 @@ RemoteStorage::RemoteStorage(struct event_base* evbase, const RemoteStorageOptio
 RemoteStorage::~RemoteStorage() {
 }
 
-void RemoteStorage::SaveMessage(
-    const string& uid,
-    const string& content,
-    boost::function<void (bool)> cb) {
-  worker_->Do<bool>(boost::bind(&RemoteStorage::SaveMessageSync, this, uid, content), cb);
-}
-
-bool RemoteStorage::SaveMessageSync(const string uid, const string content) {
-  ssdb::Status s;
-  s = client_->qpush(uid, content);
-  return s.ok();
-}
-
-void RemoteStorage::PopMessageIterator(
-    const string& uid,
-    boost::function<void (MessageIteratorPtr)> cb) {
-  worker_->Do<MessageIteratorPtr>(boost::bind(&RemoteStorage::PopMessageIteratorSync, this, uid), cb);
-}
-
-MessageIteratorPtr RemoteStorage::PopMessageIteratorSync(const string uid) {
-  string str1;
-  base::shared_ptr<queue<string> > mq(new queue<string>());
-  ssdb::Status s;
-  while(true){
-    s = client_->qpop(uid, &str1);
-    if(!s.ok()){
-      break;
+bool RemoteStorage::SaveMessageSync(MessagePtr msg, int seq) {
+  try {
+    ssdb::Status s;
+    const string& uid = (*msg)["from"].asString();
+    if (seq <= 0) {
+      string result;
+      s = client_->hget(uid, "max_seq", &result);
+      if (!s.ok()) {
+        result = "0";
+      }
+      seq = StringToInt(result) + 1;
     }
-    mq->push(str1);
+    VLOG(5) << "set max_seq: " << seq;
+    (*msg)["seq"] = seq;
+    s = client_->hset(uid, "max_seq", IntToString(seq));
+    if (!s.ok()) {
+      LOG(ERROR) << "SaveMessageSync set max_seq failed";
+      return false;
+    }
+    Json::FastWriter writer;
+    string content = writer.write(*msg);
+    s = client_->hset(uid, IntToString(seq), content);
+    if (!s.ok()) {
+      LOG(ERROR) << "SaveMessageSync set msg failed";
+      return false;
+    }
+    return true;
+  } catch (std::exception& e) {
+    LOG(ERROR) << "SaveMessageSync json exception: " << e.what();
+    return false;
+  } catch (...) {
+    LOG(ERROR) << "unknow exception";
+    return false;
   }
-  return MessageIteratorPtr(new MessageIterator(mq));
 }
 
-void RemoteStorage::GetMessageIterator(
-    const string& uid,
-    boost::function<void (MessageIteratorPtr)> cb) {
-  worker_->Do<MessageIteratorPtr>(boost::bind(&RemoteStorage::GetMessageIteratorSync, this, uid), cb);
-}
-
-MessageIteratorPtr RemoteStorage::GetMessageIteratorSync(const string uid) {
-  vector<string> result;
-  // TODO avoid inefficient copy
-  client_->qslice(uid, 0, -1, &result);
-  base::shared_ptr<queue<string> > mq(new queue<string>());
-  for (size_t i = 0; i < result.size(); ++i) {
-    mq->push(result[i]);
+MessageResult RemoteStorage::GetMessageSync(const string uid) {
+  MessageResult result(new vector<string>());
+  result->reserve(DEFAULT_BATCH_GET_SIZE);
+  ssdb::Status s;
+  int max_seq = 0;
+  int last_ack = 0;
+  string tmp;
+  s = client_->hget(uid, "max_seq", &tmp);
+  if (s.ok()) {
+    max_seq = StringToInt(tmp);
   }
-  return MessageIteratorPtr(new MessageIterator(mq));
+  VLOG(5) << "max_seq = " << max_seq;
+  tmp.clear();
+  s = client_->hget(uid, "last_ack", &tmp);
+  if (s.ok()) {
+    last_ack = StringToInt(tmp);
+  }
+  VLOG(5) << "last_ack = " << last_ack;
+  if (max_seq > 0 && last_ack >= 0 && max_seq > last_ack) {
+    vector<string> keys;
+    keys.reserve(max_seq - last_ack);
+    for (int i = last_ack + 1; i <= max_seq; ++i) {
+      keys.push_back(IntToString(i));
+    }
+    LOG(INFO) << "keys.size=" << keys.size();
+    s = client_->multi_hget(uid, keys, result.get());
+    if (!s.ok()) {
+      LOG(ERROR) << "GetMessageSync get keys failed";
+    }
+    LOG(INFO) << "result.size=" << result->size();
+    for (int i = 0; i < result->size(); ++i) {
+      LOG(INFO) << "result=" << result->at(i);
+    }
+  }
+  return result;
 }
 
-void RemoteStorage::GetMessageIterator(
-    const string& uid,
+MessageResult RemoteStorage::GetMessageSync(
+    const string uid,
     int64_t start,
-    int64_t end,
-    boost::function<void (MessageIteratorPtr)> cb) {
-  worker_->Do<MessageIteratorPtr>(boost::bind(&RemoteStorage::GetMessageIteratorSync, this, uid, start, end), cb);
+    int64_t end) {
+  MessageResult result(new vector<string>());
+  result->reserve(DEFAULT_BATCH_GET_SIZE);
+  ssdb::Status s = client_->qslice(uid, start, end, result.get());
+  if(!s.ok()) {
+    LOG(ERROR) << "GetMessageSync failed: " << s.code();
+  }
+  return result;
 }
 
-MessageIteratorPtr RemoteStorage::GetMessageIteratorSync(const string uid, int64_t start, int64_t end) {
-  vector<string> result;
-  base::shared_ptr<queue<string> > mq(new queue<string>());
-  ssdb::Status s = client_->qslice(uid, start, end, &result);
-  if(!s.ok()) {
-    LOG(ERROR) << s.code();
-    return MessageIteratorPtr(new MessageIterator(mq));
+bool RemoteStorage::UpdateAckSync(const string uid, int ack_seq) {
+  ssdb::Status s;
+  int max_seq = 0;
+  int last_ack = 0;
+  string tmp;
+  s = client_->hget(uid, "max_seq", &tmp);
+  if (s.ok()) {
+    max_seq = StringToInt(tmp);
   }
-  VLOG(5) << "qslice " << start << "," << end;
-  for(size_t i = 0; i < result.size(); ++i ) {
-    mq->push(result[i]);
+  tmp.clear();
+  s = client_->hget(uid, "last_ack", &tmp);
+  if (s.ok()) {
+    last_ack = StringToInt(tmp);
   }
-  return MessageIteratorPtr(new MessageIterator(mq));
+  if (max_seq >= 0 && last_ack >= 0 &&
+      ack_seq > last_ack && ack_seq <= max_seq) {
+    vector<string> keys;
+    keys.reserve(ack_seq - last_ack + 1);
+    for (int i = last_ack; i <= ack_seq; ++i) {
+      keys.push_back(IntToString(i));
+    }
+    s = client_->multi_hdel(uid, keys);
+    if (!s.ok()) {
+      LOG(ERROR) << "UpdateAckSync delete keys failed";
+    } else {
+      return true;
+    }
+  } else {
+    LOG(ERROR) << "UpdateAckSync get seqs failed: "
+               << last_ack << ", " << max_seq;
+  }
+  return false;
+}
+
+int RemoteStorage::GetMaxSeqSync(const string uid) {
+  string result;
+  ssdb::Status s = client_->hget(uid, "max_seq", &result);
+  if (!s.ok()) {
+    LOG(INFO) << "GetMaxSeqSync get last_ack failed";
+    result = "0";
+  }
+  return StringToInt(result);
 }
 
 }  // namespace xcomet

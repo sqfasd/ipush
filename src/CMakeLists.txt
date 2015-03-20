@@ -4,7 +4,6 @@ ADD_EXECUTABLE(session_server
   session.cc
   user.cc
   router_proxy.cc
-  channel.cc
   event_msgqueue.c
   worker.cc
   session_server.cc
@@ -19,7 +18,6 @@ TARGET_LINK_LIBRARIES(session_server
 
 ADD_EXECUTABLE(router_server
   router_server.cc
-  local_storage.cc
   remote_storage.cc
   worker.cc
   event_msgqueue.c

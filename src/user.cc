@@ -24,7 +24,6 @@ User::User(const string& uid,
 
 User::~User() {
   VLOG(3) << "User destroy";
-  // TODO if not closed, close it
 }
 
 void User::SendPacket(const std::string& pakcet_str) {

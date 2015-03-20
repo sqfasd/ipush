@@ -12,7 +12,7 @@ typedef boost::function<void (base::shared_ptr<string>)> MessageCallback;
 class Session {
  public:
   Session(struct evhttp_request* req);
-  ~Session();
+  virtual ~Session();
   void SendPacket(const string& packet_str);
   void Send(const string& from_id, const string& type, const string& content);
   void SendHeartbeat();

@@ -11,7 +11,10 @@ Worker::Worker(struct event_base* evbase)
       evbase_(evbase),
       event_queue_(NULL) {
   CHECK(evbase_);
-  event_queue_ = msgqueue_new(evbase_, 2000, &RunInEventloop, this);
+  event_queue_ = msgqueue_new(evbase_,
+                              FLAGS_msgqueue_max_size,
+                              &RunInEventloop,
+                              this);
   CHECK(event_queue_) << "failed to create event_msgqueue";
   Start();
 }
@@ -40,7 +43,10 @@ void Worker::Run() {
     VLOG(3) << "before run task";
     task->Run();
     VLOG(3) << "after run task";
-    msgqueue_push(event_queue_, task);
+    int ret = msgqueue_push(event_queue_, task);
+    if (ret == -1) {
+      LOG(ERROR) << "msgqueue_push failed, callback would not execute";
+    }
   }
   LOG(INFO) << "Worker thread exit";
 }

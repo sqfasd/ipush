@@ -24,66 +24,51 @@ LocalStorage::~LocalStorage() {
 }
 
 void LocalStorage::SaveMessage(
-    const string& uid,
-    const string& content,
-    boost::function<void (bool)> cb) {
-  worker_->Do<bool>(boost::bind(&LocalStorage::SaveMessageSync, this, uid, content), cb);
+    MessagePtr msg,
+    int seq,
+    SaveMessageCallback cb) {
+  worker_->Do<bool>(
+      boost::bind(&LocalStorage::SaveMessageSync, this, msg, seq), cb);
 }
 
-bool LocalStorage::SaveMessageSync(const string uid, const string content) {
-  ssdb_->qpush_back(Bytes(uid), Bytes(content));
+bool LocalStorage::SaveMessageSync(MessagePtr msg, int seq) {
   return true;
 }
 
-void LocalStorage::PopMessageIterator(
+void LocalStorage::GetMessage(
     const string& uid,
-    boost::function<void (MessageIteratorPtr)> cb) {
-  worker_->Do<MessageIteratorPtr>(boost::bind(&LocalStorage::PopMessageIteratorSync, this, uid), cb);
+    GetMessageCallback cb) {
+  worker_->Do<MessageResult>(
+      boost::bind(&LocalStorage::GetMessageSync, this, uid), cb);
 }
 
-MessageIteratorPtr LocalStorage::PopMessageIteratorSync(const string uid) {
-  string str1;
-  base::shared_ptr<queue<string> > mq(new queue<string>());
-  while (ssdb_->qpop_front(uid, &str1) > 0) {
-    mq->push(str1);
-  }
-  return MessageIteratorPtr(new MessageIterator(mq));
+MessageResult LocalStorage::GetMessageSync(const string uid) {
+  MessageResult result(new vector<string>());
+  result->reserve(DEFAULT_BATCH_GET_SIZE);
+  ssdb_->qslice(uid, 0, -1, result.get());
+  return result;
 }
 
-void LocalStorage::GetMessageIterator(
-    const string& uid,
-    boost::function<void (MessageIteratorPtr)> cb) {
-  worker_->Do<MessageIteratorPtr>(boost::bind(&LocalStorage::GetMessageIteratorSync, this, uid), cb);
-}
-
-MessageIteratorPtr LocalStorage::GetMessageIteratorSync(const string uid) {
-  vector<string> result;
-  // TODO avoid inefficient copy
-  ssdb_->qslice(uid, 0, -1, &result);
-  base::shared_ptr<queue<string> > mq(new queue<string>());
-  for (size_t i = 0; i < result.size(); ++i) {
-    mq->push(result[i]);
-  }
-  return MessageIteratorPtr(new MessageIterator(mq));
-}
-
-void LocalStorage::GetMessageIterator(
+void LocalStorage::GetMessage(
     const string& uid,
     int64_t start,
     int64_t end,
-    boost::function<void (MessageIteratorPtr)> cb) {
-  worker_->Do<MessageIteratorPtr>(boost::bind(&LocalStorage::GetMessageIteratorSync, this, uid, start, end), cb);
+    GetMessageCallback cb) {
+  worker_->Do<MessageResult>(
+      boost::bind(&LocalStorage::GetMessageSync,
+          this, uid, start, end),
+      cb);
 }
 
-MessageIteratorPtr LocalStorage::GetMessageIteratorSync(const string uid, int64_t start, int64_t end) {
-  vector<string> result;
-  ssdb_->qslice(uid, start, end, &result);
+MessageResult LocalStorage::GetMessageSync(
+    const string uid,
+    int64_t start,
+    int64_t end) {
   VLOG(5) << "qslice " << start << "," << end;
-  base::shared_ptr<queue<string> > mq(new queue<string>());
-  for(size_t i = 0; i < result.size(); ++i ) {
-    mq->push(result[i]);
-  }
-  return MessageIteratorPtr(new MessageIterator(mq));
+  MessageResult result(new vector<string>());
+  result->reserve(DEFAULT_BATCH_GET_SIZE);
+  ssdb_->qslice(uid, start, end, result.get());
+  return result;
 }
 
 }  // namespace xcomet

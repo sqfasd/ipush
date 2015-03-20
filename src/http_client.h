@@ -74,7 +74,6 @@ class HttpClient {
   }
   void StartRequest();
   void Send(const string& data);
-  void SendChunk(const string& data);
 
   const HttpClientOption& GetOption() const {
     return option_;

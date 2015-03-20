@@ -10,11 +10,13 @@ class ChannelInfo {
   ~ChannelInfo() {}
   string GetId() const {return id_;}
   int GetUserCount() const {return users_.size();}
-  void AddUser(const string& uid) {users_.insert(uid)}
-  void RemoveUser(User* user) {users_.erase(uid);}
+  void AddUser(const string& uid) {users_.insert(uid);}
+  void RemoveUser(const string& uid) {users_.erase(uid);}
+  const set<string>& GetUsers() const {return users_;}
 
  private:
   string id_;
+  // TODO(qingfeng) use pointers
   set<string> users_;
 };
 

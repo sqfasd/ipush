@@ -33,9 +33,6 @@ class User {
   void Send(const string& from_id, const string& type, const string& content);
   void Close();
   void SendHeartbeat();
-  const set<string>& GetChannelIds() const {return channel_ids_;}
-  void SubChannel(const string& cid) {channel_ids_.insert(cid);}
-  void UnsubChannel(const string& cid) {channel_ids_.erase(cid);}
 
  private:
   void OnSessionDisconnected();
@@ -45,13 +42,11 @@ class User {
   int queue_index_;
   string uid_;
   int type_;
-  set<string> channel_ids_;
 
   SessionServer& server_;
 
   friend class DLinkedList<User*>;
   friend class UserCircleQueue;
-  friend class Channel;
 };
 
 class UserCircleQueue {
