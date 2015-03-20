@@ -10,8 +10,8 @@ class UserInfo {
   UserInfo(const string& uid, int ssid)
     : uid_(uid),
       ssid_(ssid),
-      max_seq_(-1),
-      last_ack_(-1) {
+      max_seq_(0),
+      last_ack_(0) {
   }
   ~UserInfo() {}
   string GetId() const {return uid_;}

@@ -118,10 +118,9 @@ void RouterServer::SendAllMessages(const UserID& uid) {
 }
 
 void RouterServer::SendUserMsg(MessagePtr msg) {
+  VLOG(5) << "RouterServer::SendUserMsg: " << msg->toStyledString();
   const string& uid = (*msg)["from"].asString();
-  const string& body = (*msg)["body"].asString();
-  VLOG(5) << "RouterServer::SendUserMsg to " << uid << ": " << body;
-  int seq = -1;
+  int seq = 0;
   Sid sid = INVALID_SID;
   UserInfoMap::iterator uiter = users_.find(uid);
   if (uiter != users_.end()) {
@@ -135,6 +134,7 @@ void RouterServer::SendUserMsg(MessagePtr msg) {
   } else {
     CHECK(size_t(sid) < session_clients_.size());
     try {
+      (*msg)["seq"] = seq;
       Json::FastWriter writer;
       string content =  writer.write(*msg);
       session_clients_[sid]->Send(content);
