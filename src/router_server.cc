@@ -228,7 +228,7 @@ void RouterServer::UpdateUserAck(const UserID& uid, int seq) {
 void RouterServer::OnSessionMsg(const HttpClient* client,
                                 const string& msg,
                                 void *ctx) {
-  VLOG(5) << "RouterServer::OnSessionMsg";
+  VLOG(5) << "RouterServer::OnSessionMsg: " << msg;
   RouterServer* self  = (RouterServer*)ctx;
 
   try {
@@ -237,7 +237,9 @@ void RouterServer::OnSessionMsg(const HttpClient* client,
     Json::Reader reader;
     CHECK(reader.parse(msg, value)) << "json parse failed, msg: " << msg;
     CHECK(value.isMember("type"));
+    CHECK(value.isMember("from"));
     const string& type = value["type"].asString();
+    const string& from = value["from"].asString();
     if(IS_MESSAGE(type)) {
       const string& to = value["to"].asString();
       if (IsUserId(to)) {
@@ -246,18 +248,16 @@ void RouterServer::OnSessionMsg(const HttpClient* client,
         self->SendChannelMsg(value_ptr);
       }
     } else if(IS_LOGIN(type)) {
-      const string& from = value["from"].asString();
       self->LoginUser(from, client->GetOption().id);
       self->SendAllMessages(from);
     } else if(IS_LOGOUT(type)) {
-      const string& from = value["from"].asString();
       self->LogoutUser(from);
     } else if(IS_ACK(type)) {
-      self->UpdateUserAck(value["from"].asString(), value["seq"].asInt());
+      self->UpdateUserAck(from, value["seq"].asInt());
     } else if(IS_SUB(type)) {
-      self->Subscribe(value["from"].asString(), value["channel"].asString());
+      self->Subscribe(from, value["channel"].asString());
     } else if(IS_UNSUB(type)) {
-      self->Unsubscribe(value["from"].asString(), value["channel"].asString());
+      self->Unsubscribe(from, value["channel"].asString());
     } else if(IS_NOOP(type)) {
     } else {
       LOG(ERROR) << "unsupport message type: " << type;

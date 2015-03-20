@@ -8,7 +8,7 @@ DEFINE_int32(db_port, 8888, "ssdb");
 
 namespace xcomet {
 
-RemoteStorage::RemoteStorage(struct event_base* evbase) 
+RemoteStorage::RemoteStorage(struct event_base* evbase)
     : Storage(evbase) {
   option_.host = FLAGS_db_host;
   option_.port = FLAGS_db_port;
