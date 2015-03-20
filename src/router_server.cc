@@ -357,11 +357,11 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
   if (!reader.parse(content, *msg)) {
     LOG(ERROR) << "receive pub message with unexpected format: " << content;
     ReplyError(req);
-  } else {
-    self->SendUserMsg(msg);
-    // TODO(qingfeng) maybe reply after save message done is better
-    ReplyOK(req);
+    return;
   }
+  self->SendUserMsg(msg);
+  // TODO(qingfeng) maybe reply after save message done is better
+  ReplyOK(req);
 }
 
 void RouterServer::OnAdminBroadcast(struct evhttp_request* req, void *ctx) {
