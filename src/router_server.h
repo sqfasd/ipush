@@ -1,12 +1,6 @@
 #ifndef ROUTER_SERVER_H
 #define ROUTER_SERVER_H
 
-#include <netinet/in.h>
-/* For socket functions */
-#include <sys/socket.h>
-/* For fcntl */
-#include <fcntl.h>
-
 #include <event2/event.h>
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
@@ -39,7 +33,7 @@ namespace xcomet {
 // TODO(qingfeng) move this basic typedef to common header files
 typedef string UserID;
 typedef string ChannelID;
-typedef int Sid; 
+typedef int Sid;
 
 typedef map<UserID, UserInfo> UserInfoMap;
 typedef map<ChannelID, ChannelInfo> ChannelInfoMap;
@@ -65,7 +59,7 @@ class RouterServer {
 
   void InitStorage();
   void InitAdminHttp();
-  
+
   Sid  FindSidByUid(const UserID& uid) const;
   void LoginUser(const UserID& uid, Sid sid);
   void LogoutUser(const UserID& uid) ;

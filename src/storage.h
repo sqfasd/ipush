@@ -40,7 +40,7 @@ class Storage {
 
   void GetMessage(const string& uid,
                   int64_t start,
-                  int64_t end, 
+                  int64_t end,
                   GetMessageCallback cb) {
     worker_->Do<MessageResult>(
         boost::bind(&Storage::GetMessageSync,

@@ -58,7 +58,7 @@ class UserCircleQueue {
   DLinkedList<User*> GetFront() {
     return buffer_[head_];
   }
-  
+
   DLinkedList<User*> PopFront() {
     DLinkedList<User*> ret = buffer_[head_];
     buffer_[head_] = DLinkedList<User*>();

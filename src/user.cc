@@ -13,7 +13,7 @@ User::User(const string& uid,
       next_(NULL),
       queue_index_(-1),
       uid_(uid),
-      type_(type), 
+      type_(type),
       server_(serv) {
   VLOG(3) << "User construct";
   session_.SetDisconnectCallback(
