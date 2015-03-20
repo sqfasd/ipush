@@ -101,7 +101,7 @@ bool HttpClient::IsResponseOK(evhttp_request* req) {
     LOG(ERROR) << "socket error :" << evutil_socket_error_to_string(errcode);
     return false;
   }
-  
+
   if (code != 200 ) {
     LOG(ERROR) << "http response not ok.";
     return false;
@@ -118,14 +118,14 @@ void HttpClient::OnRequestDone(struct evhttp_request* req, void* ctx) {
   string buffer;
   if(IsResponseOK(req)) {
     VLOG(5) << "IsResponseOK";
-    struct evbuffer* evbuf = evhttp_request_get_input_buffer(req);   
+    struct evbuffer* evbuf = evhttp_request_get_input_buffer(req);
     int len = evbuffer_get_length(evbuf);
     buffer.resize(len);
     int nread = evbuffer_remove(evbuf, (char*)buffer.c_str(), buffer.size());
     CHECK(nread == len);
     VLOG(5) << "buffer: " << buffer;
   }
-  
+
   if (self->request_done_cb_) {
     self->request_done_cb_(self, buffer, self->cb_arg_);
   }
@@ -134,7 +134,7 @@ void HttpClient::OnRequestDone(struct evhttp_request* req, void* ctx) {
 void HttpClient::OnChunk(struct evhttp_request* req, void* ctx) {
   VLOG(5) << "HttpClient::OnChunk";
   HttpClient* self = (HttpClient*)ctx;
-  struct evbuffer* evbuf = evhttp_request_get_input_buffer(req);   
+  struct evbuffer* evbuf = evhttp_request_get_input_buffer(req);
   int len = evbuffer_get_length(evbuf);
   string buffer;
   buffer.resize(len);
