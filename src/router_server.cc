@@ -107,10 +107,6 @@ void RouterServer::OnAcceptError(struct evconnlistener * listener, void * ctx) {
   LOG(ERROR) << "RouterServer::OnAcceptError";
 }
 
-void RouterServer::OnRemoveDone() {
-  VLOG(5) << "OnRemoveDone";
-}
-
 void RouterServer::SendAllMessages(const UserID& uid) {
   Sid sid = FindSidByUid(uid);
   if (sid == INVALID_SID) {

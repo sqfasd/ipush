@@ -70,10 +70,10 @@ class RouterServer {
   void LoginUser(const UserID& uid, Sid sid);
   void LogoutUser(const UserID& uid) ;
 
+  // TODO(qingfeng) use lambda or other method instead of callback
   void OnGetMaxSeqDoneToLogin(const UserID uid, Sid sid, int seq);
   void OnUpdateAckDone(bool ok);
   void OnSaveMessageDone(bool ok);
-  void OnRemoveDone();
   void OnGetMsgToSend(UserID uid, MessageResult mr);
   void OnGetMsgToReply(UserID uid,
                        struct evhttp_request* req,
