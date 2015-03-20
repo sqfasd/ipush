@@ -30,11 +30,6 @@ using namespace std;
 
 namespace xcomet {
 
-// TODO(qingfeng) move this basic typedef to common header files
-typedef string UserID;
-typedef string ChannelID;
-typedef int Sid;
-
 typedef map<UserID, UserInfo> UserInfoMap;
 typedef map<ChannelID, ChannelInfo> ChannelInfoMap;
 
