@@ -26,7 +26,7 @@ class LocalStorage: public Storage {
 
   virtual void GetMessage(const string& uid,
                           int64_t start,
-                          int64_t end, 
+                          int64_t end,
                           GetMessageCallback cb);
   virtual MessageResult GetMessageSync(const string uid,
                                        int64_t start,

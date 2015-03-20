@@ -30,7 +30,7 @@ namespace xcomet {
 
 using Limonp::string_format;
 
-RouterServer::RouterServer() { 
+RouterServer::RouterServer() {
   evbase_ = event_base_new();
   CHECK(evbase_);
 }
@@ -94,7 +94,7 @@ void RouterServer::InitAdminHttp() {
   evhttp_set_cb(admin_http_, "offmsg", OnAdminCheckOffMsg, this);
   evhttp_set_cb(admin_http_, "sub", OnAdminSub, this);
   evhttp_set_cb(admin_http_, "unsub", OnAdminUnsub, this);
-  
+
   struct evhttp_bound_socket* sock;
   sock = evhttp_bind_socket_with_handle(admin_http_, FLAGS_admin_listen_ip.c_str(), FLAGS_admin_listen_port);
   CHECK(sock) << "bind address failed" << strerror(errno);
@@ -341,7 +341,7 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
     ReplyError(req);
     return;
   }
-  
+
   struct evbuffer* input_buffer = evhttp_request_get_input_buffer(req);
   int len = evbuffer_get_length(input_buffer);
   VLOG(5) << "data length:" << len;
@@ -366,7 +366,7 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
 
 void RouterServer::OnAdminBroadcast(struct evhttp_request* req, void *ctx) {
   VLOG(5) << "RouterServer::OnAdminBroadcast";
-  
+
 }
 
 void RouterServer::OnAdminCheckPresence(struct evhttp_request* req, void *ctx) {
@@ -379,7 +379,7 @@ void RouterServer::OnAdminCheckPresence(struct evhttp_request* req, void *ctx) {
 
 void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
   RouterServer * self = static_cast<RouterServer*>(ctx);
-  
+
   HttpQuery query(req);
   const char * uid = query.GetStr("uid", NULL);
   if (uid == NULL) {
@@ -463,15 +463,15 @@ void RouterServer::ReplyError(struct evhttp_request* req) {
   evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
   const char * response = "{\"type\":\"error\"}\n";
-  evbuffer_add(output_buffer, response, strlen(response)); 
+  evbuffer_add(output_buffer, response, strlen(response));
   evhttp_send_reply(req, HTTP_BADREQUEST, "Error", output_buffer);
 }
 
 void RouterServer::ReplyOK(struct evhttp_request* req) {
   evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  const char * response = "{\"type\":\"ok\"}\n"; 
-  evbuffer_add(output_buffer, response, strlen(response)); 
+  const char * response = "{\"type\":\"ok\"}\n";
+  evbuffer_add(output_buffer, response, strlen(response));
   evhttp_send_reply(req, HTTP_OK, "OK", output_buffer);
 }
 

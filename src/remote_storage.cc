@@ -18,7 +18,7 @@ RemoteStorage::RemoteStorage(struct event_base* evbase)
 
 RemoteStorage::RemoteStorage(struct event_base* evbase,
                              const RemoteStorageOption& option)
-    : Storage(evbase), 
+    : Storage(evbase),
       option_(option) {
   client_.reset(ssdb::Client::connect(option_.host.c_str(), option_.port));
   CHECK(client_.get());

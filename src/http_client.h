@@ -21,7 +21,7 @@ struct HttpClientOption {
   enum evhttp_cmd_type method;
   std::string path;
   std::string data;
-  HttpClientOption(): 
+  HttpClientOption():
     id(-1), host(), port(-1), method(), path(), data("") {
   }
 };
