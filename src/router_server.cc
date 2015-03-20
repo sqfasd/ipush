@@ -61,14 +61,14 @@ void RouterServer::OpenSessionClients() {
     option.method = EVHTTP_REQ_GET;
     option.path = FLAGS_session_server_sub_uri;
 
-    VLOG(5) << "new HttpClient " << option;
+    VLOG(5) << "new HttpClient: " << option;
     session_clients_[i].reset(new HttpClient(evbase_, option, this));
     OpenSessionClient(i);
   }
 }
 
 void RouterServer::OpenSessionClient(Sid sid) {
-  VLOG(4) << "RouterServer::OpenSessionClient " << sid;
+  VLOG(4) << "RouterServer::OpenSessionClient: " << sid;
   CHECK(sid >= 0 && size_t(sid) < session_clients_.size());
   session_clients_[sid]->Init();
   session_clients_[sid]->SetRequestDoneCallback(OnSessionRequestDone);
@@ -77,7 +77,7 @@ void RouterServer::OpenSessionClient(Sid sid) {
 }
 
 void RouterServer::CloseSessionClient(Sid sid) {
-  VLOG(4) << "RouterServer::CloseSessionClient " << sid;
+  VLOG(4) << "RouterServer::CloseSessionClient: " << sid;
   CHECK(sid >= 0 && size_t(sid) < session_clients_.size());
   session_clients_[sid]->Free();
 }
@@ -99,8 +99,8 @@ void RouterServer::InitAdminHttp() {
 
   struct evhttp_bound_socket* sock;
   sock = evhttp_bind_socket_with_handle(admin_http_, FLAGS_admin_listen_ip.c_str(), FLAGS_admin_listen_port);
-  CHECK(sock) << "bind address failed" << strerror(errno);
-  LOG(INFO) << "admin server listen on" << FLAGS_admin_listen_ip << " " << FLAGS_admin_listen_port;
+  CHECK(sock) << "bind address failed: " << strerror(errno);
+  LOG(INFO) << "admin server listen on: " << FLAGS_admin_listen_ip << ":" << FLAGS_admin_listen_port;
   struct evconnlistener * listener = evhttp_bound_socket_get_listener(sock);
   evconnlistener_set_error_cb(listener, OnAcceptError);
 }
