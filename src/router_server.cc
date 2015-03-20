@@ -10,9 +10,9 @@
 #include "src/http_query.h"
 
 DEFINE_string(admin_listen_ip, "0.0.0.0", "");
-DEFINE_int32(admin_listen_port, 9100, "");
+DEFINE_int32(admin_listen_port, 8100, "");
 
-DEFINE_string(session_server_addrs, "127.0.0.1:8100,127.0.0.1:8200", "");
+DEFINE_string(session_server_addrs, "127.0.0.1:9100", "");
 DEFINE_string(session_server_sub_uri, "/rsub", "");
 DEFINE_string(ssdb_path, "/tmp/ssdb_tmp", "");
 DEFINE_bool(libevent_debug_log, false, "for debug logging");
