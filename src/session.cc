@@ -36,7 +36,7 @@ void Session::Send(const string& from_id,
 }
 
 void Session::SendHeartbeat() {
-  SendChunk("\"type\":\"noop\"");
+  SendChunk("{\"type\":\"noop\"}");
 }
 
 void Session::SendChunk(const char* data) {
