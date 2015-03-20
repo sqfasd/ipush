@@ -33,8 +33,6 @@ namespace xcomet {
 typedef map<UserID, UserInfo> UserInfoMap;
 typedef map<ChannelID, ChannelInfo> ChannelInfoMap;
 
-const Sid INVALID_SID = -1;
-
 using base::shared_ptr;
 
 class RouterServer {

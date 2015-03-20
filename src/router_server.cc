@@ -30,6 +30,8 @@ namespace xcomet {
 
 using Limonp::string_format;
 
+const Sid INVALID_SID = -1;
+
 RouterServer::RouterServer() {
   evbase_ = event_base_new();
   CHECK(evbase_);
