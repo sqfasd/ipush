@@ -64,6 +64,7 @@ bool RemoteStorage::SaveMessageSync(MessagePtr msg, int seq) {
 }
 
 MessageResult RemoteStorage::GetMessageSync(const string uid) {
+  VLOG(5) << "GetMessageSync uid = " << uid;
   MessageResult result(new vector<string>());
   result->reserve(DEFAULT_BATCH_GET_SIZE);
   ssdb::Status s;
