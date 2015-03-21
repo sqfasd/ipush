@@ -253,6 +253,7 @@ bool SocketClient::HandleRead() {
 }
 
 bool SocketClient::HandleWrite() {
+  VLOG(5) << "HandleWrite: size = " << write_queue_.Size();
   while (!write_queue_.Empty()) {
     PacketPtr pkt;
     write_queue_.Pop(pkt);

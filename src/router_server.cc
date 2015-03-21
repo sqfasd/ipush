@@ -206,6 +206,7 @@ void RouterServer::Unsubscribe(const UserID& uid, const ChannelID& cid) {
 }
 
 void RouterServer::UpdateUserAck(const UserID& uid, int seq) {
+  VLOG(5) << "UpdateUserAck: " << uid << ", " << seq;
   UserInfoMap::iterator uit = users_.find(uid);
   if (uit == users_.end()) {
     LOG(ERROR) << "user not found: " << uid;
@@ -414,7 +415,6 @@ void RouterServer::OnGetMsgToSend(UserID uid, MessageResult mr) {
   } else {
     CHECK(size_t(sid) < session_proxys_.size());
     if (mr.get() != NULL) {
-      VLOG(5) << "OnGetMsgToSend: size = " << mr->size();
       for (int i = 1; i < mr->size(); i+=2) {
         session_proxys_[sid]->SendData(mr->at(i));
       }

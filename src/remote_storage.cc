@@ -30,7 +30,7 @@ RemoteStorage::~RemoteStorage() {
 bool RemoteStorage::SaveMessageSync(MessagePtr msg, int seq) {
   try {
     ssdb::Status s;
-    const string& uid = (*msg)["from"].asString();
+    const string& uid = (*msg)["to"].asString();
     if (seq <= 0) {
       string result;
       s = client_->hget(uid, "max_seq", &result);
@@ -94,9 +94,6 @@ MessageResult RemoteStorage::GetMessageSync(const string uid) {
       LOG(ERROR) << "GetMessageSync get keys failed";
     }
     LOG(INFO) << "result.size=" << result->size();
-    for (int i = 0; i < result->size(); ++i) {
-      LOG(INFO) << "result=" << result->at(i);
-    }
   }
   return result;
 }
@@ -128,6 +125,7 @@ bool RemoteStorage::UpdateAckSync(const string uid, int ack_seq) {
   if (s.ok()) {
     last_ack = StringToInt(tmp);
   }
+  VLOG(5) << "UpdateAckSync: " << max_seq << ", " << last_ack;
   if (max_seq >= 0 && last_ack >= 0 &&
       ack_seq > last_ack && ack_seq <= max_seq) {
     vector<string> keys;
