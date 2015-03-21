@@ -20,7 +20,7 @@
 #include "deps/base/scoped_ptr.h"
 #include "deps/base/callback.h"
 #include "src/remote_storage.h"
-#include "src/http_client.h"
+#include "src/session_proxy.h"
 #include "src/utils.h"
 #include "src/user_info.h"
 #include "src/channel_info.h"
@@ -39,16 +39,13 @@ class RouterServer {
  public:
   RouterServer();
   ~RouterServer();
-
   void Start();
+
  private:
+  void OnSessionMsg(SessionProxy* sp, MessagePtr msg);
+  void OnSessionProxyDisconnected(SessionProxy* sp);
 
-  static void OnSessionMsg(const HttpClient* client, const string& msg, void *ctx);
-  static void OnSessionRequestDone(const HttpClient* client, const string& resp, void*ctx);
-
-  void OpenSessionClients();
-  void OpenSessionClient(Sid sid);
-  void CloseSessionClient(Sid sid);
+  void ConnectSessionServers();
 
   void InitStorage();
   void InitAdminHttp();
@@ -89,7 +86,8 @@ class RouterServer {
 
   UserInfoMap users_;
   ChannelInfoMap channels_;
-  vector<shared_ptr<HttpClient> > session_clients_;
+  // TODO(qingfeng) dynamic add session proxy
+  vector<shared_ptr<SessionProxy> > session_proxys_;
 
   struct event_base *evbase_;
   struct evhttp* admin_http_;

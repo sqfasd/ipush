@@ -2,7 +2,6 @@
 #define SRC_STORAGE_H_
 
 #include <inttypes.h>
-#include "deps/jsoncpp/include/json/json.h"
 #include "deps/base/scoped_ptr.h"
 #include "deps/base/shared_ptr.h"
 #include "src/include_std.h"

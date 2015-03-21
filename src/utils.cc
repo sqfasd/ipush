@@ -1,4 +1,7 @@
-#include "utils.h"
+#include "src/utils.h"
+
+#include <fcntl.h>
+#include <ctype.h>
 
 namespace xcomet {
 
@@ -16,6 +19,14 @@ void ParseIpPort(const string& address, string& ip, int& port) {
 bool IsUserId(const string& id) {
   // TODO(qingfeng) recognize id type
   return id.find("c:") != 0;
+}
+
+void SetNonblock(int fd) {
+  int flags;
+  flags = ::fcntl(fd, F_GETFL);
+  flags |= O_NONBLOCK;
+  fcntl(fd, F_SETFL, flags);
+  // TODO check ret != -1
 }
 
 } // namespace xcomet

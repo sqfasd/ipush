@@ -13,7 +13,6 @@ DEFINE_string(admin_listen_ip, "0.0.0.0", "");
 DEFINE_int32(admin_listen_port, 8100, "");
 
 DEFINE_string(session_server_addrs, "127.0.0.1:9100", "");
-DEFINE_string(session_server_sub_uri, "/rsub", "");
 DEFINE_string(ssdb_path, "/tmp/ssdb_tmp", "");
 DEFINE_bool(libevent_debug_log, false, "for debug logging");
 DEFINE_int64(message_batch_size, 100, "get message limit 100");
@@ -42,44 +41,34 @@ RouterServer::~RouterServer() {
 }
 
 void RouterServer::Start() {
-  OpenSessionClients();
   InitStorage();
+  ConnectSessionServers();
   InitAdminHttp();
   event_base_dispatch(evbase_);
 }
 
-void RouterServer::OpenSessionClients() {
+void RouterServer::ConnectSessionServers() {
   vector<string> addrs;
   SplitString(FLAGS_session_server_addrs, ',', &addrs);
   CHECK(addrs.size());
-  CHECK(session_clients_.empty());
-  session_clients_.resize(addrs.size());
-  for (size_t i = 0; i < session_clients_.size(); i++) {
-    HttpClientOption option;
-    option.id = (int)i;
-    ParseIpPort(addrs[i], option.host, option.port);
-    option.method = EVHTTP_REQ_GET;
-    option.path = FLAGS_session_server_sub_uri;
-
-    VLOG(5) << "new HttpClient: " << option;
-    session_clients_[i].reset(new HttpClient(evbase_, option, this));
-    OpenSessionClient(i);
+  CHECK(session_proxys_.empty());
+  session_proxys_.resize(addrs.size());
+  for (size_t i = 0; i < session_proxys_.size(); i++) {
+    string host;
+    int port;
+    ParseIpPort(addrs[i], host, port);
+    SessionProxy* proxy = new SessionProxy(evbase_, i);
+    proxy->SetDisconnectCallback(
+        boost::bind(&RouterServer::OnSessionProxyDisconnected, this, proxy));
+    proxy->SetMessageCallback(
+        boost::bind(&RouterServer::OnSessionMsg, this, proxy, _1));
+    proxy->SetHost(host);
+    proxy->SetPort(port);
+    session_proxys_[i].reset(proxy);
   }
-}
-
-void RouterServer::OpenSessionClient(Sid sid) {
-  VLOG(4) << "RouterServer::OpenSessionClient: " << sid;
-  CHECK(sid >= 0 && size_t(sid) < session_clients_.size());
-  session_clients_[sid]->Init();
-  session_clients_[sid]->SetRequestDoneCallback(OnSessionRequestDone);
-  session_clients_[sid]->SetChunkCallback(OnSessionMsg);
-  session_clients_[sid]->StartRequest();
-}
-
-void RouterServer::CloseSessionClient(Sid sid) {
-  VLOG(4) << "RouterServer::CloseSessionClient: " << sid;
-  CHECK(sid >= 0 && size_t(sid) < session_clients_.size());
-  session_clients_[sid]->Free();
+  for (int i = 0; i < session_proxys_.size(); ++i) {
+    session_proxys_[i]->StartConnect();
+  }
 }
 
 void RouterServer::InitStorage() {
@@ -134,12 +123,10 @@ void RouterServer::SendUserMsg(MessagePtr msg) {
   if (sid == INVALID_SID) {
     LOG(INFO) << "uid " << uid << " is offline";
   } else {
-    CHECK(size_t(sid) < session_clients_.size());
+    CHECK(size_t(sid) < session_proxys_.size());
     try {
       (*msg)["seq"] = seq;
-      Json::FastWriter writer;
-      string content =  writer.write(*msg);
-      session_clients_[sid]->Send(content);
+      session_proxys_[sid]->SendMessage(msg);
     } catch (std::exception& e) {
       LOG(ERROR) << "SendUserMsg json exception: " << e.what();
     } catch (...) {
@@ -227,41 +214,35 @@ void RouterServer::UpdateUserAck(const UserID& uid, int seq) {
   uit->second.SetLastAck(seq);
 }
 
-void RouterServer::OnSessionMsg(const HttpClient* client,
-                                const string& msg,
-                                void *ctx) {
-  VLOG(5) << "RouterServer::OnSessionMsg: " << msg;
-  RouterServer* self  = (RouterServer*)ctx;
-
+void RouterServer::OnSessionMsg(SessionProxy* sp,
+                                MessagePtr msg) {
+  VLOG(5) << "RouterServer::OnSessionMsg: " << msg->toStyledString();
   try {
-    MessagePtr value_ptr(new Json::Value());
-    Json::Value& value = *value_ptr;
-    Json::Reader reader;
-    CHECK(reader.parse(msg, value)) << "json parse failed, msg: " << msg;
+    Json::Value& value = *msg;
     CHECK(value.isMember("type"));
     const string& type = value["type"].asString();
     if(IS_MESSAGE(type)) {
       const string& to = value["to"].asString();
       if (IsUserId(to)) {
-        self->SendUserMsg(value_ptr);
+        SendUserMsg(msg);
       } else {
-        self->SendChannelMsg(value_ptr);
+        SendChannelMsg(msg);
       }
     } else if(IS_LOGIN(type)) {
       const string& from = value["from"].asString();
-      self->LoginUser(from, client->GetOption().id);
+      LoginUser(from, sp->GetId());
     } else if(IS_LOGOUT(type)) {
       const string& from = value["from"].asString();
-      self->LogoutUser(from);
+      LogoutUser(from);
     } else if(IS_ACK(type)) {
       const string& from = value["from"].asString();
-      self->UpdateUserAck(from, value["seq"].asInt());
+      UpdateUserAck(from, value["seq"].asInt());
     } else if(IS_SUB(type)) {
       const string& from = value["from"].asString();
-      self->Subscribe(from, value["channel"].asString());
+      Subscribe(from, value["channel"].asString());
     } else if(IS_UNSUB(type)) {
       const string& from = value["from"].asString();
-      self->Unsubscribe(from, value["channel"].asString());
+      Unsubscribe(from, value["channel"].asString());
     } else if(IS_NOOP(type)) {
     } else {
       LOG(ERROR) << "unsupport message type: " << type;
@@ -273,16 +254,12 @@ void RouterServer::OnSessionMsg(const HttpClient* client,
   }
 }
 
-void RouterServer::OnSessionRequestDone(const HttpClient* client,
-                                        const string& resp,
-                                        void *ctx) {
-  VLOG(5) << "RouterServer::OnSessionRequestDone";
-  RouterServer* self = (RouterServer*)ctx;
-  CHECK(self);
-
-  Sid sid = client->GetOption().id;
-  CHECK(sid >= 0 && size_t(sid) < self->session_clients_.size());
-  self->session_clients_[sid]->DelayRetry(HttpClient::OnRetry);
+void RouterServer::OnSessionProxyDisconnected(SessionProxy* sp) {
+  CHECK(sp != NULL);
+  Sid sid = sp->GetId();
+  CHECK(sid >= 0 && sid < session_proxys_.size());
+  VLOG(5) << "session proxy " << sid << " disconnected";
+  sp->Retry();
 }
 
 void RouterServer::OnGetMaxSeqDoneToLogin(const UserID uid, Sid sid, int seq) {
@@ -435,11 +412,11 @@ void RouterServer::OnGetMsgToSend(UserID uid, MessageResult mr) {
   if (sid == INVALID_SID) {
     LOG(INFO) << "uid " << uid << " is offline";
   } else {
-    CHECK(size_t(sid) < session_clients_.size());
+    CHECK(size_t(sid) < session_proxys_.size());
     if (mr.get() != NULL) {
       VLOG(5) << "OnGetMsgToSend: size = " << mr->size();
       for (int i = 1; i < mr->size(); i+=2) {
-        session_clients_[sid]->Send(mr->at(i));
+        session_proxys_[sid]->SendData(mr->at(i));
       }
     } else {
       VLOG(3) << "no message to send";
