@@ -7,12 +7,11 @@
 #include "deps/base/shared_ptr.h"
 #include "src/include_std.h"
 #include "src/worker.h"
+#include "src/message.h"
 
 namespace xcomet {
 
 const int DEFAULT_BATCH_GET_SIZE = 100;
-typedef base::shared_ptr<Json::Value> MessagePtr;
-typedef base::shared_ptr<vector<string> > MessageResult;
 typedef boost::function<void (MessageResult)> GetMessageCallback;
 typedef boost::function<void (MessageResult)> PopMessageCallback;
 typedef boost::function<void (bool)> SaveMessageCallback;
