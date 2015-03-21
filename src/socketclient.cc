@@ -223,7 +223,9 @@ void SocketClient::Loop() {
   is_connected_ = false;
   LOG(INFO) << "will clean and exit";
   ::shutdown(sock_fd_, SHUT_RDWR);
-  disconnect_cb_();
+  if (disconnect_cb_) {
+    disconnect_cb_();
+  }
   LOG(INFO) << "work thread exited";
 }
 
