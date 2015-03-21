@@ -40,9 +40,9 @@ void Worker::Run() {
     if (task == NULL) {
       break;
     }
-    VLOG(3) << "before run task";
+    VLOG(6) << "before run task";
     task->Run();
-    VLOG(3) << "after run task";
+    VLOG(6) << "after run task";
     int ret = msgqueue_push(event_queue_, task);
     if (ret == -1) {
       LOG(ERROR) << "msgqueue_push failed, callback would not execute";
