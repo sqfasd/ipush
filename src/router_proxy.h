@@ -20,7 +20,7 @@ class RouterProxy {
   void SendHeartbeat();
   void Redirect(base::shared_ptr<string> message);
   void ResetSession(struct evhttp_request* req);
-  void LoginUser(const string& uid, int seq);
+  void LoginUser(const string& uid);
   void LogoutUser(const string& uid);
 
   void SetCounter(int n) {counter_ = n;}

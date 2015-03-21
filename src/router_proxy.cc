@@ -35,9 +35,9 @@ void RouterProxy::ResetSession(struct evhttp_request* req) {
       boost::bind(&SessionServer::OnRouterMessage, &server_, _1));
 }
 
-void RouterProxy::LoginUser(const string& uid, int seq) {
+void RouterProxy::LoginUser(const string& uid) {
   LOG(INFO) << "RegisterUser: " << uid;
-  string msg = StringPrintf("{\"type\":\"login\", \"uid\":\"%s\"}",
+  string msg = StringPrintf("{\"type\":\"login\", \"from\":\"%s\"}",
       uid.c_str());
   if (session_.get()) {
     session_->SendPacket(msg);
@@ -47,7 +47,7 @@ void RouterProxy::LoginUser(const string& uid, int seq) {
 }
 
 void RouterProxy::LogoutUser(const string& uid) {
-  string msg = StringPrintf("{\"type\":\"logout\", \"uid\":\"%s\"}",
+  string msg = StringPrintf("{\"type\":\"logout\", \"from\":\"%s\"}",
       uid.c_str());
   if (session_.get()) {
     session_->SendPacket(msg);

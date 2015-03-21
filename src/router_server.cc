@@ -121,7 +121,7 @@ void RouterServer::SendAllMessages(const UserID& uid) {
 
 void RouterServer::SendUserMsg(MessagePtr msg) {
   VLOG(5) << "RouterServer::SendUserMsg: " << msg->toStyledString();
-  const string& uid = (*msg)["from"].asString();
+  const string& uid = (*msg)["to"].asString();
   int seq = 0;
   Sid sid = INVALID_SID;
   UserInfoMap::iterator uiter = users_.find(uid);
@@ -150,7 +150,7 @@ void RouterServer::SendUserMsg(MessagePtr msg) {
 
 void RouterServer::SendChannelMsg(MessagePtr msg) {
   const string& uid = (*msg)["from"].asString();
-  const string& cid = (*msg)["channel"].asString();
+  const string& cid = (*msg)["to"].asString();
   VLOG(5) << "RouterServer::SendChannelMsg " << uid << ", " << cid;
   ChannelInfoMap::const_iterator iter = channels_.find(cid);
   if (iter == channels_.end()) {
@@ -340,9 +340,10 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
   VLOG(5) << "RouterServer::OnAdminPub";
 
   HttpQuery query(req);
-  const char * uid = query.GetStr("uid", NULL);
-  if (uid == NULL) {
-    LOG(ERROR) << "uid not found";
+  const char * to = query.GetStr("to", NULL);
+  const char * from = query.GetStr("from", NULL);
+  if (to == NULL || from == NULL) {
+    LOG(ERROR) << "invalid parameters";
     ReplyError(req);
     return;
   }
@@ -356,14 +357,11 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
     ReplyError(req);
     return;
   }
-  string content(bufferstr, len);
   MessagePtr msg(new Json::Value());
-  Json::Reader reader;
-  if (!reader.parse(content, *msg)) {
-    LOG(ERROR) << "receive pub message with unexpected format: " << content;
-    ReplyError(req);
-    return;
-  }
+  (*msg)["type"] = "msg";
+  (*msg)["from"] = from;
+  (*msg)["to"] = to;
+  (*msg)["body"] = string(bufferstr, len);
   self->SendUserMsg(msg);
   // TODO(qingfeng) maybe reply after save message done is better
   ReplyOK(req);
@@ -432,6 +430,7 @@ void RouterServer::SendReply(struct evhttp_request* req, const char* content, si
 }
 
 void RouterServer::OnGetMsgToSend(UserID uid, MessageResult mr) {
+  VLOG(5) << "OnGetMsgToSend mr->size = " << mr->size();
   Sid sid = FindSidByUid(uid);
   if (sid == INVALID_SID) {
     LOG(INFO) << "uid " << uid << " is offline";
@@ -439,7 +438,7 @@ void RouterServer::OnGetMsgToSend(UserID uid, MessageResult mr) {
     CHECK(size_t(sid) < session_clients_.size());
     if (mr.get() != NULL) {
       VLOG(5) << "OnGetMsgToSend: size = " << mr->size();
-      for (int i = 0; i < mr->size(); ++i) {
+      for (int i = 1; i < mr->size(); i+=2) {
         session_clients_[sid]->Send(mr->at(i));
       }
     } else {

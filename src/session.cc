@@ -80,21 +80,29 @@ void Session::OnReceive() {
   struct bufferevent* bev = GetBufferEvent();
   struct evbuffer* input = bufferevent_get_input(bev);
   if (next_msg_max_len_ == 0) {
-    size_t n;
-    char* size = evbuffer_readln(input, &n, EVBUFFER_EOL_CRLF);
-    next_msg_max_len_ = HexStringToInt(size);
-    LOG(INFO) << "message len: " << size;
-  } else {
-    int len = evbuffer_get_length(input);
-    LOG(INFO) << "total buffer length: " << len;
-    if (len >= next_msg_max_len_) {
-      base::shared_ptr<string> message(new string());
-      message->resize(next_msg_max_len_);
-      evbuffer_remove(input, (char*)message->c_str(), next_msg_max_len_);
-      next_msg_max_len_ = 0;
-      if (message_callback_) {
-        message_callback_(message);
+    char* size = evbuffer_readln(input, NULL, EVBUFFER_EOL_ANY);
+    while (size != NULL) {
+      VLOG(6) << "message len: " << size;
+      next_msg_max_len_ = HexStringToInt(size);
+      if (next_msg_max_len_ > 0) {
+        break;
       }
+      free(size);
+      size = evbuffer_readln(input, NULL, EVBUFFER_EOL_ANY);
+    }
+    if (size != NULL) {
+      free(size);
+    }
+  }
+  int len = evbuffer_get_length(input);
+  LOG(INFO) << "total buffer length: " << len;
+  if (len >= next_msg_max_len_) {
+    base::shared_ptr<string> message(new string());
+    message->resize(next_msg_max_len_);
+    evbuffer_remove(input, (char*)message->c_str(), next_msg_max_len_);
+    next_msg_max_len_ = 0;
+    if (message_callback_) {
+      message_callback_(message);
     }
   }
 }

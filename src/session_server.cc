@@ -33,13 +33,12 @@ SessionServer::SessionServer()
 SessionServer::~SessionServer() {
 }
 
-// /connect?uid=123&token=ABCDE&seq=111type=1|2
+// /connect?uid=123&token=ABCDE&type=1|2
 void SessionServer::Connect(struct evhttp_request* req) {
   CHECK_HTTP_GET();
 
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
-  int seq = query.GetInt("seq", -1);
   if (uid.empty()) {
     evhttp_send_reply(req, 410, "Invalid parameters", NULL);
     return;
@@ -60,7 +59,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
   } else {
     user.reset(new User(uid, type, req, *this));
     users_[uid] = user;
-    router_.LoginUser(uid, seq);
+    router_.LoginUser(uid);
   }
   timeout_queue_.PushUserBack(user.get());
 }
@@ -135,7 +134,7 @@ void SessionServer::RSub(struct evhttp_request* req) {
   router_.ResetSession(req);
   UserMap::iterator it;
   for (it = users_.begin(); it != users_.end(); ++it) {
-    router_.LoginUser(it->first, -1);
+    router_.LoginUser(it->first);
   }
 }
 
@@ -180,13 +179,16 @@ void SessionServer::OnUserMessage(const string& from_uid,
 }
 
 void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
+  VLOG(5) << "OnRouterMessage: " << *message;
   try {
     Json::Reader reader;
     Json::Value json;
     int ret = reader.parse(*message, json);
-    CHECK(ret);
-    CHECK(json.isMember("from"));
-    const string& uid = json["from"].asString();
+    CHECK(ret) << "json format error";
+    if (!json.isMember("to")) {
+      return;
+    }
+    const string& uid = json["to"].asString();
     UserMap::iterator uit = users_.find(uid);
     if (uit == users_.end()) {
       LOG(WARNING) << "user not found: " << uid;
