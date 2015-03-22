@@ -23,8 +23,9 @@ void Thread::Start() {
 
 void Thread::Join() {
   CHECK(joinable_) << "Thread is not joinable";
-  int result = pthread_join(tid_, NULL);
-  CHECK_EQ(result, 0) << "Could not join thread (" << result << ")";
+  pthread_join(tid_, NULL);
+  // int result = pthread_join(tid_, NULL);
+  // CHECK_EQ(result, 0) << "Could not join thread (" << result << ")";
 }
 
 }  // namespace base
