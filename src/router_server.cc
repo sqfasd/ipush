@@ -254,6 +254,10 @@ void RouterServer::OnSessionMsg(SessionProxy* sp,
 }
 
 void RouterServer::OnSessionProxyDisconnected(SessionProxy* sp) {
+  // TODO(qingfeng) don't waste time to erase user or traverse to set offline
+  //                but when the proxy reconnected and the user haven't
+  //                login on time, the router will send to the session server
+  //                a message of the user that is not connected
   CHECK(sp != NULL);
   Sid sid = sp->GetId();
   CHECK(sid >= 0 && sid < session_proxys_.size());
