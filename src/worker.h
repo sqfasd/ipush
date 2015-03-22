@@ -90,9 +90,14 @@ class Worker : public base::Thread {
     task_queue_.Push(new TaskImpl<R>(runner, cb));
   }
 
-  virtual void Run();
+  void RunInMainLoop(boost::function<void ()> cb) {
+    Do(&DoNothing, cb);
+  }
+
  private:
-  static void RunInEventloop(void* data, void* self);
+  static void DoNothing() {}
+  static void Callback(void* data, void* self);
+  virtual void Run();
   struct event_base* evbase_;
   struct event_msgqueue* event_queue_;
   base::ConcurrentQueue<Task*> task_queue_;

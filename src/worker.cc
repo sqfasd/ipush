@@ -13,7 +13,7 @@ Worker::Worker(struct event_base* evbase)
   CHECK(evbase_);
   event_queue_ = msgqueue_new(evbase_,
                               FLAGS_msgqueue_max_size,
-                              &RunInEventloop,
+                              &Callback,
                               this);
   CHECK(event_queue_) << "failed to create event_msgqueue";
   Start();
@@ -26,7 +26,7 @@ Worker::~Worker() {
   msgqueue_destroy(event_queue_);
 }
 
-void Worker::RunInEventloop(void* data, void* self) {
+void Worker::Callback(void* data, void* self) {
   Task* task = (Task*)data;
   task->Callback();
   delete task;
