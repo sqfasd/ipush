@@ -131,6 +131,7 @@ void SessionServer::Broadcast(struct evhttp_request* req) {
 // /rsub?seq=1
 void SessionServer::RSub(struct evhttp_request* req) {
   CHECK_HTTP_GET();
+  // TODO (qingfeng) check request parameters
   router_.ResetSession(req);
   UserMap::iterator it;
   for (it = users_.begin(); it != users_.end(); ++it) {
