@@ -11,7 +11,8 @@ class UserInfo {
     : uid_(uid),
       ssid_(ssid),
       max_seq_(0),
-      last_ack_(0) {
+      last_ack_(0),
+      online_(true) {
   }
   ~UserInfo() {}
   string GetId() const {return uid_;}
@@ -24,6 +25,8 @@ class UserInfo {
   void SetMaxSeq(int seq) {max_seq_ = seq;}
   int GetLastAck() const {return last_ack_;}
   void SetLastAck(int seq) {last_ack_ = seq;}
+  bool IsOnline() const {return online_;}
+  void SetOnline(bool online) {online_ = online;}
 
  private:
   string uid_;
@@ -31,6 +34,7 @@ class UserInfo {
   set<string> channel_ids_;
   int max_seq_;
   int last_ack_;
+  bool online_;
 };
 
 }  // namespace xcomet
