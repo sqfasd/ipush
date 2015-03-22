@@ -64,7 +64,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
   timeout_queue_.PushUserBack(user.get());
 }
 
-// /pub?uid=123&content=hello&seq=1&from=unknow
+// /pub?to=123&content=hello&seq=1&from=unknow
 void SessionServer::Pub(struct evhttp_request* req) {
   // TODO process post
   // CHECK_HTTP_GET();
@@ -77,13 +77,13 @@ void SessionServer::Pub(struct evhttp_request* req) {
 
   HttpQuery query(req);
   string content = query.GetStr("content", "");
-  string uid = query.GetStr("uid", "");
+  string to = query.GetStr("to", "");
   string from = query.GetStr("from", "unknow");
   int seq = query.GetInt("seq", -1);
 
-  if (!uid.empty()) {
+  if (!to.empty()) {
     LOG(INFO) << "pub to user: " << content;
-    UserMap::iterator iter = users_.find(uid);
+    UserMap::iterator iter = users_.find(to);
     if (iter != users_.end()) {
       UserPtr user = iter->second;
       LOG(INFO) << "send to user: " << user->GetId();
@@ -93,12 +93,12 @@ void SessionServer::Pub(struct evhttp_request* req) {
         user->Send(from, "pub", *(post_buffer.get()));
       }
     } else {
-      LOG(ERROR) << "pub uid not found: " << uid;
+      LOG(ERROR) << "pub uid not found: " << to;
       evhttp_send_reply(req, 404, "Not Found", NULL);
       return;
     }
   } else {
-    LOG(WARNING) << "uid empty";
+    LOG(WARNING) << "invalid parameter";
     evhttp_send_reply(req, 410, "Invalid parameters", NULL);
     return;
   }
