@@ -36,8 +36,8 @@ class Packet {
   bool HasReadAll() const {
     return content_.size() == len_;
   }
-  void SetContent(const std::string& str) {
-    content_ = str;
+  void SetContent(std::string str) {
+    content_.swap(str);
     len_ = content_.size();
   }
   int Size() const {
@@ -50,6 +50,7 @@ class Packet {
     len_ = 0;
     left_ = 0;
     content_.clear();
+    state_ = NONE;
   }
 
  private:
@@ -59,6 +60,15 @@ class Packet {
   int left_;
   // int type_;
   std::string content_;
+  enum WriteState {
+    NONE,
+    DATA_LEN,
+    DATA_BODY,
+  };
+  WriteState state_;
+  static const int MAX_DATA_LEN = 20;
+  char data_len_buf_[MAX_DATA_LEN];
+  int buf_start_;
 };
 
 typedef boost::function<void ()> ConnectCallback;
