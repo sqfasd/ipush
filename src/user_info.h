@@ -7,9 +7,9 @@ namespace xcomet {
 
 class UserInfo {
  public:
-  UserInfo(const string& uid, int ssid)
+  UserInfo(const string& uid, int sid)
     : uid_(uid),
-      ssid_(ssid),
+      sid_(sid),
       max_seq_(0),
       last_ack_(0),
       online_(true) {
@@ -19,7 +19,8 @@ class UserInfo {
   const set<string>& GetChannelIds() const {return channel_ids_;}
   void SubChannel(const string& cid) {channel_ids_.insert(cid);}
   void UnsubChannel(const string& cid) {channel_ids_.erase(cid);}
-  int GetSSId() const {return ssid_;}
+  int GetSid() const {return sid_;}
+  void SetSid(int sid) {sid_ = sid;}
   int GetMaxSeq() const {return max_seq_;}
   int IncMaxSeq() {return ++max_seq_;}
   void SetMaxSeq(int seq) {max_seq_ = seq;}
@@ -30,7 +31,7 @@ class UserInfo {
 
  private:
   string uid_;
-  int ssid_;  // session server id
+  int sid_;  // session server id
   set<string> channel_ids_;
   int max_seq_;
   int last_ack_;

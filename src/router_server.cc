@@ -99,11 +99,6 @@ void RouterServer::OnAcceptError(struct evconnlistener * listener, void * ctx) {
 }
 
 void RouterServer::SendAllMessages(const UserID& uid) {
-  Sid sid = FindSidByUid(uid);
-  if (sid == INVALID_SID) {
-    LOG(ERROR) << "unknow position of uid: " << uid;
-    return;
-  }
   storage_->GetMessage(uid,
       boost::bind(&RouterServer::OnGetMsgToSend, this, uid, _1));
 }
@@ -116,12 +111,15 @@ void RouterServer::SendUserMsg(MessagePtr msg) {
   UserInfoMap::iterator uiter = users_.find(uid);
   if (uiter != users_.end()) {
     seq = uiter->second.IncMaxSeq();
-    sid = uiter->second.GetSSId();
+    sid = uiter->second.GetSid();
   }
   storage_->SaveMessage(msg, seq,
       boost::bind(&RouterServer::OnSaveMessageDone, this, _1));
-  if (sid == INVALID_SID) {
-    LOG(INFO) << "uid " << uid << " is offline";
+
+  if (uiter == users_.end() || !uiter->second.IsOnline()) {
+    LOG(WARNING) << "user " << uid << " is not online";
+  } else if (sid == INVALID_SID || !session_proxys_[sid]->IsConnected()) {
+    LOG(WARNING) << "session server " << sid << " is not avaiable";
   } else {
     CHECK(size_t(sid) < session_proxys_.size());
     try {
@@ -265,10 +263,16 @@ void RouterServer::OnSessionProxyDisconnected(SessionProxy* sp) {
 
 void RouterServer::OnGetMaxSeqDoneToLogin(const UserID uid, Sid sid, int seq) {
   VLOG(5) << "OnGetMaxSeqDoneToLogin: " << uid << ", " << sid << ", " << seq;
-  UserInfo user(uid, sid);
-  user.SetMaxSeq(seq);
-  users_.insert(make_pair(uid, user));
-  VLOG(5) << "users size: " << users_.size();
+  UserInfoMap::iterator uit = users_.find(uid);
+  if (uit != users_.end()) {
+    uit->second.SetOnline(true);
+    uit->second.SetSid(sid);
+    uit->second.SetMaxSeq(seq);
+  } else {
+    UserInfo user(uid, sid);
+    user.SetMaxSeq(seq);
+    users_.insert(make_pair(uid, user));
+  }
   SendAllMessages(uid);
 }
 
@@ -292,17 +296,15 @@ void RouterServer::LogoutUser(const UserID& uid) {
   storage_->UpdateAck(uid, iter->second.GetLastAck(),
       boost::bind(&RouterServer::OnUpdateAckDone, this, _1));
   RemoveUserFromChannel(iter->second);
-  users_.erase(iter);
-  VLOG(3) << "erase uid : " << uid;
-  VLOG(5) << "users size: " << users_.size();
+  iter->second.SetOnline(false);
 }
 
 Sid RouterServer::FindSidByUid(const UserID& uid) const {
   UserInfoMap::const_iterator citer = users_.find(uid);
-  if (citer == users_.end()) {
+  if (citer == users_.end() || !citer->second.IsOnline()) {
     return INVALID_SID;
   }
-  return citer->second.GetSSId();
+  return citer->second.GetSid();
 }
 
 void RouterServer::OnSaveMessageDone(bool ok) {
@@ -411,7 +413,7 @@ void RouterServer::OnGetMsgToSend(UserID uid, MessageResult mr) {
   VLOG(5) << "OnGetMsgToSend mr->size = " << mr->size();
   Sid sid = FindSidByUid(uid);
   if (sid == INVALID_SID) {
-    LOG(INFO) << "uid " << uid << " is offline";
+    LOG(WARNING) << "uid " << uid << " is offline";
   } else {
     CHECK(size_t(sid) < session_proxys_.size());
     if (mr.get() != NULL) {
