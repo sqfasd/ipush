@@ -36,6 +36,9 @@ class SessionProxy {
   void SendData(const string& data);
   void SendMessage(MessagePtr msg);
   void Close();
+  bool IsConnected() const {
+    return connection_.get() && connection_->IsConnected();
+  }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SessionProxy);
