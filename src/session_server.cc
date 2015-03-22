@@ -79,7 +79,6 @@ void SessionServer::Pub(struct evhttp_request* req) {
   string content = query.GetStr("content", "");
   string to = query.GetStr("to", "");
   string from = query.GetStr("from", "unknow");
-  int seq = query.GetInt("seq", -1);
 
   if (!to.empty()) {
     LOG(INFO) << "pub to user: " << content;
@@ -211,11 +210,25 @@ void SessionServer::RemoveUser(User* user) {
   users_.erase(uid);
 }
 
-void SessionServer::ReplyOK(struct evhttp_request* req) {
-  evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
+void SessionServer::ReplyOK(struct evhttp_request* req, const string& resp) {
+  evhttp_add_header(req->output_headers,
+                    "Content-Type",
+                    "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  evbuffer_add_printf(output_buffer, "{\"type\":\"ok\"}\n"); //TODO
+  if (resp.empty()) {
+    evbuffer_add_printf(output_buffer, "{\"result\":\"ok\"}\n");
+  } else {
+    evbuffer_add(output_buffer, resp.c_str(), resp.size());
+  }
   evhttp_send_reply(req, 200, "OK", output_buffer);
+}
+
+void SessionServer::Stats(struct evhttp_request* req) {
+  // TODO(qingfeng) check pretty json format parameter
+  Json::Value response;
+  Json::Value& result = response["result"];
+  result["user_number"] = (Json::UInt)users_.size();
+  ReplyOK(req, response.toStyledString());
 }
 
 }  // namespace xcomet
@@ -240,6 +253,10 @@ static void BroadcastHandler(struct evhttp_request* req, void* arg) {
 
 static void RSubHandler(struct evhttp_request* req, void* arg) {
   SessionServer::Instance().RSub(req);
+}
+
+static void StatsHandler(struct evhttp_request* req, void* arg) {
+  SessionServer::Instance().Stats(req);
 }
 
 static void AcceptErrorHandler(struct evconnlistener* listener, void* ptr) {
@@ -276,6 +293,7 @@ void SetupAdminHandler(struct evhttp* http, struct event_base* evbase) {
   evhttp_set_cb(http, "/pub", PubHandler, evbase);
   evhttp_set_cb(http, "/broadcast", BroadcastHandler, evbase);
   evhttp_set_cb(http, "/rsub", RSubHandler, evbase);
+  evhttp_set_cb(http, "/stats", StatsHandler, evbase);
 
   struct evhttp_bound_socket* sock = NULL;
   sock = evhttp_bind_socket_with_handle(http,

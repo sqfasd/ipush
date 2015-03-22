@@ -22,6 +22,7 @@ class SessionServer {
   void Disconnect(struct evhttp_request* req);
   void Broadcast(struct evhttp_request* req);
   void RSub(struct evhttp_request* req);
+  void Stats(struct evhttp_request* req);
   void OnTimer();
   void OnUserMessage(const string& uid, base::shared_ptr<string> message);
   void OnRouterMessage(base::shared_ptr<string> message);
@@ -31,7 +32,7 @@ class SessionServer {
  private:
   SessionServer();
   ~SessionServer();
-  void ReplyOK(struct evhttp_request* req);
+  void ReplyOK(struct evhttp_request* req, const string& resp = "");
   void RemoveUserFromChannel(User* user);
 
   UserMap users_;
