@@ -36,16 +36,17 @@ void SessionProxy::StartConnect() {
 }
 
 void SessionProxy::Retry() {
+  if (connection_->IsConnected()) {
+    return;
+  }
   worker_->Do(boost::bind(&SessionProxy::DoRetry, this),
               boost::bind(&SessionProxy::Retry, this));
 }
 
 void SessionProxy::DoRetry() {
-  CHECK(!connection_->IsConnected());
   ::sleep(RETRY_INTERVAL_SEC);
   if (connection_->Connect() != 0) {
     LOG(ERROR) << "proxy " << GetId() << " connect failed, will retry again";
-    Retry();
   } else {
     LOG(INFO) << "reconnect success";
   }
