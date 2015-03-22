@@ -113,6 +113,7 @@ SocketClient::~SocketClient() {
 }
 
 int SocketClient::Connect() {
+  is_connected_ = false;
   if (option_.host.empty() ||
       option_.port <= 0 ||
       option_.username.empty() ||
@@ -137,6 +138,7 @@ int SocketClient::Connect() {
   if (::connect(sock_fd_,
                 (struct sockaddr*)&server_addr,
                 sizeof(struct sockaddr)) == -1) {
+    // TODO(qingfeng) check different errno to process
     LOG(ERROR) << CERROR("connect error");
     return -4;
   }
@@ -230,12 +232,19 @@ void SocketClient::Loop() {
 }
 
 bool SocketClient::HandleRead() {
-  // CHECK sock_fd_
   int ret = current_read_packet_->Read(sock_fd_);
   if (ret == 0) {
-    LOG(ERROR) << "read nothing";
+    LOG(INFO) << "read eof, connection closed";
     return false;
-  } else if (current_read_packet_->HasReadAll()) {
+  } else if (ret < 0) {
+    string err_msg = CERROR("connection error");
+    LOG(ERROR) << err_msg;
+    if (error_cb_) {
+      error_cb_(err_msg);
+    }
+    return false;
+  } else {
+    CHECK(current_read_packet_->HasReadAll());
     Json::Reader reader;
     Json::Value json;
     try {

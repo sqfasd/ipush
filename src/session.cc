@@ -93,6 +93,8 @@ void Session::OnReceive() {
       }
       if (size != NULL) {
         free(size);
+      } else {
+        break;
       }
     }
     int left_len = evbuffer_get_length(input);

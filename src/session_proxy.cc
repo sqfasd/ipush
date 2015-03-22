@@ -11,6 +11,7 @@ SessionProxy::SessionProxy(struct event_base* evbase, int id) : id_(id) {
   option.password = "default";
   connection_.reset(new SocketClient(option));
   connection_->SetDataCallback(boost::bind(&SessionProxy::OnData, this, _1));
+  connection_->SetErrorCallback(boost::bind(&SessionProxy::OnError, this, _1));
   worker_.reset(new Worker(evbase));
 }
 
@@ -28,7 +29,10 @@ void SessionProxy::SendMessage(MessagePtr msg) {
 void SessionProxy::StartConnect() {
   LOG(INFO) << "SessionProxy::StartConnect id: " << GetId()
             << ", connection option: " << connection_->GetOption();
-  CHECK(connection_->Connect() == 0);
+  if (connection_->Connect() != 0) {
+    LOG(ERROR) << "failed to connect, will retry";
+    Retry();
+  }
 }
 
 void SessionProxy::Retry() {
@@ -57,6 +61,10 @@ void SessionProxy::OnData(string& data) {
     sptr->swap(data);
     worker_->Do<MessagePtr>(boost::bind(Message::Unserialize, sptr), msg_cb_);
   }
+}
+
+void SessionProxy::OnError(const string& error) {
+  LOG(ERROR) << "SessionProxy::OnError: " << error;
 }
 
 }  // namespace xcomet

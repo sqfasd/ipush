@@ -41,6 +41,7 @@ class SessionProxy {
   DISALLOW_COPY_AND_ASSIGN(SessionProxy);
 
   void OnData(string& data);
+  void OnError(const string& error);
   void RetryDone();
   void DoRetry();
 
