@@ -29,6 +29,7 @@ SessionServer::SessionServer()
     : router_(*this),
       timeout_queue_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
       stats_(FLAGS_timer_interval_sec) {
+  register_all_ = false;
 }
 
 SessionServer::~SessionServer() {
@@ -134,10 +135,10 @@ void SessionServer::RSub(struct evhttp_request* req) {
   CHECK_HTTP_GET();
   // TODO (qingfeng) check request parameters
   router_.ResetSession(req);
-  UserMap::iterator it;
-  for (it = users_.begin(); it != users_.end(); ++it) {
-    router_.LoginUser(it->first);
-  }
+  LOG(INFO) << "router connected, there are " << users_.size()
+            << " users to register";
+  // TODO(qingfeng) use copy-on-write method to login all users
+  register_all_ = true;
 }
 
 void SessionServer::OnTimer() {
@@ -165,14 +166,28 @@ void SessionServer::OnTimer() {
     router_.SendHeartbeat();
     router_.SetCounter(0);
   }
+  if (register_all_) {
+    UserMap::iterator it;
+    for (it = users_.begin(); it != users_.end(); ++it) {
+      router_.LoginUser(it->first);
+    }
+    register_all_ = false;
+  }
 }
 
-void SessionServer::OnUserMessage(const string& from_uid,
-                                  base::shared_ptr<string> message) {
+bool SessionServer::IsHeartbeatMessage(StringPtr message) {
+  return message.get() &&
+         message->size() == 16 &&
+         message->find("noop") != string::npos;
+}
+
+void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
   stats_.OnUserMessage(message);
   // TODO(qingfeng) if target in current session, send it before redirect
   LOG(INFO) << from_uid << ": " << *message;
-  router_.Redirect(message);
+  if (!IsHeartbeatMessage(message)) {
+    router_.Redirect(message);
+  }
 
   UserMap::iterator uit = users_.find(from_uid);
   if (uit == users_.end()) {

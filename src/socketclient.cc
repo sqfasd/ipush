@@ -185,6 +185,7 @@ int SocketClient::Connect() {
     LOG(ERROR) << CERROR("send error");
     return -5;
   }
+  // TODO(qingfeng) handle message after header
   ::memset(buffer, 0, sizeof(buffer));
   if (::recv(sock_fd_, buffer, sizeof(buffer), 0) < 0) {
     LOG(ERROR) << CERROR("receive error");
