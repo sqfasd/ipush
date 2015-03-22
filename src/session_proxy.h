@@ -22,10 +22,10 @@ class SessionProxy {
     msg_cb_ = cb;
   }
   void SetConnectCallback(ConnectCallback cb) {
-    connection_->SetConnectCallback(cb);
+    connect_cb_ = cb;
   }
   void SetDisconnectCallback(DisconnectCallback cb) {
-    connection_->SetDisconnectCallback(cb);
+    disconnect_cb_ = cb;
   }
   void SetHost(const string& host) {connection_->SetHost(host);}
   void SetPort(int port) {connection_->SetPort(port);}
@@ -42,11 +42,15 @@ class SessionProxy {
 
   void OnData(string& data);
   void OnError(const string& error);
+  void OnDisconnect();
+  void OnConnect();
   void RetryDone();
   void DoRetry();
 
   int id_;
   MessageCallback msg_cb_;
+  ConnectCallback connect_cb_;
+  DisconnectCallback disconnect_cb_;
   scoped_ptr<SocketClient> connection_;
   scoped_ptr<Worker> worker_;
 };

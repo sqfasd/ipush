@@ -12,6 +12,9 @@ SessionProxy::SessionProxy(struct event_base* evbase, int id) : id_(id) {
   connection_.reset(new SocketClient(option));
   connection_->SetDataCallback(boost::bind(&SessionProxy::OnData, this, _1));
   connection_->SetErrorCallback(boost::bind(&SessionProxy::OnError, this, _1));
+  connection_->SetConnectCallback(boost::bind(&SessionProxy::OnConnect, this));
+  connection_->SetDisconnectCallback(
+      boost::bind(&SessionProxy::OnDisconnect, this));
   worker_.reset(new Worker(evbase));
 }
 
@@ -66,6 +69,18 @@ void SessionProxy::OnData(string& data) {
 
 void SessionProxy::OnError(const string& error) {
   LOG(ERROR) << "SessionProxy::OnError: " << error;
+}
+
+void SessionProxy::OnConnect() {
+  if (connect_cb_) {
+    worker_->RunInMainLoop(connect_cb_);
+  }
+}
+
+void SessionProxy::OnDisconnect() {
+  if (disconnect_cb_) {
+    worker_->RunInMainLoop(disconnect_cb_);
+  }
 }
 
 }  // namespace xcomet
