@@ -267,7 +267,7 @@ bool SocketClient::HandleRead() {
       LOG(INFO) << "read eof, connection closed";
       return false;
     } else if (ret < 0) {
-      LOG(INFO) << CERROR("read error");
+      VLOG(5) << CERROR("read error");
       return true;
     } else {
       CHECK(current_read_packet_->HasReadAll());
