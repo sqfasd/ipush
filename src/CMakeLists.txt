@@ -8,6 +8,7 @@ ADD_EXECUTABLE(session_server
   worker.cc
   session_server.cc
   utils.cc
+  stats_manager.cc
 )
 TARGET_LINK_LIBRARIES(session_server
   base
@@ -24,6 +25,7 @@ ADD_EXECUTABLE(router_server
   socketclient.cc
   session_proxy.cc
   router_server.cc
+  stats_manager.cc
 )
 TARGET_LINK_LIBRARIES(router_server
   base

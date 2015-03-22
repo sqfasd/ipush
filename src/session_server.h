@@ -8,6 +8,7 @@
 #include "src/channel.h"
 #include "src/router_proxy.h"
 #include "src/http_query.h"
+#include "src/stats_manager.h"
 
 namespace xcomet {
 
@@ -23,6 +24,7 @@ class SessionServer {
   void Broadcast(struct evhttp_request* req);
   void RSub(struct evhttp_request* req);
   void Stats(struct evhttp_request* req);
+  void OnStart();
   void OnTimer();
   void OnUserMessage(const string& uid, base::shared_ptr<string> message);
   void OnRouterMessage(base::shared_ptr<string> message);
@@ -38,6 +40,7 @@ class SessionServer {
   UserMap users_;
   RouterProxy router_;
   UserCircleQueue timeout_queue_;
+  StatsManager stats_;
 
   DISALLOW_COPY_AND_ASSIGN(SessionServer);
   friend struct DefaultSingletonTraits<SessionServer>;

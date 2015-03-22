@@ -27,7 +27,8 @@ namespace xcomet {
 
 SessionServer::SessionServer()
     : router_(*this),
-      timeout_queue_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec) {
+      timeout_queue_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
+      stats_(FLAGS_timer_interval_sec) {
 }
 
 SessionServer::~SessionServer() {
@@ -53,6 +54,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
   if (iter != users_.end()) {
     user = iter->second;
     user->SetType(type);
+    // TODO(qingfeng) kick off the old connection if reconnected
     LOG(INFO) << "user has already connected: " << uid;
     evhttp_send_reply(req, 406, "The user has already connected", NULL);
     return;
@@ -140,6 +142,7 @@ void SessionServer::RSub(struct evhttp_request* req) {
 
 void SessionServer::OnTimer() {
   VLOG(5) << "OnTimer";
+  stats_.OnTimer();
   DLinkedList<User*> timeout_users = timeout_queue_.GetFront();
   DLinkedList<User*>::Iterator it = timeout_users.GetIterator();
   if (FLAGS_is_server_heartbeat) {
@@ -166,6 +169,7 @@ void SessionServer::OnTimer() {
 
 void SessionServer::OnUserMessage(const string& from_uid,
                                   base::shared_ptr<string> message) {
+  stats_.OnUserMessage(message);
   // TODO(qingfeng) if target in current session, send it before redirect
   LOG(INFO) << from_uid << ": " << *message;
   router_.Redirect(message);
@@ -180,6 +184,7 @@ void SessionServer::OnUserMessage(const string& from_uid,
 
 void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
   VLOG(5) << "OnRouterMessage: " << *message;
+  stats_.OnPubMessage(message);
   try {
     Json::Reader reader;
     Json::Value json;
@@ -227,8 +232,13 @@ void SessionServer::Stats(struct evhttp_request* req) {
   // TODO(qingfeng) check pretty json format parameter
   Json::Value response;
   Json::Value& result = response["result"];
-  result["user_number"] = (Json::UInt)users_.size();
+  result["user_count"] = (Json::UInt)users_.size();
+  stats_.GetReport(response);
   ReplyOK(req, response.toStyledString());
+}
+
+void SessionServer::OnStart() {
+  stats_.OnServerStart();
 }
 
 }  // namespace xcomet
@@ -344,6 +354,7 @@ int main(int argc, char* argv[]) {
     CHECK(sigterm_event && event_add(timer_event, &tv) == 0)
         << "set timer handler failed";
 	}
+  SessionServer::Instance().OnStart();
 
 	event_base_dispatch(evbase);
 

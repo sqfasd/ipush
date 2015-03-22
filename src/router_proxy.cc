@@ -36,7 +36,7 @@ void RouterProxy::ResetSession(struct evhttp_request* req) {
 }
 
 void RouterProxy::LoginUser(const string& uid) {
-  LOG(INFO) << "RegisterUser: " << uid;
+  VLOG(3) << "RegisterUser: " << uid;
   string msg = StringPrintf("{\"type\":\"login\", \"from\":\"%s\"}",
       uid.c_str());
   if (session_.get()) {
