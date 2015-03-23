@@ -485,7 +485,7 @@ void RouterServer::ReplyError(struct evhttp_request* req) {
   VLOG(5) << "ReplyError";
   evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  const char * response = "{\"type\":\"error\"}\n";
+  const char * response = "{\"error\":\"TODO\"}\n";
   evbuffer_add(output_buffer, response, strlen(response));
   evhttp_send_reply(req, HTTP_BADREQUEST, "Error", output_buffer);
 }
