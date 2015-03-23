@@ -15,8 +15,8 @@ class StatsManager {
   ~StatsManager();
   void OnTimer(int64 user_number);
   void OnServerStart();
-  void OnUserMessage(const StringPtr& data);
-  void OnPubMessage(const StringPtr& data);
+  void OnReceive(const string& data);
+  void OnSend(const string& data);
 
   void GetReport(Json::Value& report) const;
 

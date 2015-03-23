@@ -25,10 +25,6 @@ void SessionProxy::SendData(const string& data) {
   connection_->Send(data);
 }
 
-void SessionProxy::SendMessage(MessagePtr msg) {
-  SendData(Message::Serialize(msg));
-}
-
 void SessionProxy::StartConnect() {
   LOG(INFO) << "SessionProxy::StartConnect id: " << GetId()
             << ", connection option: " << connection_->GetOption();

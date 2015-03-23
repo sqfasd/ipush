@@ -34,7 +34,6 @@ class SessionProxy {
   void StartConnect();
   void Retry();
   void SendData(const string& data);
-  void SendMessage(MessagePtr msg);
   void Close();
   bool IsConnected() const {
     return connection_.get() && connection_->IsConnected();

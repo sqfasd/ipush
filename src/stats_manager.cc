@@ -57,14 +57,14 @@ void StatsManager::OnTimer(int64 user_number) {
   d_.user_number_ = user_number;
 }
 
-void StatsManager::OnUserMessage(const StringPtr& data) {
+void StatsManager::OnReceive(const string& data) {
   ++d_.total_recv_number_;
-  d_.total_recv_bytes_ += data->size();
+  d_.total_recv_bytes_ += data.size();
 }
 
-void StatsManager::OnPubMessage(const StringPtr& data) {
+void StatsManager::OnSend(const string& data) {
   ++d_.total_send_number_;
-  d_.total_send_bytes_ += data->size();
+  d_.total_send_bytes_ += data.size();
 }
 
 void StatsManager::GetReport(Json::Value& report) const {
