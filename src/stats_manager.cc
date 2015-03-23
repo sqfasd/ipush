@@ -76,32 +76,31 @@ void StatsManager::GetReport(Json::Value& report) const {
   if (seconds == 0) {
     seconds = 1;
   }
-  Json::Value& throughput = report["throughput"];
-  throughput["total_recv_number"] = (Json::Int64)d_.total_recv_number_;
-  throughput["total_recv_bytes"] = (Json::Int64)d_.total_recv_bytes_;
-  throughput["total_send_number"] = (Json::Int64)d_.total_send_number_;
-  throughput["total_send_bytes"] = (Json::Int64)d_.total_send_bytes_;
-  throughput["avg_recv_number_per_second"] =
+  report["total_recv_number"] = (Json::Int64)d_.total_recv_number_;
+  report["total_recv_bytes"] = (Json::Int64)d_.total_recv_bytes_;
+  report["total_send_number"] = (Json::Int64)d_.total_send_number_;
+  report["total_send_bytes"] = (Json::Int64)d_.total_send_bytes_;
+  report["avg_recv_number_per_second"] =
       (Json::Int64)d_.total_recv_number_ / seconds;
-  throughput["avg_recv_bytes_per_second"] =
+  report["avg_recv_bytes_per_second"] =
       (Json::Int64)d_.total_recv_bytes_ / seconds;
-  throughput["avg_send_number_per_second"] =
+  report["avg_send_number_per_second"] =
       (Json::Int64)d_.total_send_number_ / seconds;
-  throughput["avg_send_bytes_per_second"] =
+  report["avg_send_bytes_per_second"] =
       (Json::Int64)d_.total_send_bytes_ / seconds;
-  throughput["max_recv_number_per_second"] =
+  report["max_recv_number_per_second"] =
       (Json::Int64)d_.max_recv_number_per_second_;
-  throughput["max_recv_bytes_per_second"] =
+  report["max_recv_bytes_per_second"] =
       (Json::Int64)d_.max_recv_bytes_per_second_;
-  throughput["max_send_number_per_second"] =
+  report["max_send_number_per_second"] =
       (Json::Int64)d_.max_send_number_per_second_;
-  throughput["max_send_bytes_per_second"] =
+  report["max_send_bytes_per_second"] =
       (Json::Int64)d_.max_send_bytes_per_second_;
-  throughput["user_number"] = (Json::Int64)d_.user_number_;
-  throughput["max_user_number"] = (Json::Int64)d_.max_user_number_;
-  throughput["max_user_growth_per_second"] =
+  report["user_number"] = (Json::Int64)d_.user_number_;
+  report["max_user_number"] = (Json::Int64)d_.max_user_number_;
+  report["max_user_growth_per_second"] =
       (Json::Int64)d_.max_user_growth_per_second_;
-  throughput["max_user_reduce_per_second"] =
+  report["max_user_reduce_per_second"] =
       (Json::Int64)d_.max_user_reduce_per_second_;
 }
 

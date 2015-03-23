@@ -78,24 +78,22 @@ $ curl "http://session_server_host:9100/stats"
    "result" : {
       "server_start_datetime" : "2015/03/23 18:19:44",
       "server_start_timestamp" : 13071579584867722,
-      "throughput" : {
-         "avg_recv_bytes_per_second" : 2129,
-         "avg_recv_number_per_second" : 42,
-         "avg_send_bytes_per_second" : 316620,
-         "avg_send_number_per_second" : 416,
-         "max_recv_bytes_per_second" : 12800,
-         "max_recv_number_per_second" : 256,
-         "max_send_bytes_per_second" : 7598894,
-         "max_send_number_per_second" : 10000,
-         "max_user_growth_per_second" : 1,
-         "max_user_number" : 1,
-         "max_user_reduce_per_second" : 0,
-         "total_recv_bytes" : 51103,
-         "total_recv_number" : 1024,
-         "total_send_bytes" : 7598894,
-         "total_send_number" : 10000,
-         "user_number" : 1
-      }
+      "avg_recv_bytes_per_second" : 2129,
+      "avg_recv_number_per_second" : 42,
+      "avg_send_bytes_per_second" : 316620,
+      "avg_send_number_per_second" : 416,
+      "max_recv_bytes_per_second" : 12800,
+      "max_recv_number_per_second" : 256,
+      "max_send_bytes_per_second" : 7598894,
+      "max_send_number_per_second" : 10000,
+      "max_user_growth_per_second" : 1,
+      "max_user_number" : 1,
+      "max_user_reduce_per_second" : 0,
+      "total_recv_bytes" : 51103,
+      "total_recv_number" : 1024,
+      "total_send_bytes" : 7598894,
+      "total_send_number" : 10000,
+      "user_number" : 1
    }
 }
 $ curl "http://router_server_host:8100/stats"
@@ -103,24 +101,22 @@ $ curl "http://router_server_host:8100/stats"
    "result" : {
       "server_start_datetime" : "2015/03/23 18:19:47",
       "server_start_timestamp" : 13071579587723487,
-      "throughput" : {
-         "avg_recv_bytes_per_second" : 2629,
-         "avg_recv_number_per_second" : 48,
-         "avg_send_bytes_per_second" : 361852,
-         "avg_send_number_per_second" : 476,
-         "max_recv_bytes_per_second" : 15552,
-         "max_recv_number_per_second" : 288,
-         "max_send_bytes_per_second" : 7598894,
-         "max_send_number_per_second" : 10000,
-         "max_user_growth_per_second" : 1,
-         "max_user_number" : 1,
-         "max_user_reduce_per_second" : 0,
-         "total_recv_bytes" : 55224,
-         "total_recv_number" : 1024,
-         "total_send_bytes" : 7598894,
-         "total_send_number" : 10000,
-         "user_number" : 1
-      }
+      "avg_recv_bytes_per_second" : 2629,
+      "avg_recv_number_per_second" : 48,
+      "avg_send_bytes_per_second" : 361852,
+      "avg_send_number_per_second" : 476,
+      "max_recv_bytes_per_second" : 15552,
+      "max_recv_number_per_second" : 288,
+      "max_send_bytes_per_second" : 7598894,
+      "max_send_number_per_second" : 10000,
+      "max_user_growth_per_second" : 1,
+      "max_user_number" : 1,
+      "max_user_reduce_per_second" : 0,
+      "total_recv_bytes" : 55224,
+      "total_recv_number" : 1024,
+      "total_send_bytes" : 7598894,
+      "total_send_number" : 10000,
+      "user_number" : 1
    }
 }
 ```
