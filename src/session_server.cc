@@ -166,9 +166,8 @@ void SessionServer::OnTimer() {
     router_.SendHeartbeat();
     router_.SetCounter(0);
   }
-  while (!task_queue_.Empty()) {
-    boost::function<void ()> task;
-    task_queue_.Pop(task);
+  boost::function<void ()> task;
+  while (task_queue_.TryPop(task)) {
     task();
   }
 }
