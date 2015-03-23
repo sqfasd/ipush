@@ -373,7 +373,7 @@ int main(int argc, char* argv[]) {
 
 	event_base_dispatch(evbase);
 
-  LOG(INFO) << "event loop break";
+  LOG(INFO) << "main loop break";
 
 	event_free(timer_event);
 	event_free(sigterm_event);
