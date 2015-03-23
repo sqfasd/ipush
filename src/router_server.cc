@@ -30,20 +30,25 @@ namespace xcomet {
 using Limonp::string_format;
 
 const Sid INVALID_SID = -1;
+const int DEFAULT_TIMER_INTERVAL = 1;
 
-RouterServer::RouterServer() {
-  evbase_ = event_base_new();
+RouterServer::RouterServer(struct event_base* evbase)
+    : evbase_(evbase),
+      stats_(DEFAULT_TIMER_INTERVAL) {
+  LOG(INFO) << "RouterServer construct";
   CHECK(evbase_);
 }
 
 RouterServer::~RouterServer() {
-  event_base_free(evbase_);
+  LOG(INFO) << "RouterServer destruct";
 }
 
 void RouterServer::Start() {
   InitStorage();
   ConnectSessionServers();
   InitAdminHttp();
+  InitEventHandler();
+  stats_.OnServerStart();
   event_base_dispatch(evbase_);
 }
 
@@ -61,7 +66,7 @@ void RouterServer::ConnectSessionServers() {
     proxy->SetDisconnectCallback(
         boost::bind(&RouterServer::OnSessionProxyDisconnected, this, proxy));
     proxy->SetMessageCallback(
-        boost::bind(&RouterServer::OnSessionMsg, this, proxy, _1));
+        boost::bind(&RouterServer::OnSessionMsg, this, proxy, _1, _2));
     proxy->SetHost(host);
     proxy->SetPort(port);
     session_proxys_[i].reset(proxy);
@@ -80,11 +85,12 @@ void RouterServer::InitStorage() {
 void RouterServer::InitAdminHttp() {
   admin_http_ = evhttp_new(evbase_);
   evhttp_set_cb(admin_http_, "/pub", OnAdminPub, this);
-  evhttp_set_cb(admin_http_, "broadcast", OnAdminBroadcast, this);
-  evhttp_set_cb(admin_http_, "presence", OnAdminCheckPresence, this);
-  evhttp_set_cb(admin_http_, "offmsg", OnAdminCheckOffMsg, this);
-  evhttp_set_cb(admin_http_, "sub", OnAdminSub, this);
-  evhttp_set_cb(admin_http_, "unsub", OnAdminUnsub, this);
+  evhttp_set_cb(admin_http_, "/broadcast", OnAdminBroadcast, this);
+  evhttp_set_cb(admin_http_, "/presence", OnAdminCheckPresence, this);
+  evhttp_set_cb(admin_http_, "/offmsg", OnAdminCheckOffMsg, this);
+  evhttp_set_cb(admin_http_, "/sub", OnAdminSub, this);
+  evhttp_set_cb(admin_http_, "/unsub", OnAdminUnsub, this);
+  evhttp_set_cb(admin_http_, "/stats", OnAdminStats, this);
 
   struct evhttp_bound_socket* sock;
   sock = evhttp_bind_socket_with_handle(admin_http_, FLAGS_admin_listen_ip.c_str(), FLAGS_admin_listen_port);
@@ -92,6 +98,28 @@ void RouterServer::InitAdminHttp() {
   LOG(INFO) << "admin server listen on: " << FLAGS_admin_listen_ip << ":" << FLAGS_admin_listen_port;
   struct evconnlistener * listener = evhttp_bound_socket_get_listener(sock);
   evconnlistener_set_error_cb(listener, OnAcceptError);
+}
+
+void RouterServer::InitEventHandler() {
+  struct event* sigint_event = NULL;
+	sigint_event = evsignal_new(evbase_, SIGINT, OnSignal, this);
+  CHECK(sigint_event && event_add(sigint_event, NULL) == 0)
+      << "set SIGINT handler failed";
+
+  struct event* sigterm_event = NULL;
+	sigterm_event = evsignal_new(evbase_, SIGTERM, OnSignal, this);
+  CHECK(sigterm_event && event_add(sigterm_event, NULL) == 0)
+      << "set SIGTERM handler failed";
+
+  struct event* timer_event = NULL;
+	timer_event = event_new(evbase_, -1, EV_PERSIST, OnTimer, this);
+	{
+		struct timeval tv;
+		tv.tv_sec = DEFAULT_TIMER_INTERVAL;
+		tv.tv_usec = 0;
+    CHECK(sigterm_event && event_add(timer_event, &tv) == 0)
+        << "set timer handler failed";
+	}
 }
 
 void RouterServer::OnAcceptError(struct evconnlistener * listener, void * ctx) {
@@ -124,7 +152,9 @@ void RouterServer::SendUserMsg(MessagePtr msg) {
     CHECK(size_t(sid) < session_proxys_.size());
     try {
       (*msg)["seq"] = seq;
-      session_proxys_[sid]->SendMessage(msg);
+      StringPtr data = Message::Serialize(msg);
+      stats_.OnSend(*data);
+      session_proxys_[sid]->SendData(*data);
     } catch (std::exception& e) {
       LOG(ERROR) << "SendUserMsg json exception: " << e.what();
     } catch (...) {
@@ -216,8 +246,10 @@ void RouterServer::UpdateUserAck(const UserID& uid, int seq) {
 }
 
 void RouterServer::OnSessionMsg(SessionProxy* sp,
+                                StringPtr raw_data,
                                 MessagePtr msg) {
   VLOG(5) << "RouterServer::OnSessionMsg: " << msg->toStyledString();
+  stats_.OnReceive(*raw_data);
   try {
     Json::Value& value = *msg;
     CHECK(value.isMember("type"));
@@ -424,6 +456,7 @@ void RouterServer::OnGetMsgToSend(UserID uid, MessageResult mr) {
     CHECK(size_t(sid) < session_proxys_.size());
     if (mr.get() != NULL) {
       for (int i = 1; i < mr->size(); i+=2) {
+        stats_.OnSend(mr->at(i));
         session_proxys_[sid]->SendData(mr->at(i));
       }
     } else {
@@ -456,12 +489,38 @@ void RouterServer::ReplyError(struct evhttp_request* req) {
   evhttp_send_reply(req, HTTP_BADREQUEST, "Error", output_buffer);
 }
 
-void RouterServer::ReplyOK(struct evhttp_request* req) {
-  evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
+void RouterServer::ReplyOK(struct evhttp_request* req, const string& resp) {
+  evhttp_add_header(req->output_headers,
+                    "Content-Type",
+                    "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  const char * response = "{\"type\":\"ok\"}\n";
-  evbuffer_add(output_buffer, response, strlen(response));
-  evhttp_send_reply(req, HTTP_OK, "OK", output_buffer);
+  if (resp.empty()) {
+    evbuffer_add_printf(output_buffer, "{\"result\":\"ok\"}\n");
+  } else {
+    evbuffer_add(output_buffer, resp.c_str(), resp.size());
+  }
+  evhttp_send_reply(req, 200, "OK", output_buffer);
+}
+
+void RouterServer::OnTimer(evutil_socket_t sig, short events, void *ctx) {
+  VLOG(5) << "OnTimer";
+  RouterServer* self = static_cast<RouterServer*>(ctx);
+  self->stats_.OnTimer(self->users_.size());
+}
+
+void RouterServer::OnSignal(evutil_socket_t sig, short events, void *ctx) {
+  LOG(INFO) << "RouterServer::OnSignal: " << sig << ", " << events;
+  RouterServer* self = static_cast<RouterServer*>(ctx);
+  event_base_loopbreak(self->evbase_);
+  LOG(INFO) << "main loop break";
+}
+
+void RouterServer::OnAdminStats(struct evhttp_request* req, void *ctx) {
+  RouterServer* self = static_cast<RouterServer*>(ctx);
+  Json::Value response;
+  Json::Value& result = response["result"];
+  self->stats_.GetReport(result);
+  ReplyOK(req, response.toStyledString());
 }
 
 } // namespace xcomet
@@ -471,7 +530,11 @@ int main(int argc, char ** argv) {
   if(FLAGS_libevent_debug_log) {
     //event_enable_debug_logging(EVENT_DBG_ALL);
   }
-  xcomet::RouterServer server;
-  server.Start();
+  struct event_base* evbase = event_base_new();
+  {
+    xcomet::RouterServer server(evbase);
+    server.Start();
+  }
+  event_base_free(evbase);
   return EXIT_SUCCESS;
 }

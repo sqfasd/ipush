@@ -22,11 +22,12 @@ class Message {
     return msg;
   }
 
-  static string Serialize(MessagePtr msg) {
-    if (msg.get() == NULL) {
-      return "";
+  static StringPtr Serialize(MessagePtr msg) {
+    StringPtr data(new string(""));
+    if (msg.get()) {
+      *data = Json::FastWriter().write(*msg);
     }
-    return Json::FastWriter().write(*msg);
+    return data;
   }
 
  private:

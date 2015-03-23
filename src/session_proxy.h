@@ -12,7 +12,7 @@ namespace xcomet {
 
 class Worker;
 
-typedef boost::function<void (MessagePtr)> MessageCallback;
+typedef boost::function<void (StringPtr, MessagePtr)> MessageCallback;
 
 class SessionProxy {
  public:
@@ -33,8 +33,9 @@ class SessionProxy {
   int GetId() const {return id_;}
   void StartConnect();
   void Retry();
-  void SendData(const string& data);
+  void SendData(string& data); // maybe swap
   void Close();
+  void WaitForClose();
   bool IsConnected() const {
     return connection_.get() && connection_->IsConnected();
   }

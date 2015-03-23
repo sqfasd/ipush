@@ -36,7 +36,7 @@ class Packet {
   bool HasReadAll() const {
     return content_.size() == len_;
   }
-  void SetContent(std::string str) {
+  void SetContent(std::string& str) {
     content_.swap(str);
     len_ = content_.size();
   }
@@ -120,7 +120,7 @@ class SocketClient {
 
   int Connect();
   void Close();
-  void Send(const string& data);
+  void Send(string& data);  // maybe swap
   void SendJson(const Json::Value& value);
   void WaitForClose();
   bool IsConnected() {

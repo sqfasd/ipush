@@ -25,6 +25,7 @@
 #include "src/user_info.h"
 #include "src/channel_info.h"
 #include "src/typedef.h"
+#include "src/stats_manager.h"
 
 using namespace std;
 
@@ -37,18 +38,19 @@ using base::shared_ptr;
 
 class RouterServer {
  public:
-  RouterServer();
+  RouterServer(struct event_base* evbase);
   ~RouterServer();
   void Start();
 
  private:
-  void OnSessionMsg(SessionProxy* sp, MessagePtr msg);
+  void OnSessionMsg(SessionProxy* sp, StringPtr raw_data, MessagePtr msg);
   void OnSessionProxyDisconnected(SessionProxy* sp);
 
   void ConnectSessionServers();
 
   void InitStorage();
   void InitAdminHttp();
+  void InitEventHandler();
 
   Sid  FindSidByUid(const UserID& uid) const;
   void LoginUser(const UserID& uid, Sid sid);
@@ -77,12 +79,17 @@ class RouterServer {
   static void OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx);
   static void OnAdminSub(struct evhttp_request* req, void *ctx);
   static void OnAdminUnsub(struct evhttp_request* req, void *ctx);
+  static void OnAdminStats(struct evhttp_request* req, void *ctx);
   static void OnAcceptError(struct evconnlistener * listener , void *ctx);
+  static void OnTimer(evutil_socket_t sig, short events, void *ctx);
+  static void OnSignal(evutil_socket_t sig, short events, void *ctx);
 
-  static void SendReply(struct evhttp_request* req,  const char* content, size_t len);
+  static void SendReply(struct evhttp_request* req, 
+                        const char* content,
+                        size_t len);
 
   static void ReplyError(struct evhttp_request* req);
-  static void ReplyOK(struct evhttp_request* req);
+  static void ReplyOK(struct evhttp_request* req, const string& resp = "");
 
   UserInfoMap users_;
   ChannelInfoMap channels_;
@@ -93,6 +100,7 @@ class RouterServer {
   struct evhttp* admin_http_;
 
   scoped_ptr<Storage> storage_;
+  StatsManager stats_;
 };
 
 } // namespace xcomet

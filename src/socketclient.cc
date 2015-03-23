@@ -338,7 +338,8 @@ int SocketClient::SendHeartbeat() {
 
   PacketPtr packet(new Packet());
   Json::FastWriter writer;
-  packet->SetContent(writer.write(json));
+  string data = writer.write(json);
+  packet->SetContent(data);
   write_queue_.Push(packet);
   HandleWrite();
   return 0;
@@ -347,13 +348,14 @@ int SocketClient::SendHeartbeat() {
 void SocketClient::SendJson(const Json::Value& json) {
   PacketPtr packet(new Packet());
   Json::FastWriter writer;
-  packet->SetContent(writer.write(json));
+  string data = writer.write(json);
+  packet->SetContent(data);
   write_queue_.Push(packet);
 
   Notify();
 }
 
-void SocketClient::Send(const string& data) {
+void SocketClient::Send(string& data) {
   PacketPtr packet(new Packet());
   packet->SetContent(data);
   write_queue_.Push(packet);

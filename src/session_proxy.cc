@@ -21,7 +21,7 @@ SessionProxy::SessionProxy(struct event_base* evbase, int id) : id_(id) {
 SessionProxy::~SessionProxy() {
 }
 
-void SessionProxy::SendData(const string& data) {
+void SessionProxy::SendData(string& data) {
   connection_->Send(data);
 }
 
@@ -59,7 +59,8 @@ void SessionProxy::OnData(string& data) {
   if (msg_cb_) {
     StringPtr sptr(new string());
     sptr->swap(data);
-    worker_->Do<MessagePtr>(boost::bind(Message::Unserialize, sptr), msg_cb_);
+    worker_->Do<MessagePtr>(boost::bind(Message::Unserialize, sptr),
+                            boost::bind(msg_cb_, sptr, _1));
   }
 }
 
@@ -77,6 +78,10 @@ void SessionProxy::OnDisconnect() {
   if (disconnect_cb_) {
     worker_->RunInMainLoop(disconnect_cb_);
   }
+}
+
+void SessionProxy::WaitForClose() {
+  connection_->WaitForClose();
 }
 
 }  // namespace xcomet
