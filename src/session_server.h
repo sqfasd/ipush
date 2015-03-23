@@ -3,6 +3,7 @@
 
 #include "deps/base/singleton.h"
 #include "deps/base/scoped_ptr.h"
+#include "deps/base/concurrent_queue.h"
 #include "src/include_std.h"
 #include "src/user.h"
 #include "src/channel.h"
@@ -31,6 +32,7 @@ class SessionServer {
   void OnRouterMessage(StringPtr message);
 
   void RemoveUser(User* user);
+  void RunInNextTick(boost::function<void ()> fn);
 
  private:
   SessionServer();
@@ -38,12 +40,14 @@ class SessionServer {
   void ReplyOK(struct evhttp_request* req, const string& resp = "");
   void RemoveUserFromChannel(User* user);
   bool IsHeartbeatMessage(StringPtr message);
+  void LoginAllUserToRouter();
 
   UserMap users_;
   RouterProxy router_;
   UserCircleQueue timeout_queue_;
   StatsManager stats_;
   bool register_all_;
+  base::ConcurrentQueue<boost::function<void ()> > task_queue_;
 
   DISALLOW_COPY_AND_ASSIGN(SessionServer);
   friend struct DefaultSingletonTraits<SessionServer>;

@@ -138,7 +138,7 @@ void SessionServer::RSub(struct evhttp_request* req) {
   LOG(INFO) << "router connected, there are " << users_.size()
             << " users to register";
   // TODO(qingfeng) use copy-on-write method to login all users
-  register_all_ = true;
+  RunInNextTick(boost::bind(&SessionServer::LoginAllUserToRouter, this));
 }
 
 void SessionServer::OnTimer() {
@@ -166,13 +166,23 @@ void SessionServer::OnTimer() {
     router_.SendHeartbeat();
     router_.SetCounter(0);
   }
-  if (register_all_) {
-    UserMap::iterator it;
-    for (it = users_.begin(); it != users_.end(); ++it) {
-      router_.LoginUser(it->first);
-    }
-    register_all_ = false;
+  while (!task_queue_.Empty()) {
+    boost::function<void ()> task;
+    task_queue_.Pop(task);
+    task();
   }
+}
+
+void SessionServer::LoginAllUserToRouter() {
+  VLOG(5) << "LoginAllUserToRouter";
+  UserMap::iterator it;
+  for (it = users_.begin(); it != users_.end(); ++it) {
+    router_.LoginUser(it->first);
+  }
+}
+
+void SessionServer::RunInNextTick(boost::function<void ()> fn) {
+  task_queue_.Push(fn);
 }
 
 bool SessionServer::IsHeartbeatMessage(StringPtr message) {
