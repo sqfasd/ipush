@@ -23,7 +23,9 @@ Worker::~Worker() {
   task_queue_.Push(NULL);
   LOG(INFO) << "Worker destroy, waiting for task thread exit";
   this->Join();
+  LOG(INFO) << "worker thread exited";
   msgqueue_destroy(event_queue_);
+  LOG(INFO) << "msgqueue destroyed";
 }
 
 void Worker::Callback(void* data, void* self) {

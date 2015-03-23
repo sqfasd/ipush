@@ -258,7 +258,7 @@ void SocketClient::Loop() {
   if (disconnect_cb_) {
     disconnect_cb_();
   }
-  LOG(INFO) << "work thread exited";
+  LOG(INFO) << "work loop end";
 }
 
 bool SocketClient::HandleRead() {
@@ -328,7 +328,10 @@ void SocketClient::WaitForClose() {
     Close();
   }
   VLOG(3) << "Join worker thread ...";
-  worker_thread_->Join();
+  if (worker_thread_.get()) {
+    worker_thread_->Join();
+  }
+  VLOG(3) << "worker thread exited";
 }
 
 int SocketClient::SendHeartbeat() {

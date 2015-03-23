@@ -64,6 +64,7 @@ class RouterServer {
   void OnGetMsgToReply(UserID uid,
                        struct evhttp_request* req,
                        MessageResult mr);
+  void OnDestroy();
 
   void SendAllMessages(const UserID& uid);
   void SendUserMsg(MessagePtr msg);

@@ -194,9 +194,9 @@ struct event_msgqueue *msgqueue_new(struct event_base *base, unsigned int max_si
 
 void msgqueue_destroy(struct event_msgqueue *msgq)
 {
-   for( ; msgqueue_length(msgq) > 0; ) {
-      sleep( 1 );
-   }
+   //for( ; msgqueue_length(msgq) > 0; ) {
+   //   sleep( 1 );
+   //}
 
    event_del(&msgq->queue_ev);
    circqueue_destroy(msgq->queue);

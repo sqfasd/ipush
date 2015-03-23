@@ -41,6 +41,7 @@ RouterServer::RouterServer(struct event_base* evbase)
 
 RouterServer::~RouterServer() {
   LOG(INFO) << "RouterServer destruct";
+	evhttp_free(admin_http_);
 }
 
 void RouterServer::Start() {
@@ -508,9 +509,19 @@ void RouterServer::OnTimer(evutil_socket_t sig, short events, void *ctx) {
   self->stats_.OnTimer(self->users_.size());
 }
 
+void RouterServer::OnDestroy() {
+  for (int i = 0; i < session_proxys_.size(); ++i) {
+    session_proxys_[i]->StopRetry();
+    session_proxys_[i]->WaitForClose();
+    session_proxys_[i].reset();
+  }
+  storage_.reset();
+}
+
 void RouterServer::OnSignal(evutil_socket_t sig, short events, void *ctx) {
   LOG(INFO) << "RouterServer::OnSignal: " << sig << ", " << events;
   RouterServer* self = static_cast<RouterServer*>(ctx);
+  self->OnDestroy();
   event_base_loopbreak(self->evbase_);
   LOG(INFO) << "main loop break";
 }

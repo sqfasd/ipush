@@ -5,7 +5,8 @@ namespace xcomet {
 
 const int RETRY_INTERVAL_SEC = 2;
 
-SessionProxy::SessionProxy(struct event_base* evbase, int id) : id_(id) {
+SessionProxy::SessionProxy(struct event_base* evbase, int id)
+    : id_(id), stoped_(false) {
   ClientOption option;
   option.username = "default";
   option.password = "default";
@@ -35,7 +36,7 @@ void SessionProxy::StartConnect() {
 }
 
 void SessionProxy::Retry() {
-  if (connection_->IsConnected()) {
+  if (connection_->IsConnected() || stoped_) {
     return;
   }
   worker_->Do(boost::bind(&SessionProxy::DoRetry, this),
@@ -44,11 +45,18 @@ void SessionProxy::Retry() {
 
 void SessionProxy::DoRetry() {
   ::sleep(RETRY_INTERVAL_SEC);
+  if (stoped_) {
+    return;
+  }
   if (connection_->Connect() != 0) {
     LOG(ERROR) << "proxy " << GetId() << " connect failed, will retry again";
   } else {
     LOG(INFO) << "reconnect success";
   }
+}
+
+void SessionProxy::StopRetry() {
+  stoped_ = true;
 }
 
 void SessionProxy::Close() {

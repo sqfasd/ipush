@@ -33,6 +33,7 @@ class SessionProxy {
   int GetId() const {return id_;}
   void StartConnect();
   void Retry();
+  void StopRetry();
   void SendData(string& data); // maybe swap
   void Close();
   void WaitForClose();
@@ -56,6 +57,7 @@ class SessionProxy {
   DisconnectCallback disconnect_cb_;
   scoped_ptr<SocketClient> connection_;
   scoped_ptr<Worker> worker_;
+  bool stoped_;
 };
 }  // namespace xcomet
 #endif  // SRC_SESSION_PROXY_H_
