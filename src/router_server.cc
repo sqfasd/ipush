@@ -211,6 +211,8 @@ void RouterServer::UpdateUserAck(const UserID& uid, int seq) {
     return;
   }
   uit->second.SetLastAck(seq);
+  storage_->UpdateAck(uid, uit->second.GetLastAck(),
+      boost::bind(&RouterServer::OnUpdateAckDone, this, _1));
 }
 
 void RouterServer::OnSessionMsg(SessionProxy* sp,
@@ -297,10 +299,10 @@ void RouterServer::LogoutUser(const UserID& uid) {
     LOG(ERROR) << "uid " << uid << " not found.";
     return;
   }
-  storage_->UpdateAck(uid, iter->second.GetLastAck(),
-      boost::bind(&RouterServer::OnUpdateAckDone, this, _1));
   RemoveUserFromChannel(iter->second);
   iter->second.SetOnline(false);
+  storage_->UpdateAck(uid, iter->second.GetLastAck(),
+      boost::bind(&RouterServer::OnUpdateAckDone, this, _1));
 }
 
 Sid RouterServer::FindSidByUid(const UserID& uid) const {
