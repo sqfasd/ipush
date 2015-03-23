@@ -211,8 +211,8 @@ void RouterServer::UpdateUserAck(const UserID& uid, int seq) {
     return;
   }
   uit->second.SetLastAck(seq);
-  storage_->UpdateAck(uid, uit->second.GetLastAck(),
-      boost::bind(&RouterServer::OnUpdateAckDone, this, _1));
+  //storage_->UpdateAck(uid, uit->second.GetLastAck(),
+  //    boost::bind(&RouterServer::OnUpdateAckDone, this, _1));
 }
 
 void RouterServer::OnSessionMsg(SessionProxy* sp,
