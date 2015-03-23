@@ -50,24 +50,17 @@ void SessionServer::Connect(struct evhttp_request* req) {
   string token = query.GetStr("token", "");
   // TODO check request parameters
 
-  UserPtr user;
+  UserPtr user(new User(uid, type, req, *this));
   UserMap::iterator iter = users_.find(uid);
-  if (iter != users_.end()) {
-    user = iter->second;
-    user->SetType(type);
-    // TODO(qingfeng) kick off the old connection if reconnected
-    LOG(INFO) << "user has already connected: " << uid;
-    evhttp_send_reply(req, 406, "The user has already connected", NULL);
-    return;
-  } else {
-    user.reset(new User(uid, type, req, *this));
-    users_[uid] = user;
+  if (iter == users_.end()) {
     router_.LoginUser(uid);
   }
+  users_[uid] = user;
   timeout_queue_.PushUserBack(user.get());
 }
 
 // /pub?to=123&content=hello&seq=1&from=unknow
+// @DEPRECATED
 void SessionServer::Pub(struct evhttp_request* req) {
   // TODO process post
   // CHECK_HTTP_GET();
@@ -143,7 +136,7 @@ void SessionServer::RSub(struct evhttp_request* req) {
 
 void SessionServer::OnTimer() {
   VLOG(5) << "OnTimer";
-  stats_.OnTimer();
+  stats_.OnTimer(users_.size());
   DLinkedList<User*> timeout_users = timeout_queue_.GetFront();
   DLinkedList<User*>::Iterator it = timeout_users.GetIterator();
   if (FLAGS_is_server_heartbeat) {
@@ -208,7 +201,6 @@ void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
 
 void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
   VLOG(5) << "OnRouterMessage: " << *message;
-  stats_.OnPubMessage(message);
   try {
     Json::Reader reader;
     Json::Value json;
@@ -222,6 +214,7 @@ void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
     if (uit == users_.end()) {
       LOG(WARNING) << "user not found: " << uid;
     } else {
+      stats_.OnPubMessage(message);
       uit->second->SendPacket(*message);
     }
   } catch (std::exception& e) {
@@ -256,8 +249,7 @@ void SessionServer::Stats(struct evhttp_request* req) {
   // TODO(qingfeng) check pretty json format parameter
   Json::Value response;
   Json::Value& result = response["result"];
-  result["user_count"] = (Json::UInt)users_.size();
-  stats_.GetReport(response);
+  stats_.GetReport(result);
   ReplyOK(req, response.toStyledString());
 }
 
