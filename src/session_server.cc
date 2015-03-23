@@ -184,7 +184,7 @@ bool SessionServer::IsHeartbeatMessage(StringPtr message) {
 }
 
 void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
-  stats_.OnUserMessage(message);
+  stats_.OnReceive(*message);
   // TODO(qingfeng) if target in current session, send it before redirect
   LOG(INFO) << from_uid << ": " << *message;
   if (!IsHeartbeatMessage(message)) {
@@ -214,7 +214,7 @@ void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
     if (uit == users_.end()) {
       LOG(WARNING) << "user not found: " << uid;
     } else {
-      stats_.OnPubMessage(message);
+      stats_.OnSend(*message);
       uit->second->SendPacket(*message);
     }
   } catch (std::exception& e) {
