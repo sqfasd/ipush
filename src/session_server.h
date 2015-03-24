@@ -11,6 +11,7 @@
 #include "src/http_query.h"
 #include "src/stats_manager.h"
 #include "src/typedef.h"
+#include "src/evhelper.h"
 
 namespace xcomet {
 
@@ -37,7 +38,6 @@ class SessionServer {
  private:
   SessionServer();
   ~SessionServer();
-  void ReplyOK(struct evhttp_request* req, const string& resp = "");
   void RemoveUserFromChannel(User* user);
   bool IsHeartbeatMessage(StringPtr message);
   void LoginAllUserToRouter();

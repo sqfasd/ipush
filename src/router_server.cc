@@ -1,6 +1,5 @@
 #include "src/router_server.h"
 
-#include <event2/listener.h>
 #include "deps/jsoncpp/include/json/json.h"
 #include "deps/base/flags.h"
 #include "deps/base/logging.h"
@@ -362,8 +361,9 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
   const char * to = query.GetStr("to", NULL);
   const char * from = query.GetStr("from", NULL);
   if (to == NULL || from == NULL) {
-    LOG(ERROR) << "invalid parameters";
-    ReplyError(req);
+    string error = "target or source id is invalid";
+    LOG(ERROR) << error;
+    ReplyError(req, HTTP_BADREQUEST, error);
     return;
   }
 
@@ -372,8 +372,9 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
   VLOG(5) << "data length:" << len;
   const char * bufferstr = (const char*)evbuffer_pullup(input_buffer, len);
   if(bufferstr == NULL) {
-    LOG(ERROR) << "evbuffer_pullup return null";
-    ReplyError(req);
+    string error = "body cannot be empty";
+    LOG(ERROR) << error;
+    ReplyError(req, HTTP_BADREQUEST, error);
     return;
   }
   MessagePtr msg(new Json::Value());
@@ -396,7 +397,7 @@ void RouterServer::OnAdminCheckPresence(struct evhttp_request* req, void *ctx) {
   VLOG(5) << "RouterServer::OnAdminCheckPresence";
   string response;
   string_format(response,  "{\"presence\": %d}", self->users_.size());
-  SendReply(req, response.c_str(), response.size());
+  ReplyOK(req, response);
 }
 
 void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
@@ -405,8 +406,9 @@ void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
   HttpQuery query(req);
   const char * uid = query.GetStr("uid", NULL);
   if (uid == NULL) {
-    LOG(ERROR) << "uid not found";
-    ReplyError(req);
+    string error = "target id is invalid";
+    LOG(ERROR) << error;
+    ReplyError(req, HTTP_BADREQUEST, error);
     return;
   }
   self->storage_->GetMessage(uid, 0, -1,
@@ -442,12 +444,6 @@ void RouterServer::OnAdminUnsub(struct evhttp_request* req, void *ctx) {
   }
 }
 
-void RouterServer::SendReply(struct evhttp_request* req, const char* content, size_t len) {
-  struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  evbuffer_add(output_buffer, content, len);
-  evhttp_send_reply(req, HTTP_OK, "OK", output_buffer);
-}
-
 void RouterServer::OnGetMsgToSend(UserID uid, MessageResult mr) {
   VLOG(5) << "OnGetMsgToSend mr->size = " << mr->size();
   Sid sid = FindSidByUid(uid);
@@ -478,29 +474,7 @@ void RouterServer::OnGetMsgToReply(UserID uid,
   }
   Json::FastWriter writer;
   string resp = writer.write(json);
-  SendReply(req, resp.c_str(), resp.size());
-}
-
-void RouterServer::ReplyError(struct evhttp_request* req) {
-  VLOG(5) << "ReplyError";
-  evhttp_add_header(req->output_headers, "Content-Type", "text/json; charset=utf-8");
-  struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  const char * response = "{\"error\":\"TODO\"}\n";
-  evbuffer_add(output_buffer, response, strlen(response));
-  evhttp_send_reply(req, HTTP_BADREQUEST, "Error", output_buffer);
-}
-
-void RouterServer::ReplyOK(struct evhttp_request* req, const string& resp) {
-  evhttp_add_header(req->output_headers,
-                    "Content-Type",
-                    "text/json; charset=utf-8");
-  struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  if (resp.empty()) {
-    evbuffer_add_printf(output_buffer, "{\"result\":\"ok\"}\n");
-  } else {
-    evbuffer_add(output_buffer, resp.c_str(), resp.size());
-  }
-  evhttp_send_reply(req, 200, "OK", output_buffer);
+  ReplyOK(req, resp);
 }
 
 void RouterServer::OnTimer(evutil_socket_t sig, short events, void *ctx) {

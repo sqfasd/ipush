@@ -1,13 +1,9 @@
 #include "src/session_server.h"
 
-#include <evhttp.h>
-#include <event2/event.h>
-#include <event2/listener.h>
 #include "deps/jsoncpp/include/json/json.h"
 #include "deps/base/logging.h"
 #include "deps/base/flags.h"
 #include "base/shared_ptr.h"
-#include "utils.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9100, "");
@@ -18,7 +14,7 @@ DEFINE_bool(is_server_heartbeat, false, "");
 #define CHECK_HTTP_GET()\
   do {\
     if(evhttp_request_get_command(req) != EVHTTP_REQ_GET) {\
-      evhttp_send_reply(req, 405, "Method Not Allowed", NULL);\
+      ReplyError(req, HTTP_BADMETHOD);\
       return;\
     }\
   } while(0)
@@ -42,7 +38,9 @@ void SessionServer::Connect(struct evhttp_request* req) {
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   if (uid.empty()) {
-    evhttp_send_reply(req, 410, "Invalid parameters", NULL);
+    string error = "invalid uid";
+    LOG(ERROR) << error;
+    ReplyError(req, HTTP_BADREQUEST, error);
     return;
   }
 
@@ -88,13 +86,15 @@ void SessionServer::Pub(struct evhttp_request* req) {
         user->Send(from, "pub", *(post_buffer.get()));
       }
     } else {
-      LOG(ERROR) << "pub uid not found: " << to;
-      evhttp_send_reply(req, 404, "Not Found", NULL);
+      string error = "target not found: " + to;
+      LOG(ERROR) << error;
+      ReplyError(req, HTTP_INTERNAL, error);
       return;
     }
   } else {
-    LOG(WARNING) << "invalid parameter";
-    evhttp_send_reply(req, 410, "Invalid parameters", NULL);
+    string error = "target user id is empty";
+    LOG(ERROR) << error;
+    ReplyError(req, HTTP_BADREQUEST, error);
     return;
   }
   ReplyOK(req);
@@ -106,21 +106,27 @@ void SessionServer::Disconnect(struct evhttp_request* req) {
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   if (uid.empty()) {
-    evhttp_send_reply(req, 410, "Invalid parameters", NULL);
+    string error = "uid is empty";
+    LOG(ERROR) << error;
+    ReplyError(req, HTTP_BADREQUEST, error);
+
     return;
   }
 
   UserMap::iterator uit = users_.find(uid);
   if (uit == users_.end()) {
-    LOG(WARNING) << "user not found: " << uid;
+    string error = "user not found: " + uid;
+    LOG(ERROR) << error;
+    ReplyError(req, HTTP_INTERNAL, error);
   } else {
     uit->second->Close();
+    ReplyOK(req);
   }
-  ReplyOK(req);
 }
 
 // /broadcast?content=hello
 void SessionServer::Broadcast(struct evhttp_request* req) {
+  // TODO(qingfeng) is broadcast needed?
 }
 
 // /rsub?seq=1
@@ -230,19 +236,6 @@ void SessionServer::RemoveUser(User* user) {
   timeout_queue_.RemoveUser(user);
   router_.LogoutUser(uid);
   users_.erase(uid);
-}
-
-void SessionServer::ReplyOK(struct evhttp_request* req, const string& resp) {
-  evhttp_add_header(req->output_headers,
-                    "Content-Type",
-                    "text/json; charset=utf-8");
-  struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  if (resp.empty()) {
-    evbuffer_add_printf(output_buffer, "{\"result\":\"ok\"}\n");
-  } else {
-    evbuffer_add(output_buffer, resp.c_str(), resp.size());
-  }
-  evhttp_send_reply(req, 200, "OK", output_buffer);
 }
 
 void SessionServer::Stats(struct evhttp_request* req) {

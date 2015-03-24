@@ -1,24 +1,10 @@
 #ifndef ROUTER_SERVER_H
 #define ROUTER_SERVER_H
 
-#include <event2/event.h>
-#include <event2/buffer.h>
-#include <event2/bufferevent.h>
-#include <event2/http.h>
-
-#include <assert.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-
-#include <map>
-#include <iostream>
-
 #include "deps/base/shared_ptr.h"
 #include "deps/base/scoped_ptr.h"
 #include "deps/base/callback.h"
+#include "src/include_std.h"
 #include "src/remote_storage.h"
 #include "src/session_proxy.h"
 #include "src/utils.h"
@@ -26,6 +12,7 @@
 #include "src/channel_info.h"
 #include "src/typedef.h"
 #include "src/stats_manager.h"
+#include "src/evhelper.h"
 
 using namespace std;
 
@@ -84,13 +71,6 @@ class RouterServer {
   static void OnAcceptError(struct evconnlistener * listener , void *ctx);
   static void OnTimer(evutil_socket_t sig, short events, void *ctx);
   static void OnSignal(evutil_socket_t sig, short events, void *ctx);
-
-  static void SendReply(struct evhttp_request* req, 
-                        const char* content,
-                        size_t len);
-
-  static void ReplyError(struct evhttp_request* req);
-  static void ReplyOK(struct evhttp_request* req, const string& resp = "");
 
   UserInfoMap users_;
   ChannelInfoMap channels_;
