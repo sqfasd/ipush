@@ -11,11 +11,12 @@ sudo yum install boost-devel
 
 ## 编译
 
+** 默认编译类型为release **
+
 ```
-mkdir build
-cd build
-cmake ..
-make
+./build.sh
+BUILD_TYPE=release ./build.sh
+BUILD_TYPE=debug ./build.sh
 ```
 
 ### 运行

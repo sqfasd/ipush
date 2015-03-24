@@ -328,6 +328,10 @@ void SetupAdminHandler(struct evhttp* http, struct event_base* evbase) {
 int main(int argc, char* argv[]) {
   base::AtExitManager at_exit;
   base::ParseCommandLineFlags(&argc, &argv, false);
+  if (FLAGS_flagfile.empty()) {
+    LOG(WARNING) << "not using --flagfile option !";
+  }
+  LOG(INFO) << "command line options\n" << base::CommandlineFlagsIntoString();
 
   struct event_base* evbase = NULL;
   evbase = event_base_new();

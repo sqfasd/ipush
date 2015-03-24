@@ -5,16 +5,12 @@
 #include "deps/base/logging.h"
 #include "deps/base/time.h"
 #include "deps/base/string_util.h"
+#include "deps/base/at_exit.h"
 #include "deps/limonp/StringUtil.hpp"
 #include "src/http_query.h"
 
-DEFINE_string(admin_listen_ip, "0.0.0.0", "");
 DEFINE_int32(admin_listen_port, 8100, "");
-
 DEFINE_string(session_server_addrs, "127.0.0.1:9100", "");
-DEFINE_string(ssdb_path, "/tmp/ssdb_tmp", "");
-DEFINE_bool(libevent_debug_log, false, "for debug logging");
-DEFINE_int64(message_batch_size, 100, "get message limit 100");
 
 #define IS_LOGIN(type) (type == "login")
 #define IS_LOGOUT(type) (type == "logout")
@@ -77,7 +73,7 @@ void RouterServer::ConnectSessionServers() {
 }
 
 void RouterServer::InitStorage() {
-  LOG(INFO) << "InitStorage path:" << FLAGS_ssdb_path;
+  LOG(INFO) << "InitStorage";
   RemoteStorageOption option;
   storage_.reset(new RemoteStorage(evbase_));
 }
@@ -92,10 +88,14 @@ void RouterServer::InitAdminHttp() {
   evhttp_set_cb(admin_http_, "/unsub", OnAdminUnsub, this);
   evhttp_set_cb(admin_http_, "/stats", OnAdminStats, this);
 
+  const char* const BIND_IP = "0.0.0.0";
   struct evhttp_bound_socket* sock;
-  sock = evhttp_bind_socket_with_handle(admin_http_, FLAGS_admin_listen_ip.c_str(), FLAGS_admin_listen_port);
+  sock = evhttp_bind_socket_with_handle(admin_http_,
+                                        BIND_IP,
+                                        FLAGS_admin_listen_port);
   CHECK(sock) << "bind address failed: " << strerror(errno);
-  LOG(INFO) << "admin server listen on: " << FLAGS_admin_listen_ip << ":" << FLAGS_admin_listen_port;
+  LOG(INFO) << "admin server listen on: "
+            << BIND_IP << ":" << FLAGS_admin_listen_port;
   struct evconnlistener * listener = evhttp_bound_socket_get_listener(sock);
   evconnlistener_set_error_cb(listener, OnAcceptError);
 }
@@ -511,10 +511,13 @@ void RouterServer::OnAdminStats(struct evhttp_request* req, void *ctx) {
 } // namespace xcomet
 
 int main(int argc, char ** argv) {
+  base::AtExitManager at_exit;
   base::ParseCommandLineFlags(&argc, &argv, false);
-  if(FLAGS_libevent_debug_log) {
-    //event_enable_debug_logging(EVENT_DBG_ALL);
+  if (FLAGS_flagfile.empty()) {
+    LOG(WARNING) << "not using --flagfile option !";
   }
+  LOG(INFO) << "command line options\n" << base::CommandlineFlagsIntoString();
+
   struct event_base* evbase = event_base_new();
   {
     xcomet::RouterServer server(evbase);
