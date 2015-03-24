@@ -242,8 +242,8 @@ void RouterServer::UpdateUserAck(const UserID& uid, int seq) {
     return;
   }
   uit->second.SetLastAck(seq);
-  //storage_->UpdateAck(uid, uit->second.GetLastAck(),
-  //    boost::bind(&RouterServer::OnUpdateAckDone, this, _1));
+  storage_->UpdateAck(uid, uit->second.GetLastAck(),
+      boost::bind(&RouterServer::OnUpdateAckDone, this, _1));
 }
 
 void RouterServer::OnSessionMsg(SessionProxy* sp,
@@ -325,17 +325,21 @@ void RouterServer::OnUpdateAckDone(bool ok) {
   VLOG(5) << "OnUpdateAckDone: " << ok;
 }
 
+void RouterServer::OnDeleteMessageDone(bool ok) {
+  VLOG(5) << "OnDeleteMessageDone: " << ok;
+}
+
 void RouterServer::LogoutUser(const UserID& uid) {
   VLOG(5) << "RouterServer::LogoutUser" << uid;
   UserInfoMap::iterator iter = users_.find(uid);
   if(iter == users_.end()) {
-    LOG(ERROR) << "uid " << uid << " not found.";
+    LOG(ERROR) << "uid " << uid << " not found when logout";
     return;
   }
   RemoveUserFromChannel(iter->second);
   iter->second.SetOnline(false);
-  storage_->UpdateAck(uid, iter->second.GetLastAck(),
-      boost::bind(&RouterServer::OnUpdateAckDone, this, _1));
+  storage_->DeleteMessage(uid,
+      boost::bind(&RouterServer::OnDeleteMessageDone, this, _1));
 }
 
 Sid RouterServer::FindSidByUid(const UserID& uid) const {
@@ -412,7 +416,7 @@ void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
     ReplyError(req, HTTP_BADREQUEST, error);
     return;
   }
-  self->storage_->GetMessage(uid, 0, -1,
+  self->storage_->GetMessage(uid,
       boost::bind(&RouterServer::OnGetMsgToReply,
           self, UserID(uid), req, _1));
 }
@@ -469,13 +473,11 @@ void RouterServer::OnGetMsgToReply(UserID uid,
   VLOG(5) << "RouterServer::OnGetMsgToReply";
   Json::Value json(Json::arrayValue);
   if (mr.get() != NULL) {
-    for (int i = 0; i < mr->size(); ++i) {
+    for (int i = 1; i < mr->size(); i+=2) {
       json.append(mr->at(i));
     }
   }
-  Json::FastWriter writer;
-  string resp = writer.write(json);
-  ReplyOK(req, resp);
+  ReplyOK(req, json.toStyledString());
 }
 
 void RouterServer::OnTimer(evutil_socket_t sig, short events, void *ctx) {

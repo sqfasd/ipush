@@ -26,14 +26,15 @@ class RemoteStorage: public Storage {
 
   virtual MessageResult GetMessageSync(const string uid);
 
-  virtual MessageResult GetMessageSync(const string uid,
-                                       int64_t start,
-                                       int64_t end);
-
-  virtual bool UpdateAckSync(const string uid, int ack_seq);
+  virtual bool DeleteMessageSync(const string uid);
 
   virtual int GetMaxSeqSync(const string uid);
+
+  virtual bool UpdateAckSync(const string uid, int ack_seq);
  private:
+  bool UpdateKey(const string& uid, const string& key, const string& value);
+  bool GetSeqs(const string& uid, int& min_seq, int& last_ack);
+
   scoped_ptr<ssdb::Client> client_;
   RemoteStorageOption option_;
 };

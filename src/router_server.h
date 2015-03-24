@@ -44,6 +44,7 @@ class RouterServer {
   void LogoutUser(const UserID& uid) ;
 
   // TODO(qingfeng) use lambda or other method instead of callback
+  void OnDeleteMessageDone(bool ok);
   void OnGetMaxSeqDoneToLogin(const UserID uid, Sid sid, int seq);
   void OnUpdateAckDone(bool ok);
   void OnSaveMessageDone(bool ok);
