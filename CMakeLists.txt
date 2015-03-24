@@ -1,8 +1,26 @@
-PROJECT(xcomet)
+cmake_minimum_required(VERSION 2.6)
 
-CMAKE_MINIMUM_REQUIRED (VERSION 2.6)
+project(xcomet)
 
-INCLUDE_DIRECTORIES(
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Debug")
+endif()
+
+set(CXX_FLAGS
+  -g
+  -DHAVE_NETINET_IN_H    
+  -D__STDC_FORMAT_MACROS
+  -Wall
+  -Wextra
+  -Werror
+  -Wconversion
+)
+
+set(CMAKE_CXX_COMPILER "g++")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -finline-limit=1000 -DNDEBUG")
+
+include_directories(
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/deps
   ${PROJECT_SOURCE_DIR}/deps/jsoncpp/include
@@ -15,7 +33,7 @@ INCLUDE_DIRECTORIES(
   /usr/local/include
 )
 
-LINK_DIRECTORIES(
+link_directories(
   ${PROJECT_SOURCE_DIR}/deps/ssdb/src/ssdb
   ${PROJECT_SOURCE_DIR}/deps/ssdb/src/net
   ${PROJECT_SOURCE_DIR}/deps/ssdb/src/util
@@ -28,15 +46,10 @@ LINK_DIRECTORIES(
   /usr/lib64/mysql
 )
 
-ADD_DEFINITIONS(-DHAVE_NETINET_IN_H -D__STDC_FORMAT_MACROS)
-#ADD_DEFINITIONS(-O3 -std=c++11 -Wall -g)
-ADD_DEFINITIONS(-O3 -Wall -g)
-#ADD_DEFINITIONS(-Wall -g)
+add_subdirectory(deps)
+add_subdirectory(src)
+add_subdirectory(test)
+add_subdirectory(tools)
 
-ADD_SUBDIRECTORY(deps)
-ADD_SUBDIRECTORY(src)
-ADD_SUBDIRECTORY(test)
-ADD_SUBDIRECTORY(tools)
-
-ENABLE_TESTING()
-ADD_TEST(NAME unittest.run COMMAND unittest.run)
+enable_testing()
+add_test(NAME unittest.run COMMAND unittest.run)
