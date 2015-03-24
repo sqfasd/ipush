@@ -8,7 +8,7 @@
 namespace xcomet {
 
 RouterProxy::RouterProxy(SessionServer& serv)
-    : counter_(0), server_(serv) {
+    : server_(serv) {
 }
 
 RouterProxy::~RouterProxy() {

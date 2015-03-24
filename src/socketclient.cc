@@ -17,7 +17,8 @@
 
 using std::string;
 
-const int DEFAULT_KEEPALIVE_INTERVAL_SEC = 28 * 60L;
+//const int DEFAULT_KEEPALIVE_INTERVAL_SEC = 28 * 60L;
+const int DEFAULT_KEEPALIVE_INTERVAL_SEC = 10L;
 
 #define CERROR(msg) string(msg) + ": " + ::strerror(errno)
 

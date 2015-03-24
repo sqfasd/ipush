@@ -7,7 +7,7 @@
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9100, "");
-DEFINE_int32(poll_timeout_sec, 30, "");
+DEFINE_int32(poll_timeout_sec, 300, "");
 DEFINE_int32(timer_interval_sec, 1, "");
 DEFINE_bool(is_server_heartbeat, false, "");
 
@@ -22,10 +22,10 @@ DEFINE_bool(is_server_heartbeat, false, "");
 namespace xcomet {
 
 SessionServer::SessionServer()
-    : router_(*this),
-      timeout_queue_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
+    : timeout_counter_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
+      router_(*this),
+      timeout_queue_(timeout_counter_),
       stats_(FLAGS_timer_interval_sec) {
-  register_all_ = false;
 }
 
 SessionServer::~SessionServer() {
@@ -158,13 +158,9 @@ void SessionServer::OnTimer() {
       user->Close();
     }
   }
+
   timeout_queue_.IncHead();
 
-  if (router_.IncCounter() ==
-      FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec) {
-    router_.SendHeartbeat();
-    router_.SetCounter(0);
-  }
   boost::function<void ()> task;
   while (task_queue_.TryPop(task)) {
     task();
@@ -183,17 +179,16 @@ void SessionServer::RunInNextTick(boost::function<void ()> fn) {
   task_queue_.Push(fn);
 }
 
-bool SessionServer::IsHeartbeatMessage(StringPtr message) {
-  return message.get() &&
-         message->size() == 16 &&
-         message->find("noop") != string::npos;
+bool SessionServer::IsHeartbeatMessage(const string& message) {
+  return message.size() == 16 &&
+         message.find("noop") != string::npos;
 }
 
 void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
   stats_.OnReceive(*message);
   // TODO(qingfeng) if target in current session, send it before redirect
   LOG(INFO) << from_uid << ": " << *message;
-  if (!IsHeartbeatMessage(message)) {
+  if (!IsHeartbeatMessage(*message)) {
     router_.Redirect(message);
   }
 
@@ -207,6 +202,10 @@ void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
 
 void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
   VLOG(5) << "OnRouterMessage: " << *message;
+  if (IsHeartbeatMessage(*message)) {
+    VLOG(5) << "is router heartbeat, ignore";
+    return;
+  }
   try {
     Json::Reader reader;
     Json::Value json;

@@ -39,14 +39,14 @@ class SessionServer {
   SessionServer();
   ~SessionServer();
   void RemoveUserFromChannel(User* user);
-  bool IsHeartbeatMessage(StringPtr message);
+  bool IsHeartbeatMessage(const string& message);
   void LoginAllUserToRouter();
 
+  const int timeout_counter_;
   UserMap users_;
   RouterProxy router_;
   UserCircleQueue timeout_queue_;
   StatsManager stats_;
-  bool register_all_;
   base::ConcurrentQueue<boost::function<void ()> > task_queue_;
 
   DISALLOW_COPY_AND_ASSIGN(SessionServer);

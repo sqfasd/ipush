@@ -23,13 +23,10 @@ class RouterProxy {
   void LoginUser(const string& uid);
   void LogoutUser(const string& uid);
 
-  void SetCounter(int n) {counter_ = n;}
-  int IncCounter() {return ++counter_;}
  private:
   void OnSessionDisconnected();
 
   scoped_ptr<Session> session_;
-  int counter_;
   SessionServer& server_;
 };
 }  // namespace xcomet
