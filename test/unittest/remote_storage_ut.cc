@@ -150,59 +150,43 @@ class RemoteStorageUnittest : public testing::Test {
 };
 
 TEST_F(RemoteStorageUnittest, SimpleTest) {
-  storage_->GetMaxSeq("u:1",
-      boost::bind(&CheckSeq, 0, _1));
-  storage_->GetMessage("u:1",
-      boost::bind(&CheckResult1, _1));
+  storage_->GetMaxSeq("u:1", boost::bind(&CheckSeq, 0, _1));
+  storage_->GetMessage("u:1", boost::bind(&CheckResult1, _1));
 
   MessagePtr msg1(new Json::Value());
   (*msg1)["from"] = "u:1";
   (*msg1)["type"] = "msg";
   (*msg1)["body"] = "msg_body_1";
-  storage_->SaveMessage(msg1, 0,
-      boost::bind(&CheckOK, _1));
-  storage_->GetMessage("u:1",
-      boost::bind(&CheckResult2, _1));
-  storage_->GetMaxSeq("u:1",
-      boost::bind(&CheckSeq, 1, _1));
+  storage_->SaveMessage(msg1, 0, boost::bind(&CheckOK, _1));
+  storage_->GetMessage("u:1", boost::bind(&CheckResult2, _1));
+  storage_->GetMaxSeq("u:1", boost::bind(&CheckSeq, 1, _1));
 
   MessagePtr msg2(new Json::Value());
   (*msg2)["from"] = "u:1";
   (*msg2)["type"] = "msg";
   (*msg2)["body"] = "msg_body_2";
-  storage_->SaveMessage(msg2, 0,
-      boost::bind(&CheckOK, _1));
+  storage_->SaveMessage(msg2, 0, boost::bind(&CheckOK, _1));
   MessagePtr msg3(new Json::Value());
   (*msg3)["from"] = "u:1";
   (*msg3)["type"] = "msg";
   (*msg3)["body"] = "msg_body_3";
-  storage_->SaveMessage(msg3, 0,
-      boost::bind(&CheckOK, _1));
-  storage_->GetMessage("u:1",
-      boost::bind(&CheckResult3, _1));
-  storage_->GetMaxSeq("u:1",
-      boost::bind(&CheckSeq, 3, _1));
+  storage_->SaveMessage(msg3, 0, boost::bind(&CheckOK, _1));
+  storage_->GetMessage("u:1", boost::bind(&CheckResult3, _1));
+  storage_->GetMaxSeq("u:1", boost::bind(&CheckSeq, 3, _1));
 
-  storage_->UpdateAck("u:1", 1,
-      boost::bind(&CheckOK, _1));
-  storage_->GetMessage("u:1",
-      boost::bind(&CheckResult4, _1));
+  storage_->UpdateAck("u:1", 1, boost::bind(&CheckOK, _1));
+  storage_->GetMessage("u:1", boost::bind(&CheckResult4, _1));
 
-  storage_->UpdateAck("u:1", 3,
-      boost::bind(&CheckOK, _1));
-  storage_->GetMessage("u:1",
-      boost::bind(&CheckResult5, _1));
+  storage_->UpdateAck("u:1", 3, boost::bind(&CheckOK, _1));
+  storage_->GetMessage("u:1", boost::bind(&CheckResult5, _1));
 
   MessagePtr msg4(new Json::Value());
   (*msg4)["from"] = "u:1";
   (*msg4)["type"] = "msg";
   (*msg4)["body"] = "msg_body_4";
-  storage_->SaveMessage(msg4, 0,
-      boost::bind(&CheckOK, _1));
-  storage_->GetMessage("u:1",
-      boost::bind(&CheckResult6, _1));
-  storage_->GetMaxSeq("u:1",
-      boost::bind(&CheckSeq, 4, _1));
+  storage_->SaveMessage(msg4, 0, boost::bind(&CheckOK, _1));
+  storage_->GetMessage("u:1", boost::bind(&CheckResult6, _1));
+  storage_->GetMaxSeq("u:1", boost::bind(&CheckSeq, 4, _1));
 
   sleep(1);
 }
