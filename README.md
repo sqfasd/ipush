@@ -19,15 +19,37 @@ BUILD_TYPE=release ./build.sh
 BUILD_TYPE=debug ./build.sh
 ```
 
-### 运行
+## 安装
 
 ```
-start_ssdb_server
-start_session_server
-start_router_server
+./install.sh <install_path>
+BUILD_TYPE=release ./install.sh <install_path>
+BUILD_TYPE=debug ./install.sh <install_path>
 ```
 
-### 集群部署
+## 运行
+
+```
+// 启动ssdb
+./scripts/ssdb_server.sh
+
+// 停止ssdb
+./scripts/ssdb_server.sh stop
+
+// 启动session server
+./scripts/session_server.sh
+
+// 停止session server
+./scripts/session_server.sh stop
+
+// 启动router server
+./scripts/router_server.sh
+
+// 停止router server
+./scripts/router_server.sh stop
+```
+
+## 集群部署
 ```
 // TODO
 ```
