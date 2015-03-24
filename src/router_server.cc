@@ -6,6 +6,7 @@
 #include "deps/base/time.h"
 #include "deps/base/string_util.h"
 #include "deps/base/at_exit.h"
+#include "deps/base/daemonizer.h"
 #include "deps/limonp/StringUtil.hpp"
 #include "src/http_query.h"
 
@@ -513,6 +514,7 @@ void RouterServer::OnAdminStats(struct evhttp_request* req, void *ctx) {
 int main(int argc, char ** argv) {
   base::AtExitManager at_exit;
   base::ParseCommandLineFlags(&argc, &argv, false);
+  base::daemonize();
   if (FLAGS_flagfile.empty()) {
     LOG(WARNING) << "not using --flagfile option !";
   }

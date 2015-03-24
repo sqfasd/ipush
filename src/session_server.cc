@@ -3,7 +3,8 @@
 #include "deps/jsoncpp/include/json/json.h"
 #include "deps/base/logging.h"
 #include "deps/base/flags.h"
-#include "base/shared_ptr.h"
+#include "deps/base/shared_ptr.h"
+#include "deps/base/daemonizer.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9100, "");
@@ -328,6 +329,7 @@ void SetupAdminHandler(struct evhttp* http, struct event_base* evbase) {
 int main(int argc, char* argv[]) {
   base::AtExitManager at_exit;
   base::ParseCommandLineFlags(&argc, &argv, false);
+  base::daemonize();
   if (FLAGS_flagfile.empty()) {
     LOG(WARNING) << "not using --flagfile option !";
   }
