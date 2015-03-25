@@ -69,11 +69,23 @@ curl http://session_server_host:9000/connect?uid=user001&password=pwd001
 
 客户端发送消息的格式
 ```
+// 订阅
 {“type”: "sub", "from": "user001", "channel": "channel001"}
+
+// 取消订阅
 {“type”: "unsub", "from": "user001", "channel": "channel001"}
+
+// 发送到单人
 {“type”: "msg", "from": "user001", "to": "user001", "body": "this is a message body"}
+
+// 发布到频道
 {“type”: "cmsg", "from": "user001", "channel": "channel1", "body": "this is a message body"}
+
+// 确认
 {“type”: "ack", "from": "user001", "seq": 1}
+
+// 心跳
+{"type":"noop"}
 ```
 
 ### 管理员或后端服务
