@@ -330,7 +330,7 @@ void RouterServer::OnDeleteMessageDone(bool ok) {
 }
 
 void RouterServer::LogoutUser(const UserID& uid) {
-  VLOG(5) << "RouterServer::LogoutUser" << uid;
+  VLOG(5) << "RouterServer::LogoutUser: " << uid;
   UserInfoMap::iterator iter = users_.find(uid);
   if(iter == users_.end()) {
     LOG(ERROR) << "uid " << uid << " not found when logout";
