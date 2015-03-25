@@ -110,6 +110,8 @@ bool RemoteStorage::GetSeqs(const string& uid, int& min_seq, int& last_ack) {
       min_seq = StringToInt(results[1]);
       last_ack = StringToInt(results[3]);
     } else if (results.size() == 2 && results[0] == "last_ack") {
+      // TODO(qingfeng) a little tricky, init it if not set
+      // if min_seq not set, results will only contains last_ack
       last_ack = StringToInt(results[1]);
     } else {
       LOG(ERROR) << "GetSeqs invalid result size: " << results.size();
