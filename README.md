@@ -72,6 +72,7 @@ curl http://session_server_host:9000/connect?uid=user001&password=pwd001
 {“type”: "sub", "from": "user001", "channel": "channel001"}
 {“type”: "unsub", "from": "user001", "channel": "channel001"}
 {“type”: "msg", "from": "user001", "to": "user001", "body": "this is a message body"}
+{“type”: "cmsg", "from": "user001", "channel": "channel1", "body": "this is a message body"}
 {“type”: "ack", "from": "user001", "seq": 1}
 ```
 
@@ -80,7 +81,14 @@ curl http://session_server_host:9000/connect?uid=user001&password=pwd001
 管理员向 router_server 请求向id为user001的用户push数据，该请求类型是 HTTP POST，推送的内容为POST body
 
 ```
+// 单个用户推送
 $ curl -d "@payload" "http://router_server_host:8100/pub?to=user001&from=op"
+{
+      "result": "ok"
+}
+
+// 频道信息发布
+$ curl -d "@payload" "http://router_server_host:8100/pub?channel=channel1&from=op"
 {
       "result": "ok"
 }
