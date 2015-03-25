@@ -16,9 +16,6 @@ class UserInfo {
   }
   ~UserInfo() {}
   string GetId() const {return uid_;}
-  const set<string>& GetChannelIds() const {return channel_ids_;}
-  void SubChannel(const string& cid) {channel_ids_.insert(cid);}
-  void UnsubChannel(const string& cid) {channel_ids_.erase(cid);}
   int GetSid() const {return sid_;}
   void SetSid(int sid) {sid_ = sid;}
   int GetMaxSeq() const {return max_seq_;}
@@ -32,7 +29,6 @@ class UserInfo {
  private:
   string uid_;
   int sid_;  // session server id
-  set<string> channel_ids_;
   int max_seq_;
   int last_ack_;
   bool online_;

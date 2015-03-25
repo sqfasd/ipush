@@ -16,11 +16,6 @@ void ParseIpPort(const string& address, string& ip, int& port) {
   port = StringToInt(address.substr(pos+1, address.length()));
 }
 
-bool IsUserId(const string& id) {
-  // TODO(qingfeng) recognize id type
-  return id.find("c:") != 0;
-}
-
 void SetNonblock(int fd) {
   int flags;
   flags = ::fcntl(fd, F_GETFL);

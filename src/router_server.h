@@ -52,12 +52,16 @@ class RouterServer {
   void OnGetMsgToReply(UserID uid,
                        struct evhttp_request* req,
                        MessageResult mr);
+  void OnGetChannelUsersToSend(const ChannelID channel_id,
+                               MessagePtr msg,
+                               UsersPtr users);
+  void OnAddUserToChannelDone(bool ok);
+  void OnRemoveUserFromChannelDone(bool ok);
   void OnDestroy();
 
   void SendAllMessages(const UserID& uid);
   void SendUserMsg(MessagePtr msg);
   void SendChannelMsg(MessagePtr msg);
-  void RemoveUserFromChannel(const UserInfo& user_info);
   void Subscribe(const UserID& uid, const ChannelID& cid);
   void Unsubscribe(const UserID& uid, const ChannelID& cid);
   void UpdateUserAck(const UserID& uid, int seq);
