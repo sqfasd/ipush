@@ -106,13 +106,9 @@ bool RemoteStorage::GetSeqs(const string& uid, int& min_seq, int& last_ack) {
   results.reserve(keys.size() * 2);
   ssdb::Status s = client_->multi_hget(uid, keys, &results);
   if (s.ok()) {
-    if (results.size() >= 4) {
+    if (results.size() == 4) {
       min_seq = StringToInt(results[1]);
       last_ack = StringToInt(results[3]);
-    } else if (results.size() == 2 && results[0] == "last_ack") {
-      // TODO(qingfeng) a little tricky, init it if not set
-      // if min_seq not set, results will only contains last_ack
-      last_ack = StringToInt(results[1]);
     } else {
       LOG(ERROR) << "GetSeqs invalid result size: " << results.size();
       return false;
@@ -155,8 +151,6 @@ bool RemoteStorage::DeleteMessageSync(const string uid) {
     } else if (UpdateKey(uid, "min_seq", IntToString(last_ack))) {
       return true;
     }
-  } else {
-    LOG(ERROR) << "DeleteMessageSync invalid seqs";
   }
   return false;
 }
@@ -164,8 +158,19 @@ bool RemoteStorage::DeleteMessageSync(const string uid) {
 int RemoteStorage::GetMaxSeqSync(const string uid) {
   string result;
   ssdb::Status s = client_->hget(uid, "max_seq", &result);
-  if (!s.ok()) {
-    LOG(ERROR) << "GetMaxSeqSync get max_seq failed: " << s.code();
+  if (s.not_found()) {
+    // init user meta infos
+    map<string, string> kvs;
+    kvs["max_seq"] = "0";
+    kvs["min_seq"] = "0";
+    kvs["last_ack"] = "0";
+    s = client_->multi_hset(uid, kvs);
+    if (!s.ok()) {
+      LOG(ERROR) << "GetMaxSeqSync init meta infos failed: " << s.code();
+    }
+    result = "0";
+  } else if (!s.ok()) {
+    LOG(ERROR) << "GetMaxSeqSync failed: " << s.code();
     result = "0";
   }
   return StringToInt(result);
