@@ -456,7 +456,7 @@ void RouterServer::OnGetMsgToSend(UserID uid, MessageResult mr) {
     LOG(WARNING) << "uid " << uid << " is offline";
   } else {
     CHECK(size_t(sid) < session_proxys_.size());
-    if (mr.get() != NULL) {
+    if (mr.get() != NULL && session_proxys_[sid]->IsConnected()) {
       for (int i = 1; i < mr->size(); i+=2) {
         stats_.OnSend(mr->at(i));
         session_proxys_[sid]->SendData(mr->at(i));
