@@ -155,8 +155,13 @@ $ curl "http://router_server_host:8100/stats"
 管理员向 router_server 请求查询某用户的离线消息接口：
 
 ```
-$ curl "http://master.domain.com:9100/offmsg?uid=1"
-{uid: "2", content: ""}
+$ curl "http://router_server_host:8100/offmsg?uid=user78"
+[
+  "{\"body\":\"this is a channel message\",\"channel\":\"channel1\",\"from\":\"webservice\",\"seq\":1,\"to\":\"user78\",\"type\":\"cmsg\"}\n",
+  "{\"body\":\"this is a channel message\",\"channel\":\"channel1\",\"from\":\"webservice\",\"seq\":2,\"to\":\"user78\",\"type\":\"cmsg\"}\n",
+  "{\"body\":\"this is a channel message\",\"channel\":\"channel1\",\"from\":\"webservice\",\"seq\":3,\"to\":\"user78\",\"type\":\"cmsg\"}\n",
+  "{\"body\":\"this is a channel message\",\"channel\":\"channel1\",\"from\":\"webservice\",\"seq\":4,\"to\":\"user78\",\"type\":\"cmsg\"}\n"
+]
 ```
 
 ## 设计和实现
