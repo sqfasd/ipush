@@ -101,7 +101,7 @@ void Session::OnReceive() {
     if (left_len <= 0) {
       break;
     }
-    LOG(INFO) << "total buffer length: " << left_len;
+    VLOG(5) << "total buffer length: " << left_len;
     left_len -= next_msg_max_len_;
     if (left_len >= 0) {
       base::shared_ptr<string> message(new string());

@@ -35,7 +35,6 @@ SessionServer::~SessionServer() {
 // /connect?uid=123&token=ABCDE&type=1|2
 void SessionServer::Connect(struct evhttp_request* req) {
   CHECK_HTTP_GET();
-
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   if (uid.empty()) {
@@ -53,6 +52,10 @@ void SessionServer::Connect(struct evhttp_request* req) {
   UserMap::iterator iter = users_.find(uid);
   if (iter == users_.end()) {
     router_.LoginUser(uid);
+    LOG(INFO) << "login user: " << uid;
+  } else {
+    timeout_queue_.RemoveUser(iter->second.get());
+    LOG(INFO) << "relogin user: " << uid;
   }
   users_[uid] = user;
   timeout_queue_.PushUserBack(user.get());
@@ -76,7 +79,6 @@ void SessionServer::Pub(struct evhttp_request* req) {
   string from = query.GetStr("from", "unknow");
 
   if (!to.empty()) {
-    LOG(INFO) << "pub to user: " << content;
     UserMap::iterator iter = users_.find(to);
     if (iter != users_.end()) {
       UserPtr user = iter->second;
@@ -110,7 +112,6 @@ void SessionServer::Disconnect(struct evhttp_request* req) {
     string error = "uid is empty";
     LOG(ERROR) << error;
     ReplyError(req, HTTP_BADREQUEST, error);
-
     return;
   }
 
@@ -230,9 +231,9 @@ void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
   }
 }
 
-void SessionServer::RemoveUser(User* user) {
+void SessionServer::OnUserDisconnect(User* user) {
   const string& uid = user->GetId();
-  LOG(INFO) << "RemoveUser: " << uid;
+  LOG(INFO) << "OnUserDisconnect: " << uid;
   timeout_queue_.RemoveUser(user);
   router_.LogoutUser(uid);
   users_.erase(uid);
@@ -255,26 +256,32 @@ void SessionServer::OnStart() {
 using xcomet::SessionServer;
 
 static void ConnectHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "reqquest: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Connect(req);
 }
 
 static void DisconnectHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Disconnect(req);
 }
 
 static void PubHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Pub(req);
 }
 
 static void BroadcastHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Broadcast(req);
 }
 
 static void RSubHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().RSub(req);
 }
 
 static void StatsHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Stats(req);
 }
 

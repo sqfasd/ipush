@@ -22,7 +22,7 @@ class SessionServer {
   }
 
   void Connect(struct evhttp_request* req);
-  void Pub(struct evhttp_request* req);
+  void Pub(struct evhttp_request* req);  // @DEPRECATED
   void Disconnect(struct evhttp_request* req);
   void Broadcast(struct evhttp_request* req);
   void RSub(struct evhttp_request* req);
@@ -31,8 +31,7 @@ class SessionServer {
   void OnTimer();
   void OnUserMessage(const string& uid, base::shared_ptr<string> message);
   void OnRouterMessage(StringPtr message);
-
-  void RemoveUser(User* user);
+  void OnUserDisconnect(User* user);
   void RunInNextTick(boost::function<void ()> fn);
 
  private:
