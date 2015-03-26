@@ -301,7 +301,7 @@ void RouterServer::OnSessionProxyDisconnected(SessionProxy* sp) {
 }
 
 void RouterServer::OnGetMaxSeqDoneToLogin(const UserID uid, Sid sid, int seq) {
-  VLOG(5) << "OnGetMaxSeqDoneToLogin: " << uid << ", " << sid << ", " << seq;
+  LOG(INFO) << "OnGetMaxSeqDoneToLogin: " << uid << ", " << sid << ", " << seq;
   UserInfoMap::iterator uit = users_.find(uid);
   if (uit != users_.end()) {
     uit->second.SetOnline(true);
@@ -316,7 +316,7 @@ void RouterServer::OnGetMaxSeqDoneToLogin(const UserID uid, Sid sid, int seq) {
 }
 
 void RouterServer::LoginUser(const UserID& uid, Sid sid) {
-  VLOG(5) << "RouterServer::LoginUser: " << uid << ", " << sid;
+  LOG(INFO) << "LoginUser: " << uid << ", " << sid;
   storage_->GetMaxSeq(uid,
       boost::bind(&RouterServer::OnGetMaxSeqDoneToLogin, this, uid, sid, _1));
 }
@@ -330,7 +330,7 @@ void RouterServer::OnDeleteMessageDone(bool ok) {
 }
 
 void RouterServer::LogoutUser(const UserID& uid) {
-  VLOG(5) << "RouterServer::LogoutUser: " << uid;
+  LOG(INFO) << "LogoutUser: " << uid;
   UserInfoMap::iterator iter = users_.find(uid);
   if(iter == users_.end()) {
     LOG(ERROR) << "uid " << uid << " not found when logout";
@@ -358,6 +358,8 @@ void RouterServer::OnSaveMessageDone(bool ok) {
 }
 
 void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+
   RouterServer * self = static_cast<RouterServer*>(ctx);
   VLOG(5) << "RouterServer::OnAdminPub";
 
@@ -403,11 +405,12 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
 }
 
 void RouterServer::OnAdminBroadcast(struct evhttp_request* req, void *ctx) {
-  VLOG(5) << "RouterServer::OnAdminBroadcast";
-
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
 }
 
 void RouterServer::OnAdminCheckPresence(struct evhttp_request* req, void *ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+
   RouterServer * self = static_cast<RouterServer*>(ctx);
   VLOG(5) << "RouterServer::OnAdminCheckPresence";
   string response;
@@ -416,8 +419,9 @@ void RouterServer::OnAdminCheckPresence(struct evhttp_request* req, void *ctx) {
 }
 
 void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
-  RouterServer * self = static_cast<RouterServer*>(ctx);
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
 
+  RouterServer * self = static_cast<RouterServer*>(ctx);
   HttpQuery query(req);
   const char * uid = query.GetStr("uid", NULL);
   if (uid == NULL) {
@@ -432,8 +436,9 @@ void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
 }
 
 void RouterServer::OnAdminSub(struct evhttp_request* req, void *ctx) {
-  RouterServer * self = static_cast<RouterServer*>(ctx);
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
 
+  RouterServer * self = static_cast<RouterServer*>(ctx);
   HttpQuery query(req);
   UserID uid = query.GetStr("uid", "");
   ChannelID cid = query.GetStr("cid", "");
@@ -449,8 +454,9 @@ void RouterServer::OnAdminSub(struct evhttp_request* req, void *ctx) {
 }
 
 void RouterServer::OnAdminUnsub(struct evhttp_request* req, void *ctx) {
-  RouterServer * self = static_cast<RouterServer*>(ctx);
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
 
+  RouterServer * self = static_cast<RouterServer*>(ctx);
   HttpQuery query(req);
   UserID uid = query.GetStr("uid", "");
   ChannelID cid = query.GetStr("cid", "");
@@ -465,7 +471,8 @@ void RouterServer::OnAdminUnsub(struct evhttp_request* req, void *ctx) {
 }
 
 void RouterServer::OnGetMsgToSend(UserID uid, MessageResult mr) {
-  VLOG(5) << "OnGetMsgToSend mr->size = " << mr->size();
+  LOG(INFO) << "OnGetMsgToSend msg number = " << mr->size() / 2
+            << ", uid = " << uid;
   Sid sid = FindSidByUid(uid);
   if (sid == INVALID_SID) {
     LOG(WARNING) << "uid " << uid << " is offline";
@@ -523,6 +530,8 @@ void RouterServer::OnSignal(evutil_socket_t sig, short events, void *ctx) {
 }
 
 void RouterServer::OnAdminStats(struct evhttp_request* req, void *ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+
   RouterServer* self = static_cast<RouterServer*>(ctx);
   Json::Value response;
   Json::Value& result = response["result"];
