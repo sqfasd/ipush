@@ -67,7 +67,57 @@ BUILD_TYPE=debug ./install.sh <install_path>
 curl http://session_server_host:9000/connect?uid=user001&password=pwd001
 ```
 
-客户端发送消息的格式
+#### 连接协议
+
+第一步，完成正常的tcp三次握手
+第二步，发送一个类似下面这样的http头
+
+```
+GET /connect?uid=%s&password=%s HTTP/1.1\r\n
+User-Agent: mobile_socket_client/0.1.0\r\n
+Accept: */*\r\n
+\r\n
+```
+
+第三部，检查http返回结果,主要检查http response code， 200表示成功，其他表示失败
+
+连接成功
+
+```
+HTTP/1.1 200 OK\r\n
+Connection: keep-alive\r\n
+Content-Type: text/html; charset=utf-8\r\n
+Transfer-Encoding: chunked\r\n
+Date: Thu, 26 Mar 2015 07:08:43 GMT\r\n
+\r\n
+```
+
+连接失败
+
+```
+HTTP/1.1 400 Bad Request\r\n
+Content-Type: text/json; charset=utf-8\r\n
+Date: Thu, 26 Mar 2015 07:10:46 GMT\r\n
+Content-Length: 24\r\n
+\r\n
+{"error":"invalid uid"}
+```
+
+连接完成后就可以接着发送或者读取chunk消息了
+
+#### 全双工chunk消息协议
+
+chunk分两部分，第一部分是消息长度(16进制)加换行符，第二部分是消息内容
+
+例如,下面是一个心跳包(发送和接收的格式一样，都是长度+消息内容)
+
+```
+10\r\n
+{"type":"noop"}\r\n
+```
+
+客户端可以发送以下5种类型的消息到服务器
+
 ```
 // 订阅
 {“type”: "sub", "from": "user001", "channel": "channel001"}
@@ -76,7 +126,7 @@ curl http://session_server_host:9000/connect?uid=user001&password=pwd001
 {“type”: "unsub", "from": "user001", "channel": "channel001"}
 
 // 发送到单人
-{“type”: "msg", "from": "user001", "to": "user001", "body": "this is a message body"}
+{“type”: "msg", "from": "user001", "to": "user002", "body": "this is a message body"}
 
 // 发布到频道
 {“type”: "cmsg", "from": "user001", "channel": "channel1", "body": "this is a message body"}
@@ -86,6 +136,16 @@ curl http://session_server_host:9000/connect?uid=user001&password=pwd001
 
 // 心跳
 {"type":"noop"}
+```
+
+客户端接收到的消息
+
+```
+// 这是一个单人到单人的消息
+{“type”: "msg", "from": "user002", "to": "user001", "body": "this is a message body"， "seq": 123}
+
+// 这是一个频道消息
+{“type”: "cmsg", "from": "user002", "to": "user001", "channel": "channel1", body": "this is a message body"， "seq": 123}
 ```
 
 ### 管理员或后端服务
