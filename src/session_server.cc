@@ -46,7 +46,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
 
   int type = query.GetInt("type", 1);
   string token = query.GetStr("token", "");
-  // TODO check request parameters
+  // TODO (qingfeng) authenticate token
 
   UserPtr user(new User(uid, type, req, *this));
   UserMap::iterator iter = users_.find(uid);
@@ -64,8 +64,6 @@ void SessionServer::Connect(struct evhttp_request* req) {
 // /pub?to=123&content=hello&seq=1&from=unknow
 // @DEPRECATED
 void SessionServer::Pub(struct evhttp_request* req) {
-  // TODO process post
-  // CHECK_HTTP_GET();
   struct evbuffer* input_buffer = evhttp_request_get_input_buffer(req);
   int len = evbuffer_get_length(input_buffer);
   VLOG(3) << "Pub receive data length: " << len;
@@ -189,7 +187,7 @@ bool SessionServer::IsHeartbeatMessage(const string& message) {
 void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
   stats_.OnReceive(*message);
   // TODO(qingfeng) if target in current session, send it before redirect
-  LOG(INFO) << from_uid << ": " << *message;
+  VLOG(5) << from_uid << ": " << *message;
   if (!IsHeartbeatMessage(*message)) {
     router_.Redirect(message);
   }
