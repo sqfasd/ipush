@@ -17,7 +17,7 @@ class Message {
     MessagePtr msg(new Json::Value());
     Json::Reader reader;
     if (!reader.parse(*data, *msg)) {
-      LOG(ERROR) << "Unserialize failed";
+      LOG(ERROR) << "Unserialize failed: " << *data;
     }
     return msg;
   }

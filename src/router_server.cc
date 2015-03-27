@@ -256,7 +256,7 @@ void RouterServer::OnSessionMsg(SessionProxy* sp,
   stats_.OnReceive(*raw_data);
   try {
     Json::Value& value = *msg;
-    CHECK(value.isMember("type"));
+    CHECK(value.isMember("type")) << "invalid message: " << *raw_data;
     const string& type = value["type"].asString();
     if(IS_MESSAGE(type)) {
         SendUserMsg(msg);
