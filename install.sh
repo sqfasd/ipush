@@ -11,7 +11,7 @@ if [ $ARGC != 1 ]; then
 fi
 
 install_dir=$1
-mkdir -p $install_dir/{conf,dict,scripts,bin,logs} || exit 1
+mkdir -p $install_dir/{conf,scripts,bin,logs} || exit 1
 mkdir -p $install_dir/ssdb/var || exit 1
 
 cp build/release/bin/* $install_dir/bin/
