@@ -187,7 +187,7 @@ bool SessionServer::IsHeartbeatMessage(const string& message) {
 void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
   stats_.OnReceive(*message);
   // TODO(qingfeng) if target in current session, send it before redirect
-  VLOG(5) << from_uid << ": " << *message;
+  VLOG(2) << from_uid << ": " << *message;
   if (!IsHeartbeatMessage(*message)) {
     router_.Redirect(message);
   }
@@ -201,7 +201,7 @@ void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
 }
 
 void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
-  VLOG(5) << "OnRouterMessage: " << *message;
+  VLOG(3) << "OnRouterMessage: " << *message;
   if (IsHeartbeatMessage(*message)) {
     VLOG(5) << "is router heartbeat, ignore";
     return;
@@ -254,7 +254,7 @@ void SessionServer::OnStart() {
 using xcomet::SessionServer;
 
 static void ConnectHandler(struct evhttp_request* req, void* arg) {
-  LOG(INFO) << "reqquest: " << evhttp_request_get_uri(req);
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Connect(req);
 }
 

@@ -252,7 +252,7 @@ void RouterServer::UpdateUserAck(const UserID& uid, int seq) {
 void RouterServer::OnSessionMsg(SessionProxy* sp,
                                 StringPtr raw_data,
                                 MessagePtr msg) {
-  VLOG(5) << "RouterServer::OnSessionMsg: " << msg->toStyledString();
+  VLOG(3) << "RouterServer::OnSessionMsg: " << msg->toStyledString();
   stats_.OnReceive(*raw_data);
   try {
     Json::Value& value = *msg;
@@ -303,20 +303,25 @@ void RouterServer::OnSessionProxyDisconnected(SessionProxy* sp) {
 void RouterServer::OnGetMaxSeqDoneToLogin(const UserID uid, Sid sid, int seq) {
   LOG(INFO) << "OnGetMaxSeqDoneToLogin: " << uid << ", " << sid << ", " << seq;
   UserInfoMap::iterator uit = users_.find(uid);
-  if (uit != users_.end()) {
-    uit->second.SetOnline(true);
-    uit->second.SetSid(sid);
+  CHECK(uit != users_.end());
+  if (uit->second.IsOnline()) {
     uit->second.SetMaxSeq(seq);
+    SendAllMessages(uid);
   } else {
-    UserInfo user(uid, sid);
-    user.SetMaxSeq(seq);
-    users_.insert(make_pair(uid, user));
+    LOG(WARNING) << "user has disconnected immediately after connect";
   }
-  SendAllMessages(uid);
 }
 
 void RouterServer::LoginUser(const UserID& uid, Sid sid) {
   LOG(INFO) << "LoginUser: " << uid << ", " << sid;
+  UserInfoMap::iterator uit = users_.find(uid);
+  if (uit != users_.end()) {
+    uit->second.SetOnline(true);
+    uit->second.SetSid(sid);
+  } else {
+    UserInfo user(uid, sid);
+    users_.insert(make_pair(uid, user));
+  }
   storage_->GetMaxSeq(uid,
       boost::bind(&RouterServer::OnGetMaxSeqDoneToLogin, this, uid, sid, _1));
 }
