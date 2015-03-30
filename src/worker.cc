@@ -1,8 +1,8 @@
 #include "src/worker.h"
+#include "deps/base/time.h"
 
-
-DEFINE_int32(msgqueue_max_size, 20000, "");
-DEFINE_int32(task_queue_warning_size, 10000, "");
+DEFINE_int32(msgqueue_max_size, 200000, "");
+DEFINE_int32(task_queue_warning_size, 100000, "");
 
 namespace xcomet {
 
@@ -37,8 +37,11 @@ void Worker::Callback(void* data, void* self) {
 void Worker::Run() {
   while (true) {
     VLOG(5) << "task queue size:" <<  task_queue_.Size();
-    Task* task;
-    task_queue_.Pop(task);
+    if (task_queue_.Empty()) {
+      base::MilliSleep(100); 
+      continue;
+    }
+    Task* task = task_queue_.Front();
     if (task == NULL) {
       break;
     }
@@ -47,7 +50,10 @@ void Worker::Run() {
     VLOG(6) << "after run task";
     int ret = msgqueue_push(event_queue_, task);
     if (ret == -1) {
-      LOG(ERROR) << "msgqueue_push failed, callback would not execute";
+      LOG(WARNING) << "msgqueue_push failed, callback would not execute";
+      base::MilliSleep(100); 
+    } else {
+      task_queue_.Pop(task);
     }
   }
   LOG(INFO) << "Worker thread exit";
