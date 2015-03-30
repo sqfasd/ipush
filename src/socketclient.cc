@@ -26,31 +26,45 @@ namespace xcomet {
 
 Packet::Packet()
     : len_(0), left_(0), state_(NONE), buf_start_(0) {
+  ::memset(data_len_buf_, 0, sizeof(data_len_buf_));
 }
 
 Packet::~Packet() {
 }
 
 int Packet::ReadDataLen(int fd) {
-  char buf[MAX_DATA_LEN] = {0};
-  char* p = buf;
+  char* p = data_len_buf_ + buf_start_;
   int ret;
   int total = 0;
+  bool head_start = false;
+  if (buf_start_ > 0) {
+    head_start = true;
+  }
   do {
     ret = ::read(fd, p, 1);
+    if (ret <= 0) {
+      break;
+    }
     total++;
-  } while (ret == 1 && *p++ != '\r' && total < MAX_DATA_LEN);
+    if (*p == '\r' || *p == '\n') {
+      if (head_start) {
+        break;
+      }
+    } else {
+      head_start = true;
+      p++;
+      buf_start_++;
+    }
+  } while (ret == 1 && total < MAX_DATA_LEN);
+  CHECK(total < MAX_DATA_LEN);
   if (ret != 1) {
     return ret;
-  } else if (total >= MAX_DATA_LEN) {
-    return -2;
   } else {
     ret = ::read(fd, p, 1);
     if (ret != 1) {
       return ret;
     } else {
-      // 2 is crlf '\r\n'
-      return ::strtol(buf, NULL, 16) + 2;
+      return ::strtol(data_len_buf_, NULL, 16);
     }
   }
 }
@@ -59,6 +73,7 @@ int Packet::Read(int fd) {
   int n;
   if (left_ == 0) {
     n = ReadDataLen(fd);
+    LOG(INFO) << "ReadDataLen: " << n;
     if (n <= 0) {
       return n;
     }

@@ -51,6 +51,8 @@ class Packet {
     left_ = 0;
     content_.clear();
     state_ = NONE;
+    ::memset(data_len_buf_, 0, sizeof(data_len_buf_));
+    buf_start_ = 0;
   }
 
  private:
