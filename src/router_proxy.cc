@@ -37,7 +37,7 @@ void RouterProxy::ResetSession(struct evhttp_request* req) {
 
 void RouterProxy::LoginUser(const string& uid) {
   VLOG(3) << "RegisterUser: " << uid;
-  string msg = StringPrintf("{\"type\":\"login\", \"from\":\"%s\"}",
+  string msg = StringPrintf("{\"type\":\"login\",\"from\":\"%s\"}",
       uid.c_str());
   if (session_.get()) {
     session_->SendPacket(msg);
@@ -47,7 +47,7 @@ void RouterProxy::LoginUser(const string& uid) {
 }
 
 void RouterProxy::LogoutUser(const string& uid) {
-  string msg = StringPrintf("{\"type\":\"logout\", \"from\":\"%s\"}",
+  string msg = StringPrintf("{\"type\":\"logout\",\"from\":\"%s\"}",
       uid.c_str());
   if (session_.get()) {
     session_->SendPacket(msg);
