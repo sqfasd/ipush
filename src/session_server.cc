@@ -180,8 +180,8 @@ void SessionServer::RunInNextTick(boost::function<void ()> fn) {
 }
 
 bool SessionServer::IsHeartbeatMessage(const string& message) {
-  return message.size() == 16 &&
-         message.find("noop") != string::npos;
+  return message.find("\"type\"") != string::npos &&
+         message.find("\"noop\"") != string::npos;
 }
 
 void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
