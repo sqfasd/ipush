@@ -223,9 +223,10 @@ void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
       uit->second->SendPacket(*message);
     }
   } catch (std::exception& e) {
-    CHECK(false) << "OnRouterMessage json exception: " << e.what();
+    LOG(ERROR) << "OnRouterMessage json exception: " << e.what()
+               << ", msg = " << *message;
   } catch (...) {
-    CHECK(false) << "OnRouterMessage unknow exception";
+    LOG(ERROR) << "OnRouterMessage unknow exception";
   }
 }
 

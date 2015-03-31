@@ -256,7 +256,10 @@ void RouterServer::OnSessionMsg(SessionProxy* sp,
   stats_.OnReceive(*raw_data);
   try {
     Json::Value& value = *msg;
-    CHECK(value.isMember("type")) << "invalid message: " << *raw_data;
+    if (!value.isMember("type")) {
+      LOG(ERROR) << "invalid message without type: " << *raw_data;
+      return;
+    }
     const string& type = value["type"].asString();
     if(IS_MESSAGE(type)) {
         SendUserMsg(msg);
@@ -282,9 +285,9 @@ void RouterServer::OnSessionMsg(SessionProxy* sp,
       LOG(ERROR) << "unsupport message type: " << type;
     }
   } catch (std::exception& e) {
-    CHECK(false) << "failed to process session message: " << e.what();
+    LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *raw_data;
   } catch (...) {
-    CHECK(false) << "unknow exception while process session message";
+    LOG(ERROR) << "unknow exception for session msg: " << *raw_data;
   }
 }
 
