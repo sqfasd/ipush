@@ -105,7 +105,7 @@ int Packet::Write(int fd) {
       int n = ::snprintf(data_len_buf_,
                          MAX_DATA_LEN,
                          "%x\r\n",
-                         (uint32)len_+2);
+                         (uint32)len_-2);
       CHECK(n < MAX_DATA_LEN);
       state_ = DATA_LEN;
       left_ = n;
@@ -357,7 +357,7 @@ int SocketClient::SendHeartbeat() {
   PacketPtr packet(new Packet());
   string data;
   SerializeJson(json, data);
-  packet.SetContent(data);
+  packet->SetContent(data);
   write_queue_.Push(packet);
   HandleWrite();
   return 0;
@@ -367,7 +367,7 @@ void SocketClient::SendJson(const Json::Value& json) {
   PacketPtr packet(new Packet());
   string data;
   SerializeJson(json, data);
-  packet.SetContent(data);
+  packet->SetContent(data);
   write_queue_.Push(packet);
 
   Notify();
