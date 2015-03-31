@@ -36,7 +36,7 @@ void Worker::Callback(void* data, void* self) {
 
 void Worker::Run() {
   while (true) {
-    VLOG(6) << "task queue size:" <<  task_queue_.Size();
+    VLOG(8) << "task queue size:" <<  task_queue_.Size();
     if (task_queue_.Empty()) {
       base::MilliSleep(100); 
       continue;
@@ -50,7 +50,7 @@ void Worker::Run() {
     VLOG(6) << "after run task";
     int ret = msgqueue_push(event_queue_, task);
     if (ret == -1) {
-      LOG(WARNING) << "msgqueue_push failed, callback would not execute";
+      LOG(WARNING) << "msgqueue_push failed, will try 100ms later";
       base::MilliSleep(100); 
     } else {
       task_queue_.Pop(task);

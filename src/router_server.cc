@@ -299,7 +299,7 @@ void RouterServer::OnSessionProxyDisconnected(SessionProxy* sp) {
   CHECK(sp != NULL);
   Sid sid = sp->GetId();
   CHECK(sid >= 0 && sid < session_proxys_.size());
-  VLOG(5) << "session proxy " << sid << " disconnected";
+  LOG(ERROR) << "session proxy " << sid << " disconnected";
   sp->Retry();
 }
 

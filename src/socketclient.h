@@ -27,15 +27,32 @@ inline ostream& operator<<(ostream& os, const ClientOption& option) {
   return os;
 }
 
+const int MAX_BUFFER_SIZE = 1024;
+
+class BufferReader {
+ public:
+  BufferReader();
+  ~BufferReader();
+  int Read(int fd, char* addr, int len);
+  int ReadLine(int fd, char* addr);
+  int Size() {return end_ - start_;}
+  void Print();
+
+ private:
+  int Read(int fd);
+  void Shrink();
+  int FindCRLF();
+  char buf_[MAX_BUFFER_SIZE];
+  int start_;
+  int end_;
+};
+
 class Packet {
  public:
   Packet();
   ~Packet();
   int Read(int fd);
   int Write(int fd);
-  bool HasReadAll() const {
-    return content_.size() == len_;
-  }
   void SetContent(std::string& str) {
     content_.swap(str);
     content_.append("\n\r\n");
@@ -54,10 +71,17 @@ class Packet {
     state_ = NONE;
     ::memset(data_len_buf_, 0, sizeof(data_len_buf_));
     buf_start_ = 0;
+    rstate_ = RS_HEADER;
   }
 
  private:
   int ReadDataLen(int fd);
+
+  enum ReadState {
+    RS_HEADER,
+    RS_BODY,
+  } rstate_;
+  BufferReader reader_;
 
   int len_;
   int left_;

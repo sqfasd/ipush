@@ -30,7 +30,7 @@ void Session::Send(const string& from_id,
   struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
   evbuffer_add_printf(buf, "{\"from\":\"%s\","
                            "\"type\":\"%s\","
-                           "\"body\":\"%s\"}\r\n",
+                           "\"body\":\"%s\"}\n",
                            from_id.c_str(),
                            type.c_str(),
                            content.c_str());
@@ -43,7 +43,7 @@ void Session::SendHeartbeat() {
 
 void Session::SendChunk(const char* data) {
   struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
-  evbuffer_add_printf(buf, "%s\r\n", data);
+  evbuffer_add_printf(buf, "%s\n", data);
   evhttp_send_reply_chunk_bi(req_, buf);
 }
 

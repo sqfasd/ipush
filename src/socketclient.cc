@@ -24,78 +24,146 @@ const int DEFAULT_KEEPALIVE_INTERVAL_SEC = 30L;
 
 namespace xcomet {
 
+BufferReader::BufferReader() {
+  ::memset(buf_, 0, sizeof(buf_));
+  start_ = 0;
+  end_ = 0;
+}
+
+BufferReader::~BufferReader() {
+}
+
+const int ERROR_NOMORE_DATA = -100;
+
+int BufferReader::Read(int fd) {
+  if (Size() < 10 || end_ == sizeof(buf_)) {
+    Shrink();
+  }
+  int ret = ::read(fd, buf_+end_, sizeof(buf_)-end_);
+  VLOG(7) << "Buffer read n=" << ret;
+  if (ret > 0) {
+    end_ += ret;
+  }
+  return ret;
+}
+
+int BufferReader::Read(int fd, char* addr, int len) {
+  VLOG(7) << "Buffer size=" << Size();
+  if (Size() < len) {
+    int ret = Read(fd);
+    if (ret == 0) {
+      return ret;
+    }
+  }
+  int i = 0;
+  int size = Size();
+  for (; i < len && i < size; ++i) {
+    addr[i] = buf_[start_++];
+  }
+  if (i == 0) {
+    return ERROR_NOMORE_DATA;
+  } else {
+    return i;
+  }
+}
+
+int BufferReader::ReadLine(int fd, char* addr) {
+  int pos = FindCRLF();
+  if (pos == -1) {
+    int ret = Read(fd);
+    if (ret <= 0) {
+      return ret;
+    } else {
+      pos = FindCRLF();
+      if (pos == -1) {
+        return ERROR_NOMORE_DATA;
+      }
+    }
+  }
+  VLOG(7) << "in ReadLine crlf pos=" << pos;
+  VLOG(7) << "in ReadLine start=" << start_ << ", end=" << end_;
+  int i = 0;
+  for (; start_ < pos + 2; ++i,++start_) {
+    addr[i] = buf_[start_];
+  }
+  CHECK(i > 0);
+  return i;
+}
+
+int BufferReader::FindCRLF() {
+  for (int i = start_; i+1 < end_; ++i) {
+    if (buf_[i] == '\r' && buf_[i+1] == '\n') {
+      return i;
+    }
+  }
+  return -1;
+}
+
+void BufferReader::Shrink() {
+  if (start_ == 0) {
+    return;
+  }
+  if (start_ == end_) {
+    start_ = 0;
+    end_ = 0;
+    return;
+  }
+  if (end_ > start_) {
+    int size = Size();
+    ::memmove(buf_, buf_+start_, end_-start_);
+    start_ = 0;
+    end_ = start_ + size;
+  }
+}
+
 Packet::Packet()
-    : len_(0), left_(0), state_(NONE), buf_start_(0) {
+    : rstate_(RS_HEADER),
+      len_(0),
+      left_(0), 
+      state_(NONE), 
+      buf_start_(0) {
   ::memset(data_len_buf_, 0, sizeof(data_len_buf_));
 }
 
 Packet::~Packet() {
 }
 
-int Packet::ReadDataLen(int fd) {
-  char* p = data_len_buf_ + buf_start_;
-  int ret;
-  int total = 0;
-  bool head_start = false;
-  if (buf_start_ > 0) {
-    head_start = true;
-  }
-  do {
-    ret = ::read(fd, p, 1);
-    if (ret <= 0) {
-      break;
-    }
-    total++;
-    if (*p == '\r' || *p == '\n') {
-      if (head_start) {
-        break;
-      }
-    } else {
-      head_start = true;
-      p++;
-      buf_start_++;
-    }
-  } while (ret == 1 && total < MAX_DATA_LEN);
-  CHECK(total < MAX_DATA_LEN);
-  if (ret != 1) {
-    return ret;
-  } else {
-    ret = ::read(fd, p, 1);
-    if (ret != 1) {
-      return ret;
-    } else {
-      return ::strtol(data_len_buf_, NULL, 16);
-    }
-  }
-}
-
 int Packet::Read(int fd) {
-  int n;
-  if (left_ == 0) {
-    n = ReadDataLen(fd);
-    if (n <= 0) {
-      return n;
+  while (true) {
+    if (rstate_ == RS_HEADER) {
+      char buf[MAX_DATA_LEN] = {0};
+      int ret = reader_.ReadLine(fd, buf);
+      if(ret > 0) {
+        VLOG(7) << "ReadLine: " << buf;
+        len_ = ::strtol(buf, NULL, 16) + 2;
+        VLOG(7) << "Read len: " << len_;
+        CHECK(len_ > 0 && len_ < 8000 * 1000);  // packet limit 8M
+        left_ = len_;
+        content_.resize(len_);
+        rstate_ = RS_BODY;
+      } else {
+        return ret;
+      }
+    } else if (rstate_ == RS_BODY) {
+      char* pcontent = const_cast<char*>(content_.c_str()) + len_ - left_;
+      while (left_ > 0) {
+        int n = reader_.Read(fd, pcontent, left_);
+        VLOG(7) << "Read n=" << n << ", left=" << left_;
+        if (n <= 0) {
+          return n;
+        } else {
+          left_ -= n;
+        }
+      }
+      int crlf_pos = content_.find("\r\n");
+      if (crlf_pos != -1) {
+        content_[crlf_pos] = 0;
+      }
+      return 1;
     }
-    len_ = n;
-    left_ = len_;
   }
-
-  static const int BUFFER_LEN = 1024;
-  char buf[BUFFER_LEN] = {0};
-  int total = 0;
-  do {
-    int max_read_len = left_ > BUFFER_LEN ? BUFFER_LEN : left_;
-    n = ::read(fd, buf, max_read_len);
-    if (n > 0) {
-      content_.append(buf, n);
-      left_ -= n;
-      total += n;
-    }
-  } while (n > 0 && left_ > 0);
-  if (n <= 0) {
-    return n;
-  }
-  return total;
+  LOG(ERROR) << "should not come here";
+  return 0;
 }
 
 int Packet::Write(int fd) {
@@ -134,8 +202,8 @@ int Packet::Write(int fd) {
       }
     }
   }
-  CHECK(false) << "should not come here";
-  return -1;
+  LOG(ERROR) << "should not come here";
+  return 0;
 }
 
 SocketClient::SocketClient(const ClientOption& option)
@@ -279,21 +347,23 @@ void SocketClient::Loop() {
 bool SocketClient::HandleRead() {
   while (true) {
     int ret = current_read_packet_->Read(sock_fd_);
+    VLOG(7) << "HandleRead ret=" << ret;
     if (ret == 0) {
       LOG(INFO) << "read eof, connection closed";
       return false;
     } else if (ret < 0) {
-      VLOG(5) << CERROR("read error");
+      if (ret == ERROR_NOMORE_DATA) {
+        VLOG(5) << "no more data";
+      } else {
+        VLOG(5) << CERROR("system read error");
+      }
       return true;
     } else {
-      CHECK(current_read_packet_->HasReadAll());
       Json::Reader reader;
       Json::Value json;
-      try {
-        reader.parse(current_read_packet_->Content(), json);
-      } catch (std::exception e) {
-        LOG(ERROR) << (string("json format error: ") + e.what());
-        return false;
+      if(!reader.parse(current_read_packet_->Content(), json)) {
+        LOG(WARNING) << "read data not json: "
+                     << current_read_packet_->Content();
       }
       if (data_cb_) {
         data_cb_(current_read_packet_->Content());
