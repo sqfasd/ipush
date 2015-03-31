@@ -24,5 +24,12 @@ void SetNonblock(int fd) {
   // TODO check ret != -1
 }
 
+void SerializeJson(const Json::Value& json, string& data) {
+  data = Json::FastWriter().write(json);
+  if (data.length() > 0 && data[data.length()-1] == '\n') {
+    data[data.length()-1] = 0;
+  }
+}
+
 } // namespace xcomet
 

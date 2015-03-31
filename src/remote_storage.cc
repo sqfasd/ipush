@@ -1,7 +1,8 @@
-#include "deps/jsoncpp/include/json/json.h"
+#include "src/remote_storage.h"
+
 #include "deps/base/logging.h"
 #include "deps/base/string_util.h"
-#include "src/remote_storage.h"
+#include "src/utils.h"
 
 DEFINE_string(db_host, "127.0.0.1", "ssdb");
 DEFINE_int32(db_port, 8888, "ssdb");
@@ -47,8 +48,8 @@ bool RemoteStorage::SaveMessageSync(MessagePtr msg, int seq) {
       LOG(ERROR) << "SaveMessageSync set max_seq failed" << s.code();
       return false;
     }
-    Json::FastWriter writer;
-    string content = writer.write(*msg);
+    string content;
+    SerializeJson(*msg, content);
     s = client_->hset(uid, IntToString(seq), content);
     if (!s.ok()) {
       LOG(ERROR) << "SaveMessageSync set msg failed";

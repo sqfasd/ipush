@@ -73,7 +73,6 @@ int Packet::Read(int fd) {
   int n;
   if (left_ == 0) {
     n = ReadDataLen(fd);
-    LOG(INFO) << "ReadDataLen: " << n;
     if (n <= 0) {
       return n;
     }
@@ -106,8 +105,8 @@ int Packet::Write(int fd) {
       int n = ::snprintf(data_len_buf_,
                          MAX_DATA_LEN,
                          "%x\r\n",
-                         (uint32)len_);
-      CHECK(n < MAX_DATA_LEN + 2);
+                         (uint32)len_+2);
+      CHECK(n < MAX_DATA_LEN);
       state_ = DATA_LEN;
       left_ = n;
       buf_start_ = 0;
@@ -238,7 +237,7 @@ void SocketClient::Loop() {
     pfds[1].revents = 0;
     pfds[1].events = POLLIN;
 
-    CHECK(keepalive_interval_sec_ >= 1) << "keepalive less than 30s";
+    CHECK(keepalive_interval_sec_ >= 30) << "keepalive less than 30s";
     static const int ONE_SECOND = 1000;
     int timeout_ms = keepalive_interval_sec_ * ONE_SECOND;
     int ret = ::poll(pfds, 2, timeout_ms);
@@ -356,9 +355,9 @@ int SocketClient::SendHeartbeat() {
   json["type"] = "noop";
 
   PacketPtr packet(new Packet());
-  Json::FastWriter writer;
-  string data = writer.write(json);
-  packet->SetContent(data);
+  string data;
+  SerializeJson(json, data);
+  packet.SetContent(data);
   write_queue_.Push(packet);
   HandleWrite();
   return 0;
@@ -366,9 +365,9 @@ int SocketClient::SendHeartbeat() {
 
 void SocketClient::SendJson(const Json::Value& json) {
   PacketPtr packet(new Packet());
-  Json::FastWriter writer;
-  string data = writer.write(json);
-  packet->SetContent(data);
+  string data;
+  SerializeJson(json, data);
+  packet.SetContent(data);
   write_queue_.Push(packet);
 
   Notify();

@@ -38,6 +38,7 @@ class Packet {
   }
   void SetContent(std::string& str) {
     content_.swap(str);
+    content_.append("\r\n\r\n");
     len_ = content_.size();
   }
   int Size() const {

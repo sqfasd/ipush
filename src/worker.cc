@@ -36,7 +36,7 @@ void Worker::Callback(void* data, void* self) {
 
 void Worker::Run() {
   while (true) {
-    VLOG(5) << "task queue size:" <<  task_queue_.Size();
+    VLOG(6) << "task queue size:" <<  task_queue_.Size();
     if (task_queue_.Empty()) {
       base::MilliSleep(100); 
       continue;
