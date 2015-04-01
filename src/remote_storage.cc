@@ -1,7 +1,8 @@
-#include "deps/jsoncpp/include/json/json.h"
+#include "src/remote_storage.h"
+
 #include "deps/base/logging.h"
 #include "deps/base/string_util.h"
-#include "src/remote_storage.h"
+#include "src/utils.h"
 
 DEFINE_string(db_host, "127.0.0.1", "ssdb");
 DEFINE_int32(db_port, 8888, "ssdb");
@@ -27,6 +28,7 @@ RemoteStorage::RemoteStorage(struct event_base* evbase,
 RemoteStorage::~RemoteStorage() {
 }
 
+// TODO(qingfeng) use queue instead of hash_map to store offline msgs
 bool RemoteStorage::SaveMessageSync(MessagePtr msg, int seq) {
   try {
     ssdb::Status s;
@@ -46,8 +48,8 @@ bool RemoteStorage::SaveMessageSync(MessagePtr msg, int seq) {
       LOG(ERROR) << "SaveMessageSync set max_seq failed" << s.code();
       return false;
     }
-    Json::FastWriter writer;
-    string content = writer.write(*msg);
+    string content;
+    SerializeJson(*msg, content);
     s = client_->hset(uid, IntToString(seq), content);
     if (!s.ok()) {
       LOG(ERROR) << "SaveMessageSync set msg failed";
@@ -178,6 +180,43 @@ int RemoteStorage::GetMaxSeqSync(const string uid) {
 
 bool RemoteStorage::UpdateAckSync(const string uid, int ack_seq) {
   return UpdateKey(uid, "last_ack", IntToString(ack_seq));
+}
+
+const int CHANNEL_USRE_DEFAULT_SCORE = 3;
+bool RemoteStorage::AddUserToChannelSync(const string uid, const string cid) {
+  ssdb::Status s = client_->zset(cid, uid, CHANNEL_USRE_DEFAULT_SCORE);
+  if (!s.ok()) {
+    LOG(ERROR) << "AddUserToChannelSync uid = " << uid << " cid = " << cid
+               << " failed: " << s.code();
+  }
+  return s.ok();
+}
+
+bool RemoteStorage::RemoveUserFromChannelSync(const string uid,
+                                              const string cid) {
+  ssdb::Status s = client_->zdel(cid, uid);
+  if (!s.ok()) {
+    LOG(ERROR) << "RemoveUserFromChannelSync uid = " << uid << " cid = " << cid
+               << " failed: " << s.code();
+  }
+  return s.ok();
+}
+
+const int DEFAULT_CHANNEL_CAPACITY = 1000;
+UsersPtr RemoteStorage::GetChannelUsersSync(const string cid) {
+  UsersPtr users(new vector<string>());
+  ssdb::Status s = client_->zkeys(cid,
+                                  "",
+                                  NULL,
+                                  NULL,
+                                  DEFAULT_CHANNEL_CAPACITY,
+                                  users.get());
+  if (!s.ok()) {
+    LOG(ERROR) << "GetChannelUsersSync cid = " << cid
+               << " failed: " << s.code();
+    users->clear();
+  }
+  return users;
 }
 
 }  // namespace xcomet

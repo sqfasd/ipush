@@ -35,7 +35,6 @@ SessionServer::~SessionServer() {
 // /connect?uid=123&token=ABCDE&type=1|2
 void SessionServer::Connect(struct evhttp_request* req) {
   CHECK_HTTP_GET();
-
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   if (uid.empty()) {
@@ -47,12 +46,16 @@ void SessionServer::Connect(struct evhttp_request* req) {
 
   int type = query.GetInt("type", 1);
   string token = query.GetStr("token", "");
-  // TODO check request parameters
+  // TODO (qingfeng) authenticate token
 
   UserPtr user(new User(uid, type, req, *this));
   UserMap::iterator iter = users_.find(uid);
   if (iter == users_.end()) {
     router_.LoginUser(uid);
+    LOG(INFO) << "login user: " << uid;
+  } else {
+    timeout_queue_.RemoveUser(iter->second.get());
+    LOG(INFO) << "relogin user: " << uid;
   }
   users_[uid] = user;
   timeout_queue_.PushUserBack(user.get());
@@ -61,8 +64,6 @@ void SessionServer::Connect(struct evhttp_request* req) {
 // /pub?to=123&content=hello&seq=1&from=unknow
 // @DEPRECATED
 void SessionServer::Pub(struct evhttp_request* req) {
-  // TODO process post
-  // CHECK_HTTP_GET();
   struct evbuffer* input_buffer = evhttp_request_get_input_buffer(req);
   int len = evbuffer_get_length(input_buffer);
   VLOG(3) << "Pub receive data length: " << len;
@@ -76,7 +77,6 @@ void SessionServer::Pub(struct evhttp_request* req) {
   string from = query.GetStr("from", "unknow");
 
   if (!to.empty()) {
-    LOG(INFO) << "pub to user: " << content;
     UserMap::iterator iter = users_.find(to);
     if (iter != users_.end()) {
       UserPtr user = iter->second;
@@ -110,7 +110,6 @@ void SessionServer::Disconnect(struct evhttp_request* req) {
     string error = "uid is empty";
     LOG(ERROR) << error;
     ReplyError(req, HTTP_BADREQUEST, error);
-
     return;
   }
 
@@ -181,14 +180,14 @@ void SessionServer::RunInNextTick(boost::function<void ()> fn) {
 }
 
 bool SessionServer::IsHeartbeatMessage(const string& message) {
-  return message.size() == 16 &&
-         message.find("noop") != string::npos;
+  return message.find("\"type\"") != string::npos &&
+         message.find("\"noop\"") != string::npos;
 }
 
 void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
   stats_.OnReceive(*message);
   // TODO(qingfeng) if target in current session, send it before redirect
-  LOG(INFO) << from_uid << ": " << *message;
+  VLOG(2) << from_uid << ": " << *message;
   if (!IsHeartbeatMessage(*message)) {
     router_.Redirect(message);
   }
@@ -202,7 +201,7 @@ void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
 }
 
 void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
-  VLOG(5) << "OnRouterMessage: " << *message;
+  VLOG(3) << "OnRouterMessage: " << *message;
   if (IsHeartbeatMessage(*message)) {
     VLOG(5) << "is router heartbeat, ignore";
     return;
@@ -224,15 +223,16 @@ void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
       uit->second->SendPacket(*message);
     }
   } catch (std::exception& e) {
-    CHECK(false) << "OnRouterMessage json exception: " << e.what();
+    LOG(ERROR) << "OnRouterMessage json exception: " << e.what()
+               << ", msg = " << *message;
   } catch (...) {
-    CHECK(false) << "OnRouterMessage unknow exception";
+    LOG(ERROR) << "OnRouterMessage unknow exception";
   }
 }
 
-void SessionServer::RemoveUser(User* user) {
+void SessionServer::OnUserDisconnect(User* user) {
   const string& uid = user->GetId();
-  LOG(INFO) << "RemoveUser: " << uid;
+  LOG(INFO) << "OnUserDisconnect: " << uid;
   timeout_queue_.RemoveUser(user);
   router_.LogoutUser(uid);
   users_.erase(uid);
@@ -255,26 +255,32 @@ void SessionServer::OnStart() {
 using xcomet::SessionServer;
 
 static void ConnectHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Connect(req);
 }
 
 static void DisconnectHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Disconnect(req);
 }
 
 static void PubHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Pub(req);
 }
 
 static void BroadcastHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Broadcast(req);
 }
 
 static void RSubHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().RSub(req);
 }
 
 static void StatsHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Stats(req);
 }
 

@@ -27,12 +27,14 @@ void Session::SendPacket(const std::string& packet_str) {
 void Session::Send(const string& from_id,
                    const string& type,
                    const string& content) {
-  Json::Value json;
-  json["from"] = from_id;
-  json["type"] = type;
-  json["body"] = content;
-  Json::FastWriter writer;
-  SendChunk(writer.write(json).c_str());
+  struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
+  evbuffer_add_printf(buf, "{\"from\":\"%s\","
+                           "\"type\":\"%s\","
+                           "\"body\":\"%s\"}\n",
+                           from_id.c_str(),
+                           type.c_str(),
+                           content.c_str());
+  evhttp_send_reply_chunk_bi(req_, buf);
 }
 
 void Session::SendHeartbeat() {
@@ -41,7 +43,7 @@ void Session::SendHeartbeat() {
 
 void Session::SendChunk(const char* data) {
   struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
-  evbuffer_add_printf(buf, "%s\r\n", data);
+  evbuffer_add_printf(buf, "%s\n", data);
   evhttp_send_reply_chunk_bi(req_, buf);
 }
 
@@ -101,7 +103,7 @@ void Session::OnReceive() {
     if (left_len <= 0) {
       break;
     }
-    LOG(INFO) << "total buffer length: " << left_len;
+    VLOG(5) << "total buffer length: " << left_len;
     left_len -= next_msg_max_len_;
     if (left_len >= 0) {
       base::shared_ptr<string> message(new string());

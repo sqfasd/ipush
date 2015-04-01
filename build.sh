@@ -7,10 +7,17 @@ BUILD_DIR=${BUILD_DIR:-build}
 BUILD_TYPE=${BUILD_TYPE:-release}
 DIR=$BUILD_DIR/$BUILD_TYPE
 
-cd $SOURCE_DIR/deps/libevent && ./configure && make
-cd $SOURCE_DIR/deps/ssdb && ./build.sh
-cd $SOURCE_DIR
+cd $SOURCE_DIR/deps/libevent
+test -f Makefile || ./configure
+make
 
+cd $SOURCE_DIR/deps/ssdb
+./build.sh
+make
+cd $SOURCE_DIR/deps/ssdb/api/cpp
+make
+
+cd $SOURCE_DIR
 test -d $DIR || mkdir -p $DIR 
 cd $DIR \
   && cmake \

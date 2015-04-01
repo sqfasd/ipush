@@ -52,12 +52,12 @@ void User::SendHeartbeat() {
 void User::Close() {
   LOG(INFO) << "User Close: " << uid_;
   session_.Close();
-  server_.RemoveUser(this);
+  server_.OnUserDisconnect(this);
 }
 
 void User::OnSessionDisconnected() {
   LOG(INFO) << "User Disconnected: " << uid_;
-  server_.RemoveUser(this);
+  server_.OnUserDisconnect(this);
 }
 
 }  // namespace xcomet

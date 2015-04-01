@@ -16,17 +16,19 @@ void ParseIpPort(const string& address, string& ip, int& port) {
   port = StringToInt(address.substr(pos+1, address.length()));
 }
 
-bool IsUserId(const string& id) {
-  // TODO(qingfeng) recognize id type
-  return id.find("c:") != 0;
-}
-
 void SetNonblock(int fd) {
   int flags;
   flags = ::fcntl(fd, F_GETFL);
   flags |= O_NONBLOCK;
   fcntl(fd, F_SETFL, flags);
   // TODO check ret != -1
+}
+
+void SerializeJson(const Json::Value& json, string& data) {
+  data = Json::FastWriter().write(json);
+  if (data.length() > 0 && data[data.length()-1] == '\n') {
+    data[data.length()-1] = 0;
+  }
 }
 
 } // namespace xcomet

@@ -2,9 +2,9 @@
 #define SRC_MESSAGE_H_
 
 #include <string>
-#include "deps/jsoncpp/include/json/json.h"
 #include "deps/base/logging.h"
 #include "src/typedef.h"
+#include "src/utils.h"
 
 namespace xcomet {
 
@@ -17,7 +17,7 @@ class Message {
     MessagePtr msg(new Json::Value());
     Json::Reader reader;
     if (!reader.parse(*data, *msg)) {
-      LOG(ERROR) << "Unserialize failed";
+      LOG(ERROR) << "Unserialize failed: " << *data;
     }
     return msg;
   }
@@ -25,7 +25,7 @@ class Message {
   static StringPtr Serialize(MessagePtr msg) {
     StringPtr data(new string(""));
     if (msg.get()) {
-      *data = Json::FastWriter().write(*msg);
+      SerializeJson(*msg, *data);
     }
     return data;
   }

@@ -2,6 +2,7 @@
 #define XCOMET_SRC_UTILS_H
 
 #include <string>
+#include "deps/jsoncpp/include/json/json.h"
 #include "base/string_util.h"
 
 namespace xcomet {
@@ -12,7 +13,7 @@ void SetNonblock(int fd);
 
 void ParseIpPort(const string& address, string& ip, int& port);
 
-bool IsUserId(const string& id);
+void SerializeJson(const Json::Value& json, string& data);
 
 } // namespace xcomet
 

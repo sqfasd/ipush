@@ -19,6 +19,7 @@ DEFINE_string(session_server_addrs, "127.0.0.1:9100", "");
 #define IS_SUB(type) (type == "sub")
 #define IS_UNSUB(type) (type == "unsub")
 #define IS_MESSAGE(type) (type == "msg")
+#define IS_CHANNEL_MSG(type) (type == "cmsg")
 #define IS_ACK(type) (type == "ack")
 
 namespace xcomet {
@@ -134,6 +135,10 @@ void RouterServer::SendAllMessages(const UserID& uid) {
 
 void RouterServer::SendUserMsg(MessagePtr msg) {
   VLOG(5) << "RouterServer::SendUserMsg: " << msg->toStyledString();
+  if (!msg->isMember("to")) {
+    LOG(ERROR) << "invalid message, no target";
+    return;
+  }
   const string& uid = (*msg)["to"].asString();
   int seq = 0;
   Sid sid = INVALID_SID;
@@ -164,74 +169,72 @@ void RouterServer::SendUserMsg(MessagePtr msg) {
   }
 }
 
+void RouterServer::OnGetChannelUsersToSend(
+    const ChannelID cid,
+    MessagePtr msg,
+    UsersPtr users) {
+  VLOG(5) << "OnGetChannelUsersToSend: cid = " << cid
+          << "users.size = " << users->size();
+  ChannelInfo channel(cid);
+  for (int i = 0; i < users->size(); ++i) {
+    channel.AddUser(users->at(i));
+    (*msg)["to"] = users->at(i);
+    SendUserMsg(msg);
+  }
+  channels_.insert(make_pair(cid, channel));
+}
+
 void RouterServer::SendChannelMsg(MessagePtr msg) {
-  const string& uid = (*msg)["from"].asString();
-  const string& cid = (*msg)["to"].asString();
-  VLOG(5) << "RouterServer::SendChannelMsg " << uid << ", " << cid;
+  const ChannelID& cid = (*msg)["channel"].asString();
+  const UserID& uid = (*msg)["from"].asString();
+  VLOG(5) << "RouterServer::SendChannelMsg from " << uid << " to " << cid;
   ChannelInfoMap::const_iterator iter = channels_.find(cid);
   if (iter == channels_.end()) {
-    LOG(ERROR) << "channel not found: " << cid;
-    return;
-  }
-  const set<string>& user_ids = iter->second.GetUsers();
-  set<string>::const_iterator uit;
-  for (uit = user_ids.begin(); uit != user_ids.end(); ++uit) {
-    SendUserMsg(msg);
+    storage_->GetChannelUsers(cid,
+        boost::bind(&RouterServer::OnGetChannelUsersToSend,
+            this, cid, msg, _1));
+  } else {
+    const set<string>& user_ids = iter->second.GetUsers();
+    set<string>::const_iterator uit;
+    for (uit = user_ids.begin(); uit != user_ids.end(); ++uit) {
+      (*msg)["to"] = *uit;
+      SendUserMsg(msg);
+    }
   }
 }
 
-void RouterServer::RemoveUserFromChannel(const UserInfo& user_info) {
-  const set<string>& channel_ids = user_info.GetChannelIds();
-  set<string>::const_iterator it;
-  for (it = channel_ids.begin(); it != channel_ids.end(); ++it) {
-    ChannelInfoMap::iterator cit = channels_.find(*it);
-    if (cit != channels_.end()) {
-      cit->second.RemoveUser(user_info.GetId());
-      if (cit->second.GetUserCount() == 0) {
-        channels_.erase(cit);
-      }
-    }
+void RouterServer::OnAddUserToChannelDone(bool ok) {
+  VLOG(5) << "OnAddUserToChannelDone: " << ok;
+  if (!ok) {
+    LOG(ERROR) << "add user to channel failed";
+  }
+}
+
+void RouterServer::OnRemoveUserFromChannelDone(bool ok) {
+  VLOG(5) << "OnRemoveUserFromChannelDone: " << ok;
+  if (!ok) {
+    LOG(ERROR) << "remove user from channel failed";
   }
 }
 
 void RouterServer::Subscribe(const UserID& uid, const ChannelID& cid) {
   VLOG(5) << "Subscribe: " << uid << ", "  << cid;
-  UserInfoMap::iterator uit = users_.find(uid);
-  if (uit == users_.end()) {
-    LOG(ERROR) << "Subscribe failed: uid " << uid << " not found";
-    return;
+  ChannelInfoMap::iterator cit = channels_.find(cid);
+  if (cit != channels_.end()) {
+    cit->second.AddUser(uid);
   }
-  UserInfo& user = uit->second;
-  ChannelInfoMap::iterator cit = channels_.find(user.GetId());
-  if (cit == channels_.end()) {
-    VLOG(5) << "add new channel: " << cid;
-    ChannelInfo channel(cid);
-    channel.AddUser(user.GetId());
-    channels_.insert(make_pair(cid, channel));
-  } else {
-    cit->second.AddUser(user.GetId());
-  }
-  user.SubChannel(cid);
+  storage_->AddUserToChannel(uid, cid,
+      boost::bind(&RouterServer::OnAddUserToChannelDone, this, _1));
 }
 
 void RouterServer::Unsubscribe(const UserID& uid, const ChannelID& cid) {
   VLOG(5) << "Unsubscribe: " << uid << ", "  << cid;
-  UserInfoMap::iterator uit = users_.find(uid);
-  if (uit == users_.end()) {
-    LOG(ERROR) << "Unsubscribe failed: uid " << uid << " not found";
-  } else {
-    uit->second.UnsubChannel(cid);
-  }
-  ChannelInfoMap::iterator cit = channels_.find(uit->second.GetId());
-  if (cit == channels_.end()) {
-    LOG(ERROR) << "Unsubscribe faied: cid " << cid << " not found";
-  } else {
+  ChannelInfoMap::iterator cit = channels_.find(cid);
+  if (cit != channels_.end()) {
     cit->second.RemoveUser(uid);
-    if (cit->second.GetUserCount() == 0) {
-      LOG(INFO) << "delete channel from map: " << cid;
-      channels_.erase(cid);
-    }
   }
+  storage_->RemoveUserFromChannel(uid, cid,
+      boost::bind(&RouterServer::OnRemoveUserFromChannelDone, this, _1));
 }
 
 void RouterServer::UpdateUserAck(const UserID& uid, int seq) {
@@ -249,19 +252,19 @@ void RouterServer::UpdateUserAck(const UserID& uid, int seq) {
 void RouterServer::OnSessionMsg(SessionProxy* sp,
                                 StringPtr raw_data,
                                 MessagePtr msg) {
-  VLOG(5) << "RouterServer::OnSessionMsg: " << msg->toStyledString();
+  VLOG(3) << "RouterServer::OnSessionMsg: " << msg->toStyledString();
   stats_.OnReceive(*raw_data);
   try {
     Json::Value& value = *msg;
-    CHECK(value.isMember("type"));
+    if (!value.isMember("type")) {
+      LOG(ERROR) << "invalid message without type: " << *raw_data;
+      return;
+    }
     const string& type = value["type"].asString();
     if(IS_MESSAGE(type)) {
-      const string& to = value["to"].asString();
-      if (IsUserId(to)) {
         SendUserMsg(msg);
-      } else {
+    } else if(IS_CHANNEL_MSG(type)) {
         SendChannelMsg(msg);
-      }
     } else if(IS_LOGIN(type)) {
       const string& from = value["from"].asString();
       LoginUser(from, sp->GetId());
@@ -282,9 +285,9 @@ void RouterServer::OnSessionMsg(SessionProxy* sp,
       LOG(ERROR) << "unsupport message type: " << type;
     }
   } catch (std::exception& e) {
-    CHECK(false) << "failed to process session message: " << e.what();
+    LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *raw_data;
   } catch (...) {
-    CHECK(false) << "unknow exception while process session message";
+    LOG(ERROR) << "unknow exception for session msg: " << *raw_data;
   }
 }
 
@@ -296,27 +299,32 @@ void RouterServer::OnSessionProxyDisconnected(SessionProxy* sp) {
   CHECK(sp != NULL);
   Sid sid = sp->GetId();
   CHECK(sid >= 0 && sid < session_proxys_.size());
-  VLOG(5) << "session proxy " << sid << " disconnected";
+  LOG(ERROR) << "session proxy " << sid << " disconnected";
   sp->Retry();
 }
 
 void RouterServer::OnGetMaxSeqDoneToLogin(const UserID uid, Sid sid, int seq) {
-  VLOG(5) << "OnGetMaxSeqDoneToLogin: " << uid << ", " << sid << ", " << seq;
+  LOG(INFO) << "OnGetMaxSeqDoneToLogin: " << uid << ", " << sid << ", " << seq;
+  UserInfoMap::iterator uit = users_.find(uid);
+  CHECK(uit != users_.end());
+  if (uit->second.IsOnline()) {
+    uit->second.SetMaxSeq(seq);
+    SendAllMessages(uid);
+  } else {
+    LOG(WARNING) << "user has disconnected immediately after connect";
+  }
+}
+
+void RouterServer::LoginUser(const UserID& uid, Sid sid) {
+  LOG(INFO) << "LoginUser: " << uid << ", " << sid;
   UserInfoMap::iterator uit = users_.find(uid);
   if (uit != users_.end()) {
     uit->second.SetOnline(true);
     uit->second.SetSid(sid);
-    uit->second.SetMaxSeq(seq);
   } else {
     UserInfo user(uid, sid);
-    user.SetMaxSeq(seq);
     users_.insert(make_pair(uid, user));
   }
-  SendAllMessages(uid);
-}
-
-void RouterServer::LoginUser(const UserID& uid, Sid sid) {
-  VLOG(5) << "RouterServer::LoginUser: " << uid << ", " << sid;
   storage_->GetMaxSeq(uid,
       boost::bind(&RouterServer::OnGetMaxSeqDoneToLogin, this, uid, sid, _1));
 }
@@ -330,13 +338,12 @@ void RouterServer::OnDeleteMessageDone(bool ok) {
 }
 
 void RouterServer::LogoutUser(const UserID& uid) {
-  VLOG(5) << "RouterServer::LogoutUser: " << uid;
+  LOG(INFO) << "LogoutUser: " << uid;
   UserInfoMap::iterator iter = users_.find(uid);
   if(iter == users_.end()) {
     LOG(ERROR) << "uid " << uid << " not found when logout";
     return;
   }
-  RemoveUserFromChannel(iter->second);
   iter->second.SetOnline(false);
   storage_->DeleteMessage(uid,
       boost::bind(&RouterServer::OnDeleteMessageDone, this, _1));
@@ -359,13 +366,16 @@ void RouterServer::OnSaveMessageDone(bool ok) {
 }
 
 void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+
   RouterServer * self = static_cast<RouterServer*>(ctx);
   VLOG(5) << "RouterServer::OnAdminPub";
 
   HttpQuery query(req);
   const char * to = query.GetStr("to", NULL);
   const char * from = query.GetStr("from", NULL);
-  if (to == NULL || from == NULL) {
+  const char* channel = query.GetStr("channel", NULL);
+  if ((to == NULL && channel == NULL) || from == NULL) {
     string error = "target or source id is invalid";
     LOG(ERROR) << error;
     ReplyError(req, HTTP_BADREQUEST, error);
@@ -382,22 +392,33 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
     ReplyError(req, HTTP_BADREQUEST, error);
     return;
   }
-  MessagePtr msg(new Json::Value());
-  (*msg)["type"] = "msg";
-  (*msg)["from"] = from;
-  (*msg)["to"] = to;
-  (*msg)["body"] = string(bufferstr, len);
-  self->SendUserMsg(msg);
+
   // TODO(qingfeng) maybe reply after save message done is better
+  MessagePtr msg(new Json::Value());
+  if (to != NULL) {
+    (*msg)["type"] = "msg";
+    (*msg)["from"] = from;
+    (*msg)["to"] = to;
+    (*msg)["body"] = string(bufferstr, len);
+    self->SendUserMsg(msg);
+  } else {
+    CHECK(channel != NULL);
+    (*msg)["type"] = "cmsg";
+    (*msg)["from"] = from;
+    (*msg)["channel"] = channel;
+    (*msg)["body"] = string(bufferstr, len);
+    self->SendChannelMsg(msg);
+  }
   ReplyOK(req);
 }
 
 void RouterServer::OnAdminBroadcast(struct evhttp_request* req, void *ctx) {
-  VLOG(5) << "RouterServer::OnAdminBroadcast";
-
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
 }
 
 void RouterServer::OnAdminCheckPresence(struct evhttp_request* req, void *ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+
   RouterServer * self = static_cast<RouterServer*>(ctx);
   VLOG(5) << "RouterServer::OnAdminCheckPresence";
   string response;
@@ -406,8 +427,9 @@ void RouterServer::OnAdminCheckPresence(struct evhttp_request* req, void *ctx) {
 }
 
 void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
-  RouterServer * self = static_cast<RouterServer*>(ctx);
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
 
+  RouterServer * self = static_cast<RouterServer*>(ctx);
   HttpQuery query(req);
   const char * uid = query.GetStr("uid", NULL);
   if (uid == NULL) {
@@ -422,41 +444,53 @@ void RouterServer::OnAdminCheckOffMsg(struct evhttp_request* req, void *ctx) {
 }
 
 void RouterServer::OnAdminSub(struct evhttp_request* req, void *ctx) {
-  RouterServer * self = static_cast<RouterServer*>(ctx);
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
 
+  RouterServer * self = static_cast<RouterServer*>(ctx);
   HttpQuery query(req);
   UserID uid = query.GetStr("uid", "");
   ChannelID cid = query.GetStr("cid", "");
   if (uid.empty() || cid.empty()) {
-    LOG(WARNING) << "uid and cid should not be empty";
-    evhttp_send_reply(req, 410, "Invalid parameters", NULL);
+    string error = "uid and cid should not be empty";
+    LOG(ERROR) << error;
+    ReplyError(req, HTTP_BADREQUEST, error);
   } else {
+    // TODO(qingfeng) if failed to subscribe, reply error
     self->Subscribe(uid, cid);
+    ReplyOK(req);
   }
 }
 
 void RouterServer::OnAdminUnsub(struct evhttp_request* req, void *ctx) {
-  RouterServer * self = static_cast<RouterServer*>(ctx);
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
 
+  RouterServer * self = static_cast<RouterServer*>(ctx);
   HttpQuery query(req);
   UserID uid = query.GetStr("uid", "");
   ChannelID cid = query.GetStr("cid", "");
   if (uid.empty() || cid.empty()) {
-    LOG(WARNING) << "uid and cid should not be empty";
-    evhttp_send_reply(req, 410, "Invalid parameters", NULL);
+    string error = "uid and cid should not be empty";
+    LOG(ERROR) << error;
+    ReplyError(req, HTTP_BADREQUEST, error);
   } else {
     self->Unsubscribe(uid, cid);
+    ReplyOK(req);
   }
 }
 
 void RouterServer::OnGetMsgToSend(UserID uid, MessageResult mr) {
-  VLOG(5) << "OnGetMsgToSend mr->size = " << mr->size();
+  LOG(INFO) << "OnGetMsgToSend msg number = " << mr->size() / 2
+            << ", uid = " << uid;
   Sid sid = FindSidByUid(uid);
   if (sid == INVALID_SID) {
     LOG(WARNING) << "uid " << uid << " is offline";
   } else {
     CHECK(size_t(sid) < session_proxys_.size());
-    if (mr.get() != NULL && session_proxys_[sid]->IsConnected()) {
+    if (mr.get() != NULL) {
+      if (!session_proxys_[sid]->IsConnected()) {
+        LOG(WARNING) << "session proxy is not avaiable";
+        return;
+      }
       for (int i = 1; i < mr->size(); i+=2) {
         stats_.OnSend(mr->at(i));
         session_proxys_[sid]->SendData(mr->at(i));
@@ -504,6 +538,8 @@ void RouterServer::OnSignal(evutil_socket_t sig, short events, void *ctx) {
 }
 
 void RouterServer::OnAdminStats(struct evhttp_request* req, void *ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+
   RouterServer* self = static_cast<RouterServer*>(ctx);
   Json::Value response;
   Json::Value& result = response["result"];
