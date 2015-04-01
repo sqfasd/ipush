@@ -386,11 +386,11 @@ bool SocketClient::HandleWrite() {
         LOG(WARNING) << "packet maybe popped in other thread, dangerous !";
       }
       continue;
-    } else if (ret < pkt->Size() && ret > 0) {
+    } else if (ret != 0) {
       LOG(INFO) << "write not complete: " << ret;
       return true;
     } else {
-      LOG(ERROR) << "write error: " << ret;
+      LOG(ERROR) << "write eof, connection closed: ";
       return false;
     }
   }
