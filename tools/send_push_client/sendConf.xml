@@ -1,0 +1,18 @@
+<logging>
+    <filter enabled="false">
+        <tag>stdout</tag>
+        <type>console</type>
+        <level>INFO</level><!-- (FINEST|FINE|DEBUG|TRACE|INFO|WARNING|ERROR) -->
+    </filter>
+    <filter enabled="true">
+        <tag>client</tag>
+        <type>file</type>
+        <level>INFO</level>
+        <property name="filename">sendTestMsg.log</property>
+        <property name="format">[%D %T] [%L] %M</property>
+        <property name="rotate">false</property> <!-- true enables log rotation, otherwise append -->
+        <property name="maxsize">0M</property> <!-- \d+[KMG]? Suffixes are in terms of 2**10 -->
+        <property name="maxlines">0K</property> <!-- \d+[KMG]? Suffixes are in terms of thousands -->
+        <property name="daily">true</property> <!-- Automatically rotates when a log message is written after midnight -->
+    </filter>
+</logging>
