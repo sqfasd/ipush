@@ -393,6 +393,8 @@ void RouterServer::OnAdminPub(struct evhttp_request* req, void *ctx) {
     return;
   }
 
+  self->stats_.OnPubRequest();
+
   // TODO(qingfeng) maybe reply after save message done is better
   MessagePtr msg(new Json::Value());
   if (to != NULL) {

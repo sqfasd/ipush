@@ -387,7 +387,7 @@ bool SocketClient::HandleWrite() {
       }
       continue;
     } else if (ret != 0) {
-      LOG(INFO) << "write not complete: " << ret;
+      VLOG(5) << "write not complete: " << ret;
       return true;
     } else {
       LOG(ERROR) << "write eof, connection closed: ";
