@@ -53,7 +53,7 @@ void StatsManager::OnTimer(int64 user_number) {
   d_.last_recv_number_ = d_.total_recv_number_;
   d_.last_recv_bytes_ = d_.total_recv_bytes_;
   d_.last_send_number_ = d_.total_send_number_;
-  d_.last_send_number_ = d_.total_send_bytes_;
+  d_.last_send_bytes_ = d_.total_send_bytes_;
   d_.user_number_ = user_number;
 }
 
