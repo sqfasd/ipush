@@ -17,6 +17,7 @@ class StatsManager {
   void OnServerStart();
   void OnReceive(const string& data);
   void OnSend(const string& data);
+  void OnPubRequest();
 
   void GetReport(Json::Value& report) const;
 
@@ -25,22 +26,24 @@ class StatsManager {
   base::Time server_start_time_;
   string server_start_datetime_;
   struct PlainData {
-    int64 total_recv_number_;
-    int64 last_recv_number_;
-    int64 total_recv_bytes_;
-    int64 last_recv_bytes_;
-    int64 total_send_number_;
-    int64 last_send_number_;
-    int64 total_send_bytes_;
-    int64 last_send_bytes_;
-    int64 max_recv_number_per_second_;
-    int64 max_recv_bytes_per_second_;
-    int64 max_send_number_per_second_;
-    int64 max_send_bytes_per_second_;
-    int64 user_number_;
-    int64 max_user_number_;
-    int64 max_user_growth_per_second_;
-    int64 max_user_reduce_per_second_;
+    int64 total_recv_number;
+    int64 last_recv_number;
+    int64 total_recv_bytes;
+    int64 last_recv_bytes;
+    int64 total_send_number;
+    int64 last_send_number;
+    int64 total_send_bytes;
+    int64 last_send_bytes;
+    int64 max_recv_number_per_second;
+    int64 max_recv_bytes_per_second;
+    int64 max_send_number_per_second;
+    int64 max_send_bytes_per_second;
+    int64 user_number;
+    int64 max_user_number;
+    int64 max_user_growth_per_second;
+    int64 max_user_reduce_per_second;
+
+    int64 total_pub_request_number;
   } d_;
 };
 }  // namespace xcomet
