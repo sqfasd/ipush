@@ -81,11 +81,11 @@ class WorkerUnittest : public testing::Test {
 
 TEST_F(WorkerUnittest, SimpleTest) {
   worker_->Do(
-      boost::bind(&WorkerUnittest::SlowWork, this),
-      boost::bind(&WorkerUnittest::Callback, this));
+      bind(&WorkerUnittest::SlowWork, this),
+      bind(&WorkerUnittest::Callback, this));
   worker_->Do<int*>(
-      boost::bind(&WorkerUnittest::SlowWork1, this),
-      boost::bind(&WorkerUnittest::Callback1, this, _1));
+      bind(&WorkerUnittest::SlowWork1, this),
+      bind(&WorkerUnittest::Callback1, this, _1));
 }
 
 }  // namespace xcomet
