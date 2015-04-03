@@ -106,7 +106,7 @@ void Session::OnReceive() {
     VLOG(5) << "total buffer length: " << left_len;
     left_len -= next_msg_max_len_;
     if (left_len >= 0) {
-      base::shared_ptr<string> message(new string());
+      shared_ptr<string> message(new string());
       message->resize(next_msg_max_len_);
       evbuffer_remove(input, (char*)message->c_str(), next_msg_max_len_);
       if (message_callback_) {

@@ -1,9 +1,7 @@
 #ifndef SRC_USER_H_
 #define SRC_USER_H_
 
-#include <boost/bind.hpp>
 #include "deps/base/dlist.h"
-#include "deps/base/shared_ptr.h"
 #include "src/include_std.h"
 #include "src/session.h"
 
@@ -14,7 +12,7 @@ namespace xcomet {
 class User;
 class UserCircleQueue;
 class SessionServer;
-typedef base::shared_ptr<User> UserPtr;
+typedef shared_ptr<User> UserPtr;
 typedef map<string, UserPtr> UserMap;
 
 class User {

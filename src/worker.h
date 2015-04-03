@@ -2,8 +2,6 @@
 #define SRC_WORKER_H_
 
 #include <event.h>
-#include <boost/bind.hpp>
-#include <boost/function.hpp>
 #include "deps/base/thread.h"
 #include "deps/base/concurrent_queue.h"
 #include "src/include_std.h"
@@ -23,7 +21,7 @@ class Task {
 template <typename R>
 class TaskImpl : public Task {
  public:
-  TaskImpl(boost::function<R ()> runner, boost::function<void (R)> cb)
+  TaskImpl(function<R ()> runner, function<void (R)> cb)
       : runner_(runner), callback_(cb) {
   }
 
@@ -39,15 +37,15 @@ class TaskImpl : public Task {
   }
 
  private:
-  boost::function<R ()> runner_;
-  boost::function<void (R)> callback_;
+  function<R ()> runner_;
+  function<void (R)> callback_;
   R ret_val_;
 };
 
 template <>
 class TaskImpl<void> : public Task {
  public:
-  TaskImpl(boost::function<void ()> runner, boost::function<void ()> cb)
+  TaskImpl(function<void ()> runner, function<void ()> cb)
       : runner_(runner), callback_(cb) {
   }
 
@@ -63,8 +61,8 @@ class TaskImpl<void> : public Task {
   }
 
  private:
-  boost::function<void ()> runner_;
-  boost::function<void ()> callback_;
+  function<void ()> runner_;
+  function<void ()> callback_;
 };
 
 
@@ -73,7 +71,7 @@ class Worker : public base::Thread {
   Worker(struct event_base* evbase);
   ~Worker();
 
-  void Do(boost::function<void ()> runner, boost::function<void ()> cb) {
+  void Do(function<void ()> runner, function<void ()> cb) {
     size_t taskq_size = task_queue_.Size();
     if(taskq_size >= size_t(FLAGS_task_queue_warning_size)) {
       LOG(WARNING) << "taskqueue is overloaded, size: " << taskq_size;
@@ -82,7 +80,7 @@ class Worker : public base::Thread {
   }
 
   template <typename R>
-  void Do(boost::function<R ()> runner, boost::function<void (R)> cb) {
+  void Do(function<R ()> runner, function<void (R)> cb) {
     size_t taskq_size = task_queue_.Size();
     if(taskq_size >= size_t(FLAGS_task_queue_warning_size)) {
       LOG(WARNING) << "taskqueue is overloaded, size: " << taskq_size;
@@ -90,7 +88,7 @@ class Worker : public base::Thread {
     task_queue_.Push(new TaskImpl<R>(runner, cb));
   }
 
-  void RunInMainLoop(boost::function<void ()> cb) {
+  void RunInMainLoop(function<void ()> cb) {
     Do(&DoNothing, cb);
   }
 

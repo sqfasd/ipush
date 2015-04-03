@@ -63,7 +63,7 @@ void SessionServer::Pub(struct evhttp_request* req) {
   struct evbuffer* input_buffer = evhttp_request_get_input_buffer(req);
   int len = evbuffer_get_length(input_buffer);
   VLOG(3) << "Pub receive data length: " << len;
-  base::shared_ptr<string> post_buffer(new string());
+  shared_ptr<string> post_buffer(new string());
   post_buffer->reserve(len);
   post_buffer->append((char*)evbuffer_pullup(input_buffer, -1), len);
 
@@ -138,13 +138,13 @@ void SessionServer::OnTimer() {
 
   timeout_queue_.IncHead();
 
-  boost::function<void ()> task;
+  function<void ()> task;
   while (task_queue_.TryPop(task)) {
     task();
   }
 }
 
-void SessionServer::RunInNextTick(boost::function<void ()> fn) {
+void SessionServer::RunInNextTick(function<void ()> fn) {
   task_queue_.Push(fn);
 }
 
@@ -168,7 +168,7 @@ void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
   }
 }
 
-void SessionServer::OnRouterMessage(base::shared_ptr<string> message) {
+void SessionServer::OnRouterMessage(shared_ptr<string> message) {
   VLOG(3) << "OnRouterMessage: " << *message;
   if (IsHeartbeatMessage(*message)) {
     VLOG(5) << "is router heartbeat, ignore";

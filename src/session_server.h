@@ -26,10 +26,10 @@ class SessionServer {
   void Stats(struct evhttp_request* req);
   void OnStart();
   void OnTimer();
-  void OnUserMessage(const string& uid, base::shared_ptr<string> message);
+  void OnUserMessage(const string& uid, shared_ptr<string> message);
   void OnRouterMessage(StringPtr message);
   void OnUserDisconnect(User* user);
-  void RunInNextTick(boost::function<void ()> fn);
+  void RunInNextTick(function<void ()> fn);
 
  private:
   SessionServer();
@@ -40,7 +40,7 @@ class SessionServer {
   UserMap users_;
   UserCircleQueue timeout_queue_;
   StatsManager stats_;
-  base::ConcurrentQueue<boost::function<void ()> > task_queue_;
+  base::ConcurrentQueue<function<void ()> > task_queue_;
 
   DISALLOW_COPY_AND_ASSIGN(SessionServer);
   friend struct DefaultSingletonTraits<SessionServer>;

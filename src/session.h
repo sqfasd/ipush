@@ -8,7 +8,7 @@
 #include "deps/base/callback.h"
 
 namespace xcomet {
-typedef boost::function<void (base::shared_ptr<string>)> MessageCallback;
+typedef function<void (shared_ptr<string>)> MessageCallback;
 class Session {
  public:
   Session(struct evhttp_request* req);

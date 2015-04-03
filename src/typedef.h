@@ -1,16 +1,14 @@
 #ifndef SRC_TYPEDEF_H_
 #define SRC_TYPEDEF_H_
 
-#include <string>
-#include "deps/base/scoped_ptr.h"
-#include "deps/base/shared_ptr.h"
+#include "src/include_std.h"
 
 namespace xcomet {
 
 typedef std::string UserID;
 typedef std::string ChannelID;
 typedef int Sid;
-typedef base::shared_ptr<std::string> StringPtr;
+typedef shared_ptr<std::string> StringPtr;
 
 }
 
