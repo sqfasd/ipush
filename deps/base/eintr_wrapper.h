@@ -10,6 +10,15 @@
 
 #include <errno.h>
 
+#if __cplusplus >= 201103L
+#define HANDLE_EINTR(x) ({ \
+  decltype(x) __eintr_result__;\
+  do { \
+    __eintr_result__ = x; \
+  } while (__eintr_result__ == -1 && errno == EINTR); \
+  __eintr_result__;\
+})
+#else
 #define HANDLE_EINTR(x) ({ \
   typeof(x) __eintr_result__; \
   do { \
@@ -17,5 +26,6 @@
   } while (__eintr_result__ == -1 && errno == EINTR); \
   __eintr_result__;\
 })
+#endif
 
 #endif  // BASE_EINTR_WRAPPER_H_
