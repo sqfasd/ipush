@@ -14,10 +14,15 @@ typedef base::shared_ptr<vector<string> > MessageResult;
 class Message {
  public:
   static MessagePtr Unserialize(StringPtr data) {
+    // need to bind, cannot overload
+    return UnserializeString(*data);
+  }
+
+  static MessagePtr UnserializeString(const string& data) {
     MessagePtr msg(new Json::Value());
     Json::Reader reader;
-    if (!reader.parse(*data, *msg)) {
-      LOG(ERROR) << "Unserialize failed: " << *data;
+    if (!reader.parse(data, *msg)) {
+      LOG(ERROR) << "Unserialize failed: " << data;
     }
     return msg;
   }
