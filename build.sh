@@ -11,12 +11,6 @@ cd $SOURCE_DIR/deps/libevent
 test -f Makefile || ./configure
 make
 
-cd $SOURCE_DIR/deps/ssdb
-./build.sh
-make
-cd $SOURCE_DIR/deps/ssdb/api/cpp
-make
-
 cd $SOURCE_DIR
 test -d $DIR || mkdir -p $DIR 
 cd $DIR \

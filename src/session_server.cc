@@ -24,7 +24,6 @@ namespace xcomet {
 
 SessionServer::SessionServer()
     : timeout_counter_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
-      router_(*this),
       timeout_queue_(timeout_counter_),
       stats_(FLAGS_timer_interval_sec) {
 }
@@ -49,7 +48,6 @@ void SessionServer::Connect(struct evhttp_request* req) {
   UserPtr user(new User(uid, type, req, *this));
   UserMap::iterator iter = users_.find(uid);
   if (iter == users_.end()) {
-    router_.LoginUser(uid);
     LOG(INFO) << "login user: " << uid;
   } else {
     timeout_queue_.RemoveUser(iter->second.get());
@@ -119,17 +117,6 @@ void SessionServer::Broadcast(struct evhttp_request* req) {
   // TODO(qingfeng) is broadcast needed?
 }
 
-// /rsub?seq=1
-void SessionServer::RSub(struct evhttp_request* req) {
-  CHECK_HTTP_GET();
-  // TODO (qingfeng) check request parameters
-  router_.ResetSession(req);
-  LOG(INFO) << "router connected, there are " << users_.size()
-            << " users to register";
-  // TODO(qingfeng) use copy-on-write method to login all users
-  RunInNextTick(boost::bind(&SessionServer::LoginAllUserToRouter, this));
-}
-
 void SessionServer::OnTimer() {
   VLOG(5) << "OnTimer";
   stats_.OnTimer(users_.size());
@@ -157,14 +144,6 @@ void SessionServer::OnTimer() {
   }
 }
 
-void SessionServer::LoginAllUserToRouter() {
-  VLOG(5) << "LoginAllUserToRouter";
-  UserMap::iterator it;
-  for (it = users_.begin(); it != users_.end(); ++it) {
-    router_.LoginUser(it->first);
-  }
-}
-
 void SessionServer::RunInNextTick(boost::function<void ()> fn) {
   task_queue_.Push(fn);
 }
@@ -176,10 +155,9 @@ bool SessionServer::IsHeartbeatMessage(const string& message) {
 
 void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
   stats_.OnReceive(*message);
-  // TODO(qingfeng) if target in current session, send it before redirect
   VLOG(2) << from_uid << ": " << *message;
   if (!IsHeartbeatMessage(*message)) {
-    router_.Redirect(message);
+    // router_.Redirect(message);
   }
 
   UserMap::iterator uit = users_.find(from_uid);
@@ -224,7 +202,6 @@ void SessionServer::OnUserDisconnect(User* user) {
   const string& uid = user->GetId();
   LOG(INFO) << "OnUserDisconnect: " << uid;
   timeout_queue_.RemoveUser(user);
-  router_.LogoutUser(uid);
   users_.erase(uid);
 }
 
@@ -262,11 +239,6 @@ static void PubHandler(struct evhttp_request* req, void* arg) {
 static void BroadcastHandler(struct evhttp_request* req, void* arg) {
   LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer::Instance().Broadcast(req);
-}
-
-static void RSubHandler(struct evhttp_request* req, void* arg) {
-  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
-  SessionServer::Instance().RSub(req);
 }
 
 static void StatsHandler(struct evhttp_request* req, void* arg) {
@@ -307,7 +279,6 @@ void SetupClientHandler(struct evhttp* http, struct event_base* evbase) {
 void SetupAdminHandler(struct evhttp* http, struct event_base* evbase) {
   evhttp_set_cb(http, "/pub", PubHandler, evbase);
   evhttp_set_cb(http, "/broadcast", BroadcastHandler, evbase);
-  evhttp_set_cb(http, "/rsub", RSubHandler, evbase);
   evhttp_set_cb(http, "/stats", StatsHandler, evbase);
 
   struct evhttp_bound_socket* sock = NULL;

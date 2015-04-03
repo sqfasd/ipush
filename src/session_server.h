@@ -6,8 +6,6 @@
 #include "deps/base/concurrent_queue.h"
 #include "src/include_std.h"
 #include "src/user.h"
-#include "src/channel.h"
-#include "src/router_proxy.h"
 #include "src/http_query.h"
 #include "src/stats_manager.h"
 #include "src/typedef.h"
@@ -22,10 +20,9 @@ class SessionServer {
   }
 
   void Connect(struct evhttp_request* req);
-  void Pub(struct evhttp_request* req);  // @DEPRECATED
+  void Pub(struct evhttp_request* req);
   void Disconnect(struct evhttp_request* req);
   void Broadcast(struct evhttp_request* req);
-  void RSub(struct evhttp_request* req);
   void Stats(struct evhttp_request* req);
   void OnStart();
   void OnTimer();
@@ -37,13 +34,10 @@ class SessionServer {
  private:
   SessionServer();
   ~SessionServer();
-  void RemoveUserFromChannel(User* user);
   bool IsHeartbeatMessage(const string& message);
-  void LoginAllUserToRouter();
 
   const int timeout_counter_;
   UserMap users_;
-  RouterProxy router_;
   UserCircleQueue timeout_queue_;
   StatsManager stats_;
   base::ConcurrentQueue<boost::function<void ()> > task_queue_;

@@ -25,8 +25,6 @@ include_directories(
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/deps
   ${PROJECT_SOURCE_DIR}/deps/jsoncpp/include
-  ${PROJECT_SOURCE_DIR}/deps/ssdb/src
-  ${PROJECT_SOURCE_DIR}/deps/ssdb/api/cpp
   ${PROJECT_SOURCE_DIR}/deps/gtest
   ${PROJECT_SOURCE_DIR}/deps/gtest/include
   ${PROJECT_SOURCE_DIR}/deps/libevent
@@ -35,13 +33,6 @@ include_directories(
 )
 
 link_directories(
-  ${PROJECT_SOURCE_DIR}/deps/ssdb/src/ssdb
-  ${PROJECT_SOURCE_DIR}/deps/ssdb/src/net
-  ${PROJECT_SOURCE_DIR}/deps/ssdb/src/util
-  ${PROJECT_SOURCE_DIR}/deps/ssdb/api/cpp
-  ${PROJECT_SOURCE_DIR}/deps/ssdb/deps/snappy-1.1.0/.libs
-  ${PROJECT_SOURCE_DIR}/deps/ssdb/deps/jemalloc-3.3.1/lib
-  ${PROJECT_SOURCE_DIR}/deps/ssdb/deps/leveldb-1.14.0
   ${PROJECT_SOURCE_DIR}/deps/libevent/.libs
   /usr/local/lib
   /usr/lib64/mysql

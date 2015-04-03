@@ -12,14 +12,10 @@ fi
 
 install_dir=$1
 mkdir -p $install_dir/{conf,scripts,bin,logs} || exit 1
-mkdir -p $install_dir/ssdb/var || exit 1
 
 cp build/release/bin/* $install_dir/bin/
 cp conf/* $install_dir/conf/
 cp scripts/* $install_dir/scripts/ && chmod +x $install_dir/scripts/*
-cp deps/ssdb/ssdb-server $install_dir/ssdb/
-cp deps/ssdb/ssdb.conf $install_dir/ssdb/
-cp deps/ssdb/ssdb_slave.conf $install_dir/ssdb/
 
 version_file=$install_dir/version
 rm -f $version_file
