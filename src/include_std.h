@@ -24,6 +24,7 @@ using std::ostream;
 #include <memory>
 #include <thread>
 #include <functional>
+#include <atomic>
 
 using std::shared_ptr;
 using std::thread;
@@ -32,16 +33,17 @@ using std::bind;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
+using std::atomic;
 #else
-#include <boost/thread.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/bind.hpp>
-#include <boost/function.hpp>
-
-using boost::shared_ptr;
-using boost::thread;
-using boost::function;
-using boost::bind;
+// #include <boost/thread.hpp>
+// #include <boost/shared_ptr.hpp>
+// #include <boost/bind.hpp>
+// #include <boost/function.hpp>
+// 
+// using boost::shared_ptr;
+// using boost::thread;
+// using boost::function;
+// using boost::bind;
 #endif
 
 #endif  // SRC_INCLUDE_STD_H_

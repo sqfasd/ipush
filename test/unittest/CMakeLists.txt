@@ -5,9 +5,11 @@ ADD_EXECUTABLE(unittest.run
   gtest_main.cc
   worker_ut.cc
   sharding_ut.cc
+  peer_ut.cc
   ../../src/worker.cc
   ../../src/event_msgqueue.c
   ../../src/utils.cc
+  ../../src/peer/peer.cc
 )
 
 TARGET_LINK_LIBRARIES(unittest.run
@@ -16,5 +18,6 @@ TARGET_LINK_LIBRARIES(unittest.run
   base
   jsoncpp
   gtest
+  zmq
 )
 
