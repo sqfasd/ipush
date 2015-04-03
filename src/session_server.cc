@@ -38,9 +38,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   if (uid.empty()) {
-    string error = "invalid uid";
-    LOG(ERROR) << error;
-    ReplyError(req, HTTP_BADREQUEST, error);
+    ReplyError(req, HTTP_BADREQUEST, "invalid uid");
     return;
   }
 
@@ -87,15 +85,11 @@ void SessionServer::Pub(struct evhttp_request* req) {
         user->Send(from, "pub", *(post_buffer.get()));
       }
     } else {
-      string error = "target not found: " + to;
-      LOG(ERROR) << error;
-      ReplyError(req, HTTP_INTERNAL, error);
+      ReplyError(req, HTTP_INTERNAL, "target not found: " + to);
       return;
     }
   } else {
-    string error = "target user id is empty";
-    LOG(ERROR) << error;
-    ReplyError(req, HTTP_BADREQUEST, error);
+    ReplyError(req, HTTP_BADREQUEST, "target user id is empty");
     return;
   }
   ReplyOK(req);
@@ -107,17 +101,13 @@ void SessionServer::Disconnect(struct evhttp_request* req) {
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   if (uid.empty()) {
-    string error = "uid is empty";
-    LOG(ERROR) << error;
-    ReplyError(req, HTTP_BADREQUEST, error);
+    ReplyError(req, HTTP_BADREQUEST, "uid is empty");
     return;
   }
 
   UserMap::iterator uit = users_.find(uid);
   if (uit == users_.end()) {
-    string error = "user not found: " + uid;
-    LOG(ERROR) << error;
-    ReplyError(req, HTTP_INTERNAL, error);
+    ReplyError(req, HTTP_INTERNAL, "user not found: " + uid);
   } else {
     uit->second->Close();
     ReplyOK(req);

@@ -5,6 +5,7 @@
 #include <event2/event.h>
 #include <event2/listener.h>
 #include <string>
+#include "deps/base/logging.h"
 
 namespace xcomet {
 
@@ -42,6 +43,7 @@ inline void ReplyError(struct evhttp_request* req,
       error_header = "Unknwo Error";
       break;
   }
+  LOG(ERROR) << error_header << ": " << res;
   evhttp_add_header(req->output_headers,
                     "Content-Type",
                     "text/json; charset=utf-8");
