@@ -25,22 +25,22 @@ const char* MSG_0_1 = "message from peer0 to peer1";
 const char* MSG_1_2 = "message from peer1 to peer2";
 
 TEST(PeerUnittest, Normal) {
-  const int peer_num = 3;
-  Peer* peer0 = CreatePeer(3, 0);
+  const int PEER_NUM = 3;
+  Peer* peer0 = CreatePeer(PEER_NUM, 0);
   peer0->SetMessageCallback([](PeerMessagePtr msg) {
     CHECK(msg->source == 2);
     CHECK(msg->target == 0);
     CHECK(msg->content == MSG_2_0);
   });
 
-  Peer* peer1 = CreatePeer(3, 1);
+  Peer* peer1 = CreatePeer(PEER_NUM, 1);
   peer1->SetMessageCallback([](PeerMessagePtr msg) {
     CHECK(msg->source == 0);
     CHECK(msg->target == 1);
     CHECK(msg->content == MSG_0_1);
   });
 
-  Peer* peer2 = CreatePeer(3, 2);
+  Peer* peer2 = CreatePeer(PEER_NUM, 2);
   peer2->SetMessageCallback([](PeerMessagePtr msg) {
     CHECK(msg->source == 1);
     CHECK(msg->target == 2);
