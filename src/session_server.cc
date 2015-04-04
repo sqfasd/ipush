@@ -5,6 +5,7 @@
 #include "deps/base/flags.h"
 #include "deps/base/shared_ptr.h"
 #include "deps/base/daemonizer.h"
+#include "src/loop_executor.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9100, "");
@@ -335,6 +336,8 @@ int main(int argc, char* argv[]) {
     CHECK(sigterm_event && event_add(timer_event, &tv) == 0)
         << "set timer handler failed";
 	}
+
+  LoopExecutor::Init(evbase);
   SessionServer::Instance().OnStart();
 
 	event_base_dispatch(evbase);
