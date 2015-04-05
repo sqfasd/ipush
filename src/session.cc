@@ -20,6 +20,15 @@ Session::~Session() {
   }
 }
 
+void Session::Send(Message msg) {
+  StringPtr data = Message::Serialize(msg);
+  if (data->empty()) {
+    LOG(ERROR) << "invalid msg: " << *msg:
+  } else {
+    SendChunk(data->c_str());
+  }
+}
+
 void Session::Send(const std::string& packet_str) {
   SendChunk(packet_str.c_str());
 }
