@@ -20,10 +20,10 @@ Session::~Session() {
   }
 }
 
-void Session::Send(Message msg) {
+void Session::Send(MessagePtr msg) {
   StringPtr data = Message::Serialize(msg);
   if (data->empty()) {
-    LOG(ERROR) << "invalid msg: " << *msg:
+    LOG(ERROR) << "invalid msg: " << *msg;
   } else {
     SendChunk(data->c_str());
   }

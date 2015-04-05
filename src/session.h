@@ -2,10 +2,10 @@
 #define SRC_SESSION_H_
 
 #include <evhttp.h>
-#include <boost/function.hpp>
 #include "base/shared_ptr.h"
-#include "src/include_std.h"
 #include "deps/base/callback.h"
+#include "src/include_std.h"
+#include "src/message.h"
 
 namespace xcomet {
 typedef function<void (shared_ptr<string>)> MessageCallback;
@@ -13,7 +13,7 @@ class Session {
  public:
   Session(struct evhttp_request* req);
   virtual ~Session();
-  void Send(Message msg);
+  void Send(MessagePtr msg);
   void Send(const string& packet_str);
   void Send(const string& from_id, const string& type, const string& content);
   void SendHeartbeat();
