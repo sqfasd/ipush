@@ -31,13 +31,123 @@ DEFINE_bool(is_server_heartbeat, false, "");
 
 namespace xcomet {
 
+static void ConnectHandler(struct evhttp_request* req, void* ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->Connect(req);
+}
+
+static void DisconnectHandler(struct evhttp_request* req, void* ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->Disconnect(req);
+}
+
+static void PubHandler(struct evhttp_request* req, void* ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->Pub(req);
+}
+
+static void BroadcastHandler(struct evhttp_request* req, void* ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->Broadcast(req);
+}
+
+static void StatsHandler(struct evhttp_request* req, void* ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->Stats(req);
+}
+
+static void SubHandler(struct evhttp_request* req, void* ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->Sub(req);
+}
+
+static void UnsubHandler(struct evhttp_request* req, void* ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->Unsub(req);
+}
+
+static void MsgHandler(struct evhttp_request* req, void* ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->Msg(req);
+}
+
+static void AcceptErrorHandler(struct evconnlistener* listener, void* ptr) {
+  LOG(ERROR) << "AcceptErrorHandler";
+}
+
+static void SignalHandler(evutil_socket_t sig, short events, void* ctx) {
+  LOG(INFO) << "SignalHandler: " << sig << ", " << events;
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->Stop();
+}
+
+static void TimerHandler(evutil_socket_t sig, short events, void *ctx) {
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->OnTimer();
+}
+
+struct SessionServerPrivate {
+  struct event_base* evbase;
+  struct evhttp* client_http;
+  struct evhttp* admin_http;
+  struct event* sigterm_event;
+  struct event* sigint_event;
+  struct event* timer_event;
+
+  SessionServerPrivate() {
+    evbase = event_base_new();
+    CHECK(evbase) << "create evbase failed";
+  }
+  ~SessionServerPrivate() {
+    event_free(timer_event);
+    event_free(sigterm_event);
+    event_free(sigint_event);
+    evhttp_free(client_http);
+    evhttp_free(admin_http);
+    event_base_free(evbase);
+  }
+};
+
 SessionServer::SessionServer()
-    : timeout_counter_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
+    : p_(new SessionServerPrivate()),
+      timeout_counter_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
       timeout_queue_(timeout_counter_),
       stats_(FLAGS_timer_interval_sec) {
 }
 
 SessionServer::~SessionServer() {
+  delete p_;
+  LOG(INFO) << "~SessionServer";
+}
+
+void SessionServer::Start() {
+  SetupClientHandler();
+  SetupAdminHandler();
+  SetupEventHandler();
+  OnStart();
+	event_base_dispatch(p_->evbase);
+}
+
+void SessionServer::Stop() {
+  OnStop();
+  event_base_loopbreak(p_->evbase);
+}
+
+void SessionServer::OnStart() {
+  xcomet::LoopExecutor::Init(p_->evbase);
+  stats_.OnServerStart();
+}
+
+void SessionServer::OnStop() {
+  xcomet::LoopExecutor::Destroy();
 }
 
 // /connect?uid=123&token=ABCDE&type=1|2
@@ -256,73 +366,13 @@ void SessionServer::Stats(struct evhttp_request* req) {
   ReplyOK(req, response.toStyledString());
 }
 
-void SessionServer::OnStart() {
-  stats_.OnServerStart();
-}
-
-}  // namespace xcomet
-
-using xcomet::SessionServer;
-
-static void ConnectHandler(struct evhttp_request* req, void* arg) {
-  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
-  SessionServer::Instance().Connect(req);
-}
-
-static void DisconnectHandler(struct evhttp_request* req, void* arg) {
-  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
-  SessionServer::Instance().Disconnect(req);
-}
-
-static void PubHandler(struct evhttp_request* req, void* arg) {
-  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
-  SessionServer::Instance().Pub(req);
-}
-
-static void BroadcastHandler(struct evhttp_request* req, void* arg) {
-  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
-  SessionServer::Instance().Broadcast(req);
-}
-
-static void StatsHandler(struct evhttp_request* req, void* arg) {
-  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
-  SessionServer::Instance().Stats(req);
-}
-
-static void SubHandler(struct evhttp_request* req, void* arg) {
-  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
-  SessionServer::Instance().Sub(req);
-}
-
-static void UnsubHandler(struct evhttp_request* req, void* arg) {
-  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
-  SessionServer::Instance().Unsub(req);
-}
-
-static void MsgHandler(struct evhttp_request* req, void* arg) {
-  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
-  SessionServer::Instance().Msg(req);
-}
-
-static void AcceptErrorHandler(struct evconnlistener* listener, void* ptr) {
-  LOG(ERROR) << "AcceptErrorHandler";
-}
-
-static void SignalHandler(evutil_socket_t sig, short events, void* user_data) {
-  LOG(INFO) << "SignalHandler: " << sig << ", " << events;
-  struct event_base* evbase = (struct event_base*)user_data;
-	event_base_loopbreak(evbase);
-}
-
-static void TimerHandler(evutil_socket_t sig, short events, void *user_data) {
-  SessionServer::Instance().OnTimer();
-}
-
-void SetupClientHandler(struct evhttp* http, struct event_base* evbase) {
-  evhttp_set_cb(http, "/connect", ConnectHandler, evbase);
+void SessionServer::SetupClientHandler() {
+  p_->client_http = evhttp_new(p_->evbase);
+  CHECK(p_->client_http) << "create client http handle failed";
+  evhttp_set_cb(p_->client_http, "/connect", ConnectHandler, this);
 
   struct evhttp_bound_socket* sock = NULL;
-  sock = evhttp_bind_socket_with_handle(http,
+  sock = evhttp_bind_socket_with_handle(p_->client_http,
                                         "0.0.0.0",
                                         FLAGS_client_listen_port);
   CHECK(sock) << "bind address failed: " << strerror(errno);
@@ -333,17 +383,19 @@ void SetupClientHandler(struct evhttp* http, struct event_base* evbase) {
   evconnlistener_set_error_cb(listener, AcceptErrorHandler);
 }
 
-void SetupAdminHandler(struct evhttp* http, struct event_base* evbase) {
-  evhttp_set_cb(http, "/pub", PubHandler, evbase);
-  evhttp_set_cb(http, "/broadcast", BroadcastHandler, evbase);
-  evhttp_set_cb(http, "/stats", StatsHandler, evbase);
-  evhttp_set_cb(http, "/disconnect", DisconnectHandler, evbase);
-  evhttp_set_cb(http, "/sub", SubHandler, evbase);
-  evhttp_set_cb(http, "/unsub", UnsubHandler, evbase);
-  evhttp_set_cb(http, "/msg", MsgHandler, evbase);
+void SessionServer::SetupAdminHandler() {
+  p_->admin_http = evhttp_new(p_->evbase);
+  CHECK(p_->admin_http) << "create admin http handle failed";
+  evhttp_set_cb(p_->admin_http, "/pub", PubHandler, this);
+  evhttp_set_cb(p_->admin_http, "/broadcast", BroadcastHandler, this);
+  evhttp_set_cb(p_->admin_http, "/stats", StatsHandler, this);
+  evhttp_set_cb(p_->admin_http, "/disconnect", DisconnectHandler, this);
+  evhttp_set_cb(p_->admin_http, "/sub", SubHandler, this);
+  evhttp_set_cb(p_->admin_http, "/unsub", UnsubHandler, this);
+  evhttp_set_cb(p_->admin_http, "/msg", MsgHandler, this);
 
   struct evhttp_bound_socket* sock = NULL;
-  sock = evhttp_bind_socket_with_handle(http,
+  sock = evhttp_bind_socket_with_handle(p_->admin_http,
                                         "0.0.0.0",
                                         FLAGS_admin_listen_port);
   CHECK(sock) << "bind address failed: " << strerror(errno);
@@ -354,6 +406,25 @@ void SetupAdminHandler(struct evhttp* http, struct event_base* evbase) {
   evconnlistener_set_error_cb(listener, AcceptErrorHandler);
 }
 
+void SessionServer::SetupEventHandler() {
+	p_->sigint_event = evsignal_new(p_->evbase, SIGINT, SignalHandler, this);
+  CHECK(p_->sigint_event && event_add(p_->sigint_event, NULL) == 0)
+      << "set SIGINT handler failed";
+
+	p_->sigterm_event = evsignal_new(p_->evbase, SIGTERM, SignalHandler, this);
+  CHECK(p_->sigterm_event && event_add(p_->sigterm_event, NULL) == 0)
+      << "set SIGTERM handler failed";
+
+	p_->timer_event = event_new(p_->evbase, -1, EV_PERSIST, TimerHandler, this);
+  struct timeval tv;
+  tv.tv_sec = FLAGS_timer_interval_sec;
+  tv.tv_usec = 0;
+  CHECK(p_->timer_event&& event_add(p_->timer_event, &tv) == 0)
+      << "set timer handler failed";
+}
+
+}  // namespace xcomet
+
 int main(int argc, char* argv[]) {
   base::AtExitManager at_exit;
   base::ParseCommandLineFlags(&argc, &argv, false);
@@ -362,52 +433,9 @@ int main(int argc, char* argv[]) {
     LOG(WARNING) << "not using --flagfile option !";
   }
   LOG(INFO) << "command line options\n" << base::CommandlineFlagsIntoString();
-
-  struct event_base* evbase = NULL;
-  evbase = event_base_new();
-  CHECK(evbase) << "create evbase failed";
-
-  struct evhttp* client_http = NULL;
-  client_http = evhttp_new(evbase);
-  CHECK(client_http) << "create client http handle failed";
-  SetupClientHandler(client_http, evbase);
-
-  struct evhttp* admin_http = NULL;
-  admin_http = evhttp_new(evbase);
-  CHECK(admin_http) << "create admin http handle failed";
-  SetupAdminHandler(admin_http, evbase);
-
-  struct event* sigint_event = NULL;
-	sigint_event = evsignal_new(evbase, SIGINT, SignalHandler, evbase);
-  CHECK(sigint_event && event_add(sigint_event, NULL) == 0)
-      << "set SIGINT handler failed";
-
-  struct event* sigterm_event = NULL;
-	sigterm_event = evsignal_new(evbase, SIGTERM, SignalHandler, evbase);
-  CHECK(sigterm_event && event_add(sigterm_event, NULL) == 0)
-      << "set SIGTERM handler failed";
-
-  struct event* timer_event = NULL;
-	timer_event = event_new(evbase, -1, EV_PERSIST, TimerHandler, evbase);
-	{
-		struct timeval tv;
-		tv.tv_sec = FLAGS_timer_interval_sec;
-		tv.tv_usec = 0;
-    CHECK(sigterm_event && event_add(timer_event, &tv) == 0)
-        << "set timer handler failed";
-	}
-
-  xcomet::LoopExecutor::Init(evbase);
-  xcomet::SessionServer::Instance().OnStart();
-
-	event_base_dispatch(evbase);
-
-  LOG(INFO) << "main loop break";
-
-	event_free(timer_event);
-	event_free(sigterm_event);
-	event_free(sigint_event);
-	evhttp_free(client_http);
-	evhttp_free(admin_http);
-	event_base_free(evbase);
+  {
+    xcomet::SessionServer server;
+    server.Start();
+    LOG(INFO) << "main loop break";
+  }
 }

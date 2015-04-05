@@ -1,7 +1,6 @@
 #ifndef SRC_SESSION_SERVER_H_
 #define SRC_SESSION_SERVER_H_
 
-#include "deps/base/singleton.h"
 #include "deps/base/scoped_ptr.h"
 #include "deps/base/concurrent_queue.h"
 #include "src/include_std.h"
@@ -15,11 +14,13 @@
 
 namespace xcomet {
 
+class SessionServerPrivate;
 class SessionServer {
  public:
-  static SessionServer& Instance() {
-    return *Singleton<SessionServer>::get();
-  }
+  SessionServer();
+  ~SessionServer();
+  void Start();
+  void Stop();
 
   void Connect(struct evhttp_request* req);
   void Pub(struct evhttp_request* req);
@@ -30,7 +31,6 @@ class SessionServer {
   void Unsub(struct evhttp_request* req);
   void Msg(struct evhttp_request* req);
 
-  void OnStart();
   void OnTimer();
   void OnUserMessage(const string& uid, shared_ptr<string> message);
   void OnRouterMessage(StringPtr message);
@@ -39,21 +39,26 @@ class SessionServer {
   void RunInNextTick(function<void ()> fn);
 
  private:
-  SessionServer();
-  ~SessionServer();
+  DISALLOW_COPY_AND_ASSIGN(SessionServer);
+
+  void SetupClientHandler();
+  void SetupAdminHandler();
+  void SetupEventHandler();
+
+  void OnStart();
+  void OnStop();
+
   bool IsHeartbeatMessage(const string& message);
   void SendUserMsg(MessagePtr msg);
   void SendChannelMsg(MessagePtr msg);
 
+  SessionServerPrivate* p_;
   const int timeout_counter_;
   UserMap users_;
   UserInfoMap user_infos_;
   UserCircleQueue timeout_queue_;
   StatsManager stats_;
   base::ConcurrentQueue<function<void ()> > task_queue_;
-
-  DISALLOW_COPY_AND_ASSIGN(SessionServer);
-  friend struct DefaultSingletonTraits<SessionServer>;
 };
 
 }  // namespace xcomet
