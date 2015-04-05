@@ -26,8 +26,8 @@ User::~User() {
   VLOG(3) << "User destroy";
 }
 
-void User::SendPacket(const std::string& pakcet_str) {
-  session_.SendPacket(pakcet_str);
+void User::Send(const std::string& pakcet_str) {
+  session_.Send(pakcet_str);
   if (type_ == COMET_TYPE_POLLING) {
     Close();
   }

@@ -9,8 +9,9 @@
 namespace xcomet {
 
 typedef shared_ptr<Json::Value> MessagePtr;
-typedef shared_ptr<vector<string> > MessageResult;
+typedef shared_ptr<vector<string> > MessageDataSet;
 
+// TODO(qingfeng) hide json as internal message implementation
 class Message {
  public:
   static MessagePtr Unserialize(StringPtr data) {

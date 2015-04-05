@@ -20,7 +20,7 @@ Session::~Session() {
   }
 }
 
-void Session::SendPacket(const std::string& packet_str) {
+void Session::Send(const std::string& packet_str) {
   SendChunk(packet_str.c_str());
 }
 

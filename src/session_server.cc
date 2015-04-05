@@ -21,6 +21,14 @@ DEFINE_bool(is_server_heartbeat, false, "");
     }\
   } while(0)
 
+#define CHECK_HTTP_POST()\
+  do {\
+    if(evhttp_request_get_command(req) != EVHTTP_REQ_POST) {\
+      ReplyError(req, HTTP_BADMETHOD);\
+      return;\
+    }\
+  } while(0)
+
 namespace xcomet {
 
 SessionServer::SessionServer()
@@ -56,40 +64,62 @@ void SessionServer::Connect(struct evhttp_request* req) {
   }
   users_[uid] = user;
   timeout_queue_.PushUserBack(user.get());
+
+  UserInfoMap::iterator info_iter = user_infos_.find(uid);
+  if (info_iter == user_infos_.end()) {
+    user_infos_.insert(make_pair(uid, UserInfo(uid)));
+  }
 }
 
-// /pub?to=123&content=hello&seq=1&from=unknow
-// @DEPRECATED
+void SessionServer::SendUserMsg(MessagePtr msg) {
+  VLOG(5) << "SendUserMsg: " << msg->toStyledString();
+  if (!msg->isMember("to")) {
+    LOG(ERROR) << "invalid message, no target";
+    return;
+  }
+}
+
+void SessionServer::SendChannelMsg(MessagePtr msg) {
+}
+
 void SessionServer::Pub(struct evhttp_request* req) {
-  struct evbuffer* input_buffer = evhttp_request_get_input_buffer(req);
-  int len = evbuffer_get_length(input_buffer);
-  VLOG(3) << "Pub receive data length: " << len;
-  shared_ptr<string> post_buffer(new string());
-  post_buffer->reserve(len);
-  post_buffer->append((char*)evbuffer_pullup(input_buffer, -1), len);
+  CHECK_HTTP_POST();
 
   HttpQuery query(req);
-  string content = query.GetStr("content", "");
-  string to = query.GetStr("to", "");
-  string from = query.GetStr("from", "unknow");
-
-  if (!to.empty()) {
-    UserMap::iterator iter = users_.find(to);
-    if (iter != users_.end()) {
-      UserPtr user = iter->second;
-      LOG(INFO) << "send to user: " << user->GetId();
-      if (post_buffer->empty()) {
-        user->Send(from, "pub", content);
-      } else {
-        user->Send(from, "pub", *(post_buffer.get()));
-      }
-    } else {
-      ReplyError(req, HTTP_INTERNAL, "target not found: " + to);
-      return;
-    }
-  } else {
-    ReplyError(req, HTTP_BADREQUEST, "target user id is empty");
+  const char * to = query.GetStr("to", NULL);
+  const char * from = query.GetStr("from", NULL);
+  const char* channel = query.GetStr("channel", NULL);
+  if ((to == NULL && channel == NULL) || from == NULL) {
+    ReplyError(req, HTTP_BADREQUEST, "target or source id is invalid");
     return;
+  }
+
+  struct evbuffer* input_buffer = evhttp_request_get_input_buffer(req);
+  int len = evbuffer_get_length(input_buffer);
+  VLOG(5) << "data length:" << len;
+  const char * bufferstr = (const char*)evbuffer_pullup(input_buffer, len);
+  if(bufferstr == NULL) {
+    ReplyError(req, HTTP_BADREQUEST, "body cannot be empty");
+    return;
+  }
+
+  stats_.OnPubRequest();
+
+  // TODO(qingfeng) maybe reply after save message done is better
+  MessagePtr msg(new Json::Value());
+  if (to != NULL) {
+    (*msg)["type"] = "msg";
+    (*msg)["from"] = from;
+    (*msg)["to"] = to;
+    (*msg)["body"] = string(bufferstr, len);
+    SendUserMsg(msg);
+  } else {
+    CHECK(channel != NULL);
+    (*msg)["type"] = "cmsg";
+    (*msg)["from"] = from;
+    (*msg)["channel"] = channel;
+    (*msg)["body"] = string(bufferstr, len);
+    SendChannelMsg(msg);
   }
   ReplyOK(req);
 }
@@ -111,6 +141,18 @@ void SessionServer::Disconnect(struct evhttp_request* req) {
     uit->second->Close();
     ReplyOK(req);
   }
+}
+
+void SessionServer::Sub(struct evhttp_request* req) {
+  CHECK_HTTP_GET();
+}
+
+void SessionServer::Unsub(struct evhttp_request* req) {
+  CHECK_HTTP_GET();
+}
+
+void SessionServer::Msg(struct evhttp_request* req) {
+  CHECK_HTTP_GET();
 }
 
 // /broadcast?content=hello
@@ -189,7 +231,7 @@ void SessionServer::OnRouterMessage(shared_ptr<string> message) {
       LOG(WARNING) << "user not found: " << uid;
     } else {
       stats_.OnSend(*message);
-      uit->second->SendPacket(*message);
+      uit->second->Send(*message);
     }
   } catch (std::exception& e) {
     LOG(ERROR) << "OnRouterMessage json exception: " << e.what()
@@ -247,6 +289,21 @@ static void StatsHandler(struct evhttp_request* req, void* arg) {
   SessionServer::Instance().Stats(req);
 }
 
+static void SubHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer::Instance().Sub(req);
+}
+
+static void UnsubHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer::Instance().Unsub(req);
+}
+
+static void MsgHandler(struct evhttp_request* req, void* arg) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer::Instance().Msg(req);
+}
+
 static void AcceptErrorHandler(struct evconnlistener* listener, void* ptr) {
   LOG(ERROR) << "AcceptErrorHandler";
 }
@@ -263,7 +320,6 @@ static void TimerHandler(evutil_socket_t sig, short events, void *user_data) {
 
 void SetupClientHandler(struct evhttp* http, struct event_base* evbase) {
   evhttp_set_cb(http, "/connect", ConnectHandler, evbase);
-  evhttp_set_cb(http, "/disconnect", DisconnectHandler, evbase);
 
   struct evhttp_bound_socket* sock = NULL;
   sock = evhttp_bind_socket_with_handle(http,
@@ -281,6 +337,10 @@ void SetupAdminHandler(struct evhttp* http, struct event_base* evbase) {
   evhttp_set_cb(http, "/pub", PubHandler, evbase);
   evhttp_set_cb(http, "/broadcast", BroadcastHandler, evbase);
   evhttp_set_cb(http, "/stats", StatsHandler, evbase);
+  evhttp_set_cb(http, "/disconnect", DisconnectHandler, evbase);
+  evhttp_set_cb(http, "/sub", SubHandler, evbase);
+  evhttp_set_cb(http, "/unsub", UnsubHandler, evbase);
+  evhttp_set_cb(http, "/msg", MsgHandler, evbase);
 
   struct evhttp_bound_socket* sock = NULL;
   sock = evhttp_bind_socket_with_handle(http,
@@ -337,8 +397,8 @@ int main(int argc, char* argv[]) {
         << "set timer handler failed";
 	}
 
-  LoopExecutor::Init(evbase);
-  SessionServer::Instance().OnStart();
+  xcomet::LoopExecutor::Init(evbase);
+  xcomet::SessionServer::Instance().OnStart();
 
 	event_base_dispatch(evbase);
 

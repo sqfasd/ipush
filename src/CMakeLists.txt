@@ -8,6 +8,7 @@ ADD_EXECUTABLE(session_server
   session_server.cc
   utils.cc
   stats_manager.cc
+  loop_executor.cc
 )
 TARGET_LINK_LIBRARIES(session_server
   base

@@ -5,33 +5,28 @@
 
 namespace xcomet {
 
+class UserInfo;
+typedef map<string, UserInfo> UserInfoMap;
+
 class UserInfo {
  public:
-  UserInfo(const string& uid, int sid)
+  UserInfo(const string& uid)
     : uid_(uid),
-      sid_(sid),
       max_seq_(0),
-      last_ack_(0),
-      online_(true) {
+      last_ack_(0) {
   }
   ~UserInfo() {}
   string GetId() const {return uid_;}
-  int GetSid() const {return sid_;}
-  void SetSid(int sid) {sid_ = sid;}
   int GetMaxSeq() const {return max_seq_;}
   int IncMaxSeq() {return ++max_seq_;}
   void SetMaxSeq(int seq) {max_seq_ = seq;}
   int GetLastAck() const {return last_ack_;}
   void SetLastAck(int seq) {last_ack_ = seq;}
-  bool IsOnline() const {return online_;}
-  void SetOnline(bool online) {online_ = online;}
 
  private:
   string uid_;
-  int sid_;  // session server id
   int max_seq_;
   int last_ack_;
-  bool online_;
 };
 
 }  // namespace xcomet
