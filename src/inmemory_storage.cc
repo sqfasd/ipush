@@ -40,14 +40,10 @@ MessageDataSet InMemoryUserData::GetMessages() {
     return result;
   }
   int start_pos = head_seq_;
-  LOG(INFO) << "start_pos=" << start_pos;
   if (ack_ > head_seq_) {
     start_pos = (head_ + ack_ - head_seq_ + size) % size;
-    LOG(INFO) << "update start_pos=" << start_pos;
   }
-  LOG(INFO) << "tail_" << tail_;
   int len = (tail_ + size - start_pos) % size;
-  LOG(INFO) << "len=" << len;
   if (len > 0) {
     result.reset(new vector<string>());
     result->reserve(len);
