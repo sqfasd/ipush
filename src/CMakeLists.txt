@@ -9,10 +9,13 @@ ADD_EXECUTABLE(session_server
   utils.cc
   stats_manager.cc
   loop_executor.cc
+  inmemory_storage.cc
+  peer/peer.cc
 )
 TARGET_LINK_LIBRARIES(session_server
   base
   pthread
   event
   jsoncpp
+  zmq
 )

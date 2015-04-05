@@ -37,6 +37,9 @@ TEST_F(ShardingUnittest, SimpleTest) {
 
   SetNodeNum(3);
   CheckUserSharding(10);
+
+  SetNodeNum(1);
+  CheckUserSharding(10);
 }
 
 }

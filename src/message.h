@@ -11,6 +11,15 @@ namespace xcomet {
 typedef shared_ptr<Json::Value> MessagePtr;
 typedef shared_ptr<vector<string> > MessageDataSet;
 
+#define IS_LOGIN(type) (type == "login")
+#define IS_LOGOUT(type) (type == "logout")
+#define IS_NOOP(type) (type == "noop")
+#define IS_SUB(type) (type == "sub")
+#define IS_UNSUB(type) (type == "unsub")
+#define IS_MESSAGE(type) (type == "msg")
+#define IS_CHANNEL_MSG(type) (type == "cmsg")
+#define IS_ACK(type) (type == "ack")
+
 // TODO(qingfeng) hide json as internal message implementation
 class Message {
  public:

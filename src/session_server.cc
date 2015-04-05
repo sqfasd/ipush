@@ -3,15 +3,18 @@
 #include "deps/jsoncpp/include/json/json.h"
 #include "deps/base/logging.h"
 #include "deps/base/flags.h"
-#include "deps/base/shared_ptr.h"
+#include "deps/base/string_util.h"
 #include "deps/base/daemonizer.h"
 #include "src/loop_executor.h"
+#include "src/inmemory_storage.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9100, "");
 DEFINE_int32(poll_timeout_sec, 300, "");
 DEFINE_int32(timer_interval_sec, 1, "");
 DEFINE_bool(is_server_heartbeat, false, "");
+DEFINE_int32(peer_id, 0, "");
+DEFINE_string(peers_address, "192.168.2.3", "");
 
 #define CHECK_HTTP_GET()\
   do {\
@@ -117,14 +120,27 @@ struct SessionServerPrivate {
 };
 
 SessionServer::SessionServer()
-    : p_(new SessionServerPrivate()),
-      timeout_counter_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
+    : timeout_counter_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
       timeout_queue_(timeout_counter_),
-      stats_(FLAGS_timer_interval_sec) {
+      stats_(FLAGS_timer_interval_sec),
+      p_(new SessionServerPrivate()),
+      storage_(new InMemoryStorage()),
+      peer_id_(FLAGS_peer_id) {
+  vector<string> peer_ips;
+  SplitString(FLAGS_peers_address, ',', &peer_ips);
+  for (int i = 0; i < peer_ips.size(); ++i) {
+    PeerInfo info;
+    info.id = i;
+    info.ip = peer_ips[i];
+    peers_.push_back(info);
+  }
+  CHECK(peer_ips.size() > 0);
+  CHECK(peer_id_ < peer_ips.size());
+  cluster_.reset(new Peer(peer_id_, peers_));
+  sharding_.reset(new Sharding<PeerInfo>(peers_));
 }
 
 SessionServer::~SessionServer() {
-  delete p_;
   LOG(INFO) << "~SessionServer";
 }
 
@@ -144,10 +160,13 @@ void SessionServer::Stop() {
 void SessionServer::OnStart() {
   xcomet::LoopExecutor::Init(p_->evbase);
   stats_.OnServerStart();
+  cluster_->Start();
+  cluster_->SetMessageCallback(bind(&SessionServer::OnPeerMessage, this, _1));
 }
 
 void SessionServer::OnStop() {
   xcomet::LoopExecutor::Destroy();
+  cluster_->Stop();
 }
 
 // /connect?uid=123&token=ABCDE&type=1|2
@@ -181,15 +200,89 @@ void SessionServer::Connect(struct evhttp_request* req) {
   }
 }
 
-void SessionServer::SendUserMsg(MessagePtr msg) {
-  VLOG(5) << "SendUserMsg: " << msg->toStyledString();
+void SessionServer::SendUserMsg(MessagePtr msg, bool check_shard) {
+  VLOG(5) << "SendUserMsg: " << *msg;
   if (!msg->isMember("to")) {
-    LOG(ERROR) << "invalid message, no target";
+    LOG(ERROR) << "invalid message, no target: " << *msg;
     return;
+  }
+  const string& uid = (*msg)["to"].asString();
+  if (check_shard) {
+    int shard_id = GetShardId(uid);
+    if (shard_id != peer_id_) {
+      VLOG(4) << "send to peer " << shard_id << ": " << *msg;
+      cluster_->Send(shard_id, *(Message::Serialize(msg)));
+      return;
+    }
+  }
+  SendSave(uid, msg);
+}
+
+void SessionServer::SendSave(const string& uid, MessagePtr msg) {
+  auto info_it = user_infos_.find(uid);
+  if (info_it == user_infos_.end()) {
+    info_it = user_infos_.insert(make_pair(uid, UserInfo(uid))).first;
+  }
+  CHECK(info_it != user_infos_.end());
+  if (info_it->second.GetMaxSeq() == -1) {
+    storage_->GetMaxSeq(uid, [this, info_it, msg](ErrorPtr error, int seq) {
+      if (error.get() != NULL) {
+        LOG(ERROR) << "GetMaxSeq failed: " << *error;
+        return;
+      }
+      CHECK(seq >= 0);
+      info_it->second.SetMaxSeq(seq);
+      (*msg)["seq"] = info_it->second.IncMaxSeq();
+      DoSendSave(msg);
+    });
+  } else {
+    (*msg)["seq"] = info_it->second.IncMaxSeq();
+    DoSendSave(msg);
   }
 }
 
+void SessionServer::DoSendSave(MessagePtr msg) {
+  auto user_it = users_.find((*msg)["to"].asString());
+  if (user_it != users_.end()) {
+    user_it->second->Send(msg);
+  }
+  storage_->SaveMessage(msg, [](ErrorPtr error_save) {
+    if (error_save.get() != NULL) {
+      LOG(ERROR) << "SaveMessage failed: " << *error_save;
+      return;
+    }
+    VLOG(5) << "SaveMessage done";
+  });
+}
+
 void SessionServer::SendChannelMsg(MessagePtr msg) {
+  const string cid = (*msg)["channel"].asString();
+  const string uid = (*msg)["from"].asString();
+  VLOG(5) << "SendChannelMsg from " << uid << " to " << cid;
+  ChannelInfoMap::const_iterator iter = channels_.find(cid);
+  if (iter == channels_.end()) {
+    storage_->GetChannelUsers(cid, [cid, msg, this](ErrorPtr error,
+                                                    UserResultSet u) {
+      if (error.get() != NULL) {
+        LOG(ERROR) << "GetChannelUsers failed: " << *error;
+        return;
+      }
+      ChannelInfo channel(cid);
+      for (int i = 0; i < u->size(); ++i) {
+        channel.AddUser(u->at(i));
+        (*msg)["to"] = u->at(i);
+        SendUserMsg(msg);
+      }
+      channels_.insert(make_pair(cid, channel));
+    });
+  } else {
+    const set<string>& user_ids = iter->second.GetUsers();
+    set<string>::const_iterator uit;
+    for (uit = user_ids.begin(); uit != user_ids.end(); ++uit) {
+      (*msg)["to"] = *uit;
+      SendUserMsg(msg);
+    }
+  }
 }
 
 void SessionServer::Pub(struct evhttp_request* req) {
@@ -255,14 +348,86 @@ void SessionServer::Disconnect(struct evhttp_request* req) {
 
 void SessionServer::Sub(struct evhttp_request* req) {
   CHECK_HTTP_GET();
+
+  HttpQuery query(req);
+  string uid = query.GetStr("uid", "");
+  string cid = query.GetStr("cid", "");
+  if (uid.empty() || cid.empty()) {
+    ReplyError(req, HTTP_BADREQUEST, "uid and cid should not be empty");
+  } else {
+    // TODO(qingfeng) if failed to subscribe, reply error
+    Subscribe(uid, cid);
+    ReplyOK(req);
+  }
+}
+
+void SessionServer::Subscribe(const string& uid, const string& cid) {
+  VLOG(5) << "Subscribe: " << uid << ", "  << cid;
+  ChannelInfoMap::iterator cit = channels_.find(cid);
+  if (cit != channels_.end()) {
+    cit->second.AddUser(uid);
+  }
+  storage_->AddUserToChannel(uid, cid, [](ErrorPtr error) {
+    if (error.get() != NULL) {
+      LOG(ERROR) << "AddUserToChannel failed: " << *error;
+      return;
+    }
+    VLOG(5) << "AddUserToChannel done";
+  });
+}
+
+void SessionServer::Unsubscribe(const string& uid, const string& cid) {
+  VLOG(5) << "Unsubscribe: " << uid << ", "  << cid;
+  ChannelInfoMap::iterator cit = channels_.find(cid);
+  if (cit != channels_.end()) {
+    cit->second.RemoveUser(uid);
+  }
+  storage_->RemoveUserFromChannel(uid, cid, [](ErrorPtr error) {
+    if (error.get() != NULL) {
+      LOG(ERROR) << "RemoveUserFromChannel failed: " << *error;
+      return;
+    }
+    VLOG(5) << "RemoveUserFromChannel done";;
+  });
 }
 
 void SessionServer::Unsub(struct evhttp_request* req) {
   CHECK_HTTP_GET();
+
+  HttpQuery query(req);
+  string uid = query.GetStr("uid", "");
+  string cid = query.GetStr("cid", "");
+  if (uid.empty() || cid.empty()) {
+    ReplyError(req, HTTP_BADREQUEST, "uid and cid should not be empty");
+  } else {
+    Unsubscribe(uid, cid);
+    ReplyOK(req);
+  }
 }
 
 void SessionServer::Msg(struct evhttp_request* req) {
   CHECK_HTTP_GET();
+
+  HttpQuery query(req);
+  const char * uid = query.GetStr("uid", NULL);
+  if (uid == NULL) {
+    ReplyError(req, HTTP_BADREQUEST, "target id is invalid");
+    return;
+  }
+  storage_->GetMessage(uid, [req](ErrorPtr error, MessageDataSet m) {
+    if (error.get() != NULL) {
+      LOG(ERROR) << "GetMessage failed: " << *error;
+      ReplyError(req, HTTP_INTERNAL, *error);
+      return;
+    }
+    Json::Value json(Json::arrayValue);
+    if (m.get() != NULL) {
+      for (int i = 0; i < m->size(); ++i) {
+        json.append(m->at(i));
+      }
+    }
+    ReplyOK(req, json.toStyledString());
+  });
 }
 
 // /broadcast?content=hello
@@ -306,49 +471,103 @@ bool SessionServer::IsHeartbeatMessage(const string& message) {
          message.find("\"noop\"") != string::npos;
 }
 
-void SessionServer::OnUserMessage(const string& from_uid, StringPtr message) {
-  stats_.OnReceive(*message);
-  VLOG(2) << from_uid << ": " << *message;
-  if (!IsHeartbeatMessage(*message)) {
-    // router_.Redirect(message);
+void SessionServer::UpdateUserAck(const string& uid, int ack) {
+  VLOG(5) << "UpdateUserAck: " << uid << ", " << ack;
+  UserInfoMap::iterator uit = user_infos_.find(uid);
+  if (uit == user_infos_.end()) {
+    LOG(ERROR) << "user not found: " << uid;
+    return;
+  }
+  uit->second.SetLastAck(ack);
+  storage_->UpdateAck(uid, uit->second.GetLastAck(), [](ErrorPtr error) {
+    if (error.get() != NULL) {
+      LOG(ERROR) << "UpdateAck failed: " << *error;
+      return;
+    }
+    VLOG(5) << "UpdateAck done";
+  });
+}
+
+void SessionServer::OnUserMessage(const string& from, StringPtr data) {
+  VLOG(4) << "OnUserMessage: " << from << ": " << *data;
+  stats_.OnReceive(*data);
+
+  if (!IsHeartbeatMessage(*data)) {
+    try {
+      MessagePtr msg = Message::Unserialize(data);
+      HandleMessage(msg);
+    } catch (std::exception& e) {
+      LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *data;
+    } catch (...) {
+      LOG(ERROR) << "unknow exception for user msg: " << *data;
+    }
   }
 
-  UserMap::iterator uit = users_.find(from_uid);
+  UserMap::iterator uit = users_.find(from);
   if (uit == users_.end()) {
-    LOG(WARNING) << "user not found: " << from_uid;
+    LOG(WARNING) << "user not found: " << from;
   } else {
     timeout_queue_.PushUserBack(uit->second.get());
   }
 }
 
-void SessionServer::OnRouterMessage(shared_ptr<string> message) {
-  VLOG(3) << "OnRouterMessage: " << *message;
-  if (IsHeartbeatMessage(*message)) {
-    VLOG(5) << "is router heartbeat, ignore";
+void SessionServer::HandleMessage(MessagePtr msg) {
+  Json::Value& value = *msg;
+  if (!value.isMember("type")) {
+    LOG(ERROR) << "invalid message without type: " << *msg;
     return;
   }
+  const string& type = value["type"].asString();
+  if(IS_MESSAGE(type)) {
+    SendUserMsg(msg);
+  } else if(IS_CHANNEL_MSG(type)) {
+    SendChannelMsg(msg);
+  } else if(IS_ACK(type)) {
+    const string& from = value["from"].asString();
+    UpdateUserAck(from, value["seq"].asInt());
+  } else if(IS_SUB(type)) {
+    const string& from = value["from"].asString();
+    Subscribe(from, value["channel"].asString());
+  } else if(IS_UNSUB(type)) {
+    const string& from = value["from"].asString();
+    Unsubscribe(from, value["channel"].asString());
+  } else {
+    LOG(ERROR) << "unsupport message type: " << type;
+  }
+}
+
+void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
+  VLOG(3) << "OnPeerMessage: " << pmsg->source << ", " << pmsg->content;
   try {
-    Json::Reader reader;
-    Json::Value json;
-    int ret = reader.parse(*message, json);
-    CHECK(ret) << "json format error";
-    if (!json.isMember("to")) {
-      return;
-    }
-    const string& uid = json["to"].asString();
-    UserMap::iterator uit = users_.find(uid);
-    if (uit == users_.end()) {
-      LOG(WARNING) << "user not found: " << uid;
+    MessagePtr msg = Message::UnserializeString(pmsg->content);
+    Json::Value& value = *msg;
+    const string& type = value["type"].asString();
+    if (IS_MESSAGE(type)) {
+      const string& user = value["to"].asString();
+      if (CheckShard(user)) {
+        SendUserMsg(msg, false);
+      } else {
+        LOG(ERROR) << "wrong shard, user: " << user
+                   << ", source: " << pmsg->source
+                   << ", content:" << pmsg->content;
+      }
     } else {
-      stats_.OnSend(*message);
-      uit->second->Send(*message);
+      LOG(ERROR) << "unexpected peer message type: "
+                 << "from " << pmsg->source << ": " << pmsg->content;
     }
   } catch (std::exception& e) {
-    LOG(ERROR) << "OnRouterMessage json exception: " << e.what()
-               << ", msg = " << *message;
+    LOG(ERROR) << "json exception: " << e.what() << ", msg = " << pmsg->content;
   } catch (...) {
-    LOG(ERROR) << "OnRouterMessage unknow exception";
+    LOG(ERROR) << "unknow exception for peer msg: " << pmsg->content;
   }
+}
+
+bool SessionServer::CheckShard(const string& user) {
+  return (*sharding_)[user].id == peer_id_;
+}
+
+int SessionServer::GetShardId(const string& user) {
+  return (*sharding_)[user].id;
 }
 
 void SessionServer::OnUserDisconnect(User* user) {

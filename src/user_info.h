@@ -12,8 +12,8 @@ class UserInfo {
  public:
   UserInfo(const string& uid)
     : uid_(uid),
-      max_seq_(0),
-      last_ack_(0) {
+      max_seq_(-1),
+      last_ack_(-1) {
   }
   ~UserInfo() {}
   string GetId() const {return uid_;}

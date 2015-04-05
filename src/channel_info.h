@@ -1,7 +1,12 @@
 #ifndef SRC_CHANNEL_INFO_H_
 #define SRC_CHANNEL_INFO_H_
 
+#include "src/include_std.h"
+
 namespace xcomet {
+
+class ChannelInfo;
+typedef map<string, ChannelInfo> ChannelInfoMap;
 
 class ChannelInfo {
  public:

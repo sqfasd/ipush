@@ -1,5 +1,6 @@
 #include "src/peer/peer.h"
 
+#include <utility>
 #include "deps/base/logging.h"
 #include "src/peer/zhelpers.h"
 
@@ -7,7 +8,12 @@ const int IO_THREAD_NUM = 1;
 const int DEFAULT_START_PORT = 11000;
 
 Peer::Peer(const int id, const vector<PeerInfo>& peers)
-    : id_(id), peers_(peers), stoped_(false) {
+    : id_(id), stoped_(false) {
+  for (int i = 0; i < peers.size(); ++i) {
+    if (peers[i].id != id_) {
+      peers_.push_back(peers[i]);
+    }
+  }
 }
 
 Peer::~Peer() {
@@ -18,15 +24,24 @@ Peer::~Peer() {
 }
 
 void Peer::Start() {
+  if (peers_.size() == 0) {
+    LOG(INFO) << "single mode, will not start peer service";
+    return;
+  }
   send_thread_ = std::thread(&Peer::Sending, this);
   recv_thread_ = std::thread(&Peer::Receiving, this);
 }
 
-void Peer::Send(const int target, const string& content) {
+void Peer::Send(const int target, string& content) {
   PeerMessagePtr msg(new PeerMessage());
   msg->target = target;
-  msg->content = content;
+  msg->content.swap(content);
   outbox_.Push(msg);
+}
+
+void Peer::Send(const int target, const char* content) {
+  string str(content);
+  Send(target, str);
 }
 
 void Peer::Stop() {

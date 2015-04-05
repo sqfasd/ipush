@@ -19,7 +19,10 @@ InMemoryUserData::~InMemoryUserData() {
 }
 
 void InMemoryUserData::AddMessage(MessagePtr msg) {
+  CHECK(msg->isMember("seq"));
   int seq = (*msg)["seq"].asInt();
+  VLOG(5) << "AddMessage seq=" << seq;
+  CHECK(seq > 0);
   tail_seq_ = seq;
   msg_queue_[tail_] = Message::Serialize(msg);
   if (++tail_ == msg_queue_.size()) {
