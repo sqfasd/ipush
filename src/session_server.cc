@@ -545,7 +545,8 @@ void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
     if (IS_MESSAGE(type)) {
       const string& user = value["to"].asString();
       if (CheckShard(user)) {
-        SendUserMsg(msg, false);
+        LoopExecutor::RunInMainLoop(
+            bind(&SessionServer::SendUserMsg, this, msg, false));
       } else {
         LOG(ERROR) << "wrong shard, user: " << user
                    << ", source: " << pmsg->source
