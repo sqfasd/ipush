@@ -63,13 +63,13 @@ MessageDataSet InMemoryUserData::GetMessages() {
     result->reserve(len);
     int64 now = Now();
     for (int i = start_pos; i < size && i < tail_; ++i) {
-      if (now < msg_queue_[i].first) {
+      if (msg_queue_[i].first <= 0 || now < msg_queue_[i].first) {
         result->push_back(*(msg_queue_[i].second));
       }
     }
     if (start_pos > tail_) {
       for (int i = 0; i < tail_; ++i) {
-        if (now < msg_queue_[i].first) {
+        if (msg_queue_[i].first <= 0 || now < msg_queue_[i].first) {
           result->push_back(*(msg_queue_[i].second));
         }
       }
