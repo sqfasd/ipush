@@ -11,6 +11,8 @@ namespace xcomet {
 typedef shared_ptr<Json::Value> MessagePtr;
 typedef shared_ptr<vector<string> > MessageDataSet;
 
+const int64 NO_EXPIRE = 0;
+
 #define IS_LOGIN(type) (type == "login")
 #define IS_LOGOUT(type) (type == "logout")
 #define IS_NOOP(type) (type == "noop")

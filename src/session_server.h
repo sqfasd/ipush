@@ -56,11 +56,11 @@ class SessionServer {
   bool CheckShard(const string& user);
   int  GetShardId(const string& user);
   void HandleMessage(MessagePtr msg);
-  void SendUserMsg(MessagePtr msg, bool check_shard = true);
-  void SendChannelMsg(MessagePtr msg);
+  void SendUserMsg(MessagePtr msg, int64 ttl, bool check_shard = true);
+  void SendChannelMsg(MessagePtr msg, int64 ttl);
 
-  void SendSave(const string& uid, MessagePtr msg);
-  void DoSendSave(MessagePtr msg);
+  void SendSave(const string& uid, MessagePtr msg, int64 ttl);
+  void DoSendSave(MessagePtr msg, int64 ttl);
   void Subscribe(const string& uid, const string& cid);
   void Unsubscribe(const string& uid, const string& cid);
   void UpdateUserAck(const string& uid, int ack);

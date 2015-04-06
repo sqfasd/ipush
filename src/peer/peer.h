@@ -28,6 +28,8 @@ class Peer {
   ~Peer();
   void Start();
   void Stop();
+  void Broadcast(string& content);
+  void Broadcast(const char* content);
   void Send(const int target, string& content);
   void Send(const int target, const char* content);
   void SetMessageCallback(const PeerMessageCallback& cb) {msg_cb_ = cb;}

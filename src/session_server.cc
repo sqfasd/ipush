@@ -16,6 +16,9 @@ DEFINE_bool(is_server_heartbeat, false, "");
 DEFINE_int32(peer_id, 0, "");
 DEFINE_string(peers_address, "192.168.2.3", "");
 
+const bool CHECK_SHARD = true;
+const bool NO_CHECK_SHARD = false;
+
 #define CHECK_HTTP_GET()\
   do {\
     if(evhttp_request_get_command(req) != EVHTTP_REQ_GET) {\
@@ -200,7 +203,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
   }
 }
 
-void SessionServer::SendUserMsg(MessagePtr msg, bool check_shard) {
+void SessionServer::SendUserMsg(MessagePtr msg, int64 ttl, bool check_shard) {
   VLOG(5) << "SendUserMsg: " << *msg;
   if (!msg->isMember("to")) {
     LOG(ERROR) << "invalid message, no target: " << *msg;
@@ -215,17 +218,18 @@ void SessionServer::SendUserMsg(MessagePtr msg, bool check_shard) {
       return;
     }
   }
-  SendSave(uid, msg);
+  SendSave(uid, msg, ttl);
 }
 
-void SessionServer::SendSave(const string& uid, MessagePtr msg) {
+void SessionServer::SendSave(const string& uid, MessagePtr msg, int64 ttl) {
   auto info_it = user_infos_.find(uid);
   if (info_it == user_infos_.end()) {
     info_it = user_infos_.insert(make_pair(uid, UserInfo(uid))).first;
   }
   CHECK(info_it != user_infos_.end());
   if (info_it->second.GetMaxSeq() == -1) {
-    storage_->GetMaxSeq(uid, [this, info_it, msg](ErrorPtr error, int seq) {
+    storage_->GetMaxSeq(uid, [this, info_it, msg, ttl](ErrorPtr error,
+                                                       int seq) {
       if (error.get() != NULL) {
         LOG(ERROR) << "GetMaxSeq failed: " << *error;
         return;
@@ -233,20 +237,20 @@ void SessionServer::SendSave(const string& uid, MessagePtr msg) {
       CHECK(seq >= 0);
       info_it->second.SetMaxSeq(seq);
       (*msg)["seq"] = info_it->second.IncMaxSeq();
-      DoSendSave(msg);
+      DoSendSave(msg, ttl);
     });
   } else {
     (*msg)["seq"] = info_it->second.IncMaxSeq();
-    DoSendSave(msg);
+    DoSendSave(msg, ttl);
   }
 }
 
-void SessionServer::DoSendSave(MessagePtr msg) {
+void SessionServer::DoSendSave(MessagePtr msg, int64 ttl) {
   auto user_it = users_.find((*msg)["to"].asString());
   if (user_it != users_.end()) {
     user_it->second->Send(msg);
   }
-  storage_->SaveMessage(msg, [](ErrorPtr error_save) {
+  storage_->SaveMessage(msg, ttl, [](ErrorPtr error_save) {
     if (error_save.get() != NULL) {
       LOG(ERROR) << "SaveMessage failed: " << *error_save;
       return;
@@ -255,14 +259,14 @@ void SessionServer::DoSendSave(MessagePtr msg) {
   });
 }
 
-void SessionServer::SendChannelMsg(MessagePtr msg) {
+void SessionServer::SendChannelMsg(MessagePtr msg, int64 ttl) {
   const string cid = (*msg)["channel"].asString();
   const string uid = (*msg)["from"].asString();
   VLOG(5) << "SendChannelMsg from " << uid << " to " << cid;
   ChannelInfoMap::const_iterator iter = channels_.find(cid);
   if (iter == channels_.end()) {
-    storage_->GetChannelUsers(cid, [cid, msg, this](ErrorPtr error,
-                                                    UserResultSet u) {
+    storage_->GetChannelUsers(cid, [cid, msg, ttl, this](ErrorPtr error,
+                                                         UserResultSet u) {
       if (error.get() != NULL) {
         LOG(ERROR) << "GetChannelUsers failed: " << *error;
         return;
@@ -271,7 +275,9 @@ void SessionServer::SendChannelMsg(MessagePtr msg) {
       for (int i = 0; i < u->size(); ++i) {
         channel.AddUser(u->at(i));
         (*msg)["to"] = u->at(i);
-        SendUserMsg(msg);
+        if (CheckShard(u->at(i))) {
+          SendUserMsg(msg, ttl, NO_CHECK_SHARD);
+        }
       }
       channels_.insert(make_pair(cid, channel));
     });
@@ -280,7 +286,9 @@ void SessionServer::SendChannelMsg(MessagePtr msg) {
     set<string>::const_iterator uit;
     for (uit = user_ids.begin(); uit != user_ids.end(); ++uit) {
       (*msg)["to"] = *uit;
-      SendUserMsg(msg);
+      if (CheckShard(*uit)) {
+        SendUserMsg(msg, ttl, NO_CHECK_SHARD);
+      }
     }
   }
 }
@@ -292,6 +300,7 @@ void SessionServer::Pub(struct evhttp_request* req) {
   const char * to = query.GetStr("to", NULL);
   const char * from = query.GetStr("from", NULL);
   const char* channel = query.GetStr("channel", NULL);
+  int64 ttl = query.GetInt("ttl", NO_EXPIRE);
   if ((to == NULL && channel == NULL) || from == NULL) {
     ReplyError(req, HTTP_BADREQUEST, "target or source id is invalid");
     return;
@@ -315,14 +324,15 @@ void SessionServer::Pub(struct evhttp_request* req) {
     (*msg)["from"] = from;
     (*msg)["to"] = to;
     (*msg)["body"] = string(bufferstr, len);
-    SendUserMsg(msg);
+    SendUserMsg(msg, ttl, CHECK_SHARD);
   } else {
     CHECK(channel != NULL);
     (*msg)["type"] = "cmsg";
     (*msg)["from"] = from;
     (*msg)["channel"] = channel;
     (*msg)["body"] = string(bufferstr, len);
-    SendChannelMsg(msg);
+    SendChannelMsg(msg, ttl);
+    cluster_->Broadcast(*(Message::Serialize(msg)));
   }
   ReplyOK(req);
 }
@@ -519,9 +529,9 @@ void SessionServer::HandleMessage(MessagePtr msg) {
   }
   const string& type = value["type"].asString();
   if(IS_MESSAGE(type)) {
-    SendUserMsg(msg);
+    SendUserMsg(msg, NO_EXPIRE, CHECK_SHARD);
   } else if(IS_CHANNEL_MSG(type)) {
-    SendChannelMsg(msg);
+    SendChannelMsg(msg, NO_EXPIRE);
   } else if(IS_ACK(type)) {
     const string& from = value["from"].asString();
     UpdateUserAck(from, value["seq"].asInt());
@@ -542,16 +552,24 @@ void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
     MessagePtr msg = Message::UnserializeString(pmsg->content);
     Json::Value& value = *msg;
     const string& type = value["type"].asString();
+    int64 ttl = 0;
+    if (value.isMember("ttl")) {
+      ttl = value["ttl"].asInt64();
+      value.removeMember("ttl");
+    }
     if (IS_MESSAGE(type)) {
       const string& user = value["to"].asString();
       if (CheckShard(user)) {
         LoopExecutor::RunInMainLoop(
-            bind(&SessionServer::SendUserMsg, this, msg, false));
+            bind(&SessionServer::SendUserMsg, this, msg, ttl, NO_CHECK_SHARD));
       } else {
         LOG(ERROR) << "wrong shard, user: " << user
                    << ", source: " << pmsg->source
                    << ", content:" << pmsg->content;
       }
+    } else if (IS_CHANNEL_MSG(type)) {
+      LoopExecutor::RunInMainLoop(
+          bind(&SessionServer::SendChannelMsg, this, msg, ttl));
     } else {
       LOG(ERROR) << "unexpected peer message type: "
                  << "from " << pmsg->source << ": " << pmsg->content;

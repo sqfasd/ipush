@@ -6,6 +6,7 @@
 
 const int IO_THREAD_NUM = 1;
 const int DEFAULT_START_PORT = 11000;
+const int ALL_PEERS = -1;
 
 Peer::Peer(const int id, const vector<PeerInfo>& peers)
     : id_(id), stoped_(false) {
@@ -30,6 +31,14 @@ void Peer::Start() {
   }
   send_thread_ = std::thread(&Peer::Sending, this);
   recv_thread_ = std::thread(&Peer::Receiving, this);
+}
+
+void Peer::Broadcast(string& content) {
+  Send(ALL_PEERS, content);
+}
+
+void Peer::Broadcast(const char* content) {
+  Send(ALL_PEERS, content);
 }
 
 void Peer::Send(const int target, string& content) {
@@ -70,8 +79,15 @@ void Peer::Sending() {
     PeerMessagePtr msg;
     outbox_.Pop(msg);
     if (msg.get()) {
-      s_sendmore (publisher, std::to_string(msg->target));
-      s_send (publisher, msg->content);
+      if (msg->target == ALL_PEERS) {
+        for (int i = 0; i < peers_.size(); ++i) {
+          s_sendmore (publisher, std::to_string(peers_[i].id));
+          s_send (publisher, msg->content);
+        }
+      } else {
+        s_sendmore (publisher, std::to_string(msg->target));
+        s_send (publisher, msg->content);
+      }
     }
   }
   LOG(INFO) << "sending loop exited";

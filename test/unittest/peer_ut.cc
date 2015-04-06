@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include <atomic>
 #include "deps/base/logging.h"
 #include "src/include_std.h"
 #include "src/peer/peer.h"
@@ -23,14 +24,19 @@ Peer* CreatePeer(int peer_num, int id) {
 const char* MSG_2_0 = "message from peer2 to peer0";
 const char* MSG_0_1 = "message from peer0 to peer1";
 const char* MSG_1_2 = "message from peer1 to peer2";
+const char* MSG_BROADCAST = "broadcast by peer0";
+
+static std::atomic<int> global_msg_count;
 
 TEST(PeerUnittest, Normal) {
+  CHECK(global_msg_count == 0);
   const int PEER_NUM = 3;
   Peer* peer0 = CreatePeer(PEER_NUM, 0);
   peer0->SetMessageCallback([](PeerMessagePtr msg) {
     CHECK(msg->source == 2);
     CHECK(msg->target == 0);
     CHECK(msg->content == MSG_2_0);
+    ++global_msg_count;
   });
 
   Peer* peer1 = CreatePeer(PEER_NUM, 1);
@@ -38,6 +44,7 @@ TEST(PeerUnittest, Normal) {
     CHECK(msg->source == 0);
     CHECK(msg->target == 1);
     CHECK(msg->content == MSG_0_1);
+    ++global_msg_count;
   });
 
   Peer* peer2 = CreatePeer(PEER_NUM, 2);
@@ -45,6 +52,7 @@ TEST(PeerUnittest, Normal) {
     CHECK(msg->source == 1);
     CHECK(msg->target == 2);
     CHECK(msg->content == MSG_1_2);
+    ++global_msg_count;
   });
 
   peer0->Start();
@@ -58,6 +66,25 @@ TEST(PeerUnittest, Normal) {
   peer2->Send(0, MSG_2_0);
 
   ::sleep(1);
+
+  peer1->SetMessageCallback([](PeerMessagePtr msg) {
+    CHECK(msg->source == 0);
+    CHECK(msg->target == 1);
+    CHECK(msg->content == MSG_BROADCAST);
+    ++global_msg_count;
+  });
+
+  peer2->SetMessageCallback([](PeerMessagePtr msg) {
+    CHECK(msg->source == 0);
+    CHECK(msg->target == 2);
+    CHECK(msg->content == MSG_BROADCAST);
+    ++global_msg_count;
+  });
+
+  peer0->Broadcast(MSG_BROADCAST);
+
+  ::sleep(1);
+  CHECK(global_msg_count == 5);
 
   delete peer0;
   delete peer1;
