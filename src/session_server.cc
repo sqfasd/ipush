@@ -14,7 +14,8 @@ DEFINE_int32(poll_timeout_sec, 300, "");
 DEFINE_int32(timer_interval_sec, 1, "");
 DEFINE_bool(is_server_heartbeat, false, "");
 DEFINE_int32(peer_id, 0, "");
-DEFINE_string(peers_address, "192.168.2.3", "");
+DEFINE_string(peers_ip, "192.168.2.3", "LAN ip");
+DEFINE_string(peers_address, "192.168.2.3:9000", "public address");
 
 const bool CHECK_SHARD = true;
 const bool NO_CHECK_SHARD = false;
@@ -85,6 +86,12 @@ static void MsgHandler(struct evhttp_request* req, void* ctx) {
   server->Msg(req);
 }
 
+static void ShardHandler(struct evhttp_request* req, void* ctx) {
+  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
+  SessionServer* server = static_cast<SessionServer*>(ctx);
+  server->Shard(req);
+}
+
 static void AcceptErrorHandler(struct evconnlistener* listener, void* ptr) {
   LOG(ERROR) << "AcceptErrorHandler";
 }
@@ -129,16 +136,20 @@ SessionServer::SessionServer()
       p_(new SessionServerPrivate()),
       storage_(new InMemoryStorage()),
       peer_id_(FLAGS_peer_id) {
-  vector<string> peer_ips;
-  SplitString(FLAGS_peers_address, ',', &peer_ips);
-  for (int i = 0; i < peer_ips.size(); ++i) {
+  vector<string> peers_ip;
+  SplitString(FLAGS_peers_ip, ',', &peers_ip);
+  vector<string> peers_address;
+  SplitString(FLAGS_peers_address, ',', &peers_address);
+  CHECK(peers_ip.size() > 0);
+  CHECK(peers_ip.size() == peers_address.size());
+  for (int i = 0; i < peers_ip.size(); ++i) {
     PeerInfo info;
     info.id = i;
-    info.ip = peer_ips[i];
+    info.ip = peers_ip[i];
+    info.public_addr = peers_address[i];
     peers_.push_back(info);
   }
-  CHECK(peer_ips.size() > 0);
-  CHECK(peer_id_ < peer_ips.size());
+  CHECK(peer_id_ < peers_ip.size());
   cluster_.reset(new Peer(peer_id_, peers_));
   sharding_.reset(new Sharding<PeerInfo>(peers_));
 }
@@ -366,7 +377,18 @@ void SessionServer::Sub(struct evhttp_request* req) {
     ReplyError(req, HTTP_BADREQUEST, "uid and cid should not be empty");
   } else {
     // TODO(qingfeng) if failed to subscribe, reply error
-    Subscribe(uid, cid);
+    int shard_id = GetShardId(uid);
+    if (shard_id == peer_id_) {
+      Subscribe(uid, cid);
+    } else {
+      Json::Value msg;
+      msg["type"] = "sub";
+      msg["uid"] = uid;
+      msg["cid"] = cid;
+      string data;
+      SerializeJson(msg, data);
+      cluster_->Send(shard_id, data);
+    }
     ReplyOK(req);
   }
 }
@@ -410,7 +432,18 @@ void SessionServer::Unsub(struct evhttp_request* req) {
   if (uid.empty() || cid.empty()) {
     ReplyError(req, HTTP_BADREQUEST, "uid and cid should not be empty");
   } else {
-    Unsubscribe(uid, cid);
+    int shard_id = GetShardId(uid);
+    if (shard_id == peer_id_) {
+      Unsubscribe(uid, cid);
+    } else {
+      Json::Value msg;
+      msg["type"] = "unsub";
+      msg["uid"] = uid;
+      msg["cid"] = cid;
+      string data;
+      SerializeJson(msg, data);
+      cluster_->Send(shard_id, data);
+    }
     ReplyOK(req);
   }
 }
@@ -438,6 +471,20 @@ void SessionServer::Msg(struct evhttp_request* req) {
     }
     ReplyOK(req, json.toStyledString());
   });
+}
+
+void SessionServer::Shard(struct evhttp_request* req) {
+  CHECK_HTTP_GET();
+
+  HttpQuery query(req);
+  const char* uid = query.GetStr("uid", NULL);
+  if (uid == NULL) {
+    ReplyError(req, HTTP_BADREQUEST, "uid is needed");
+    return;
+  }
+  Json::Value resp;
+  resp["result"] = (*sharding_)[uid].public_addr;
+  ReplyOK(req, resp.toStyledString());
 }
 
 // /broadcast?content=hello
@@ -570,6 +617,16 @@ void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
     } else if (IS_CHANNEL_MSG(type)) {
       LoopExecutor::RunInMainLoop(
           bind(&SessionServer::SendChannelMsg, this, msg, ttl));
+    } else if (IS_SUB(type)) {
+      string uid = value["uid"].asString();
+      string cid = value["cid"].asString();
+      LoopExecutor::RunInMainLoop(
+          bind(&SessionServer::Subscribe, this, uid, cid));
+    } else if (IS_UNSUB(type)) {
+      string uid = value["uid"].asString();
+      string cid = value["cid"].asString();
+      LoopExecutor::RunInMainLoop(
+          bind(&SessionServer::Unsubscribe, this, uid, cid));
     } else {
       LOG(ERROR) << "unexpected peer message type: "
                  << "from " << pmsg->source << ": " << pmsg->content;
@@ -631,6 +688,7 @@ void SessionServer::SetupAdminHandler() {
   evhttp_set_cb(p_->admin_http, "/sub", SubHandler, this);
   evhttp_set_cb(p_->admin_http, "/unsub", UnsubHandler, this);
   evhttp_set_cb(p_->admin_http, "/msg", MsgHandler, this);
+  evhttp_set_cb(p_->admin_http, "/shard", ShardHandler, this);
 
   struct evhttp_bound_socket* sock = NULL;
   sock = evhttp_bind_socket_with_handle(p_->admin_http,

@@ -11,6 +11,7 @@ using std::shared_ptr;
 struct PeerInfo {
   int id;
   string ip;
+  string public_addr;
 };
 
 struct PeerMessage {

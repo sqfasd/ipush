@@ -34,6 +34,7 @@ class SessionServer {
   void Sub(struct evhttp_request* req);
   void Unsub(struct evhttp_request* req);
   void Msg(struct evhttp_request* req);
+  void Shard(struct evhttp_request* req);
 
   void OnTimer();
   void OnUserMessage(const string& uid, shared_ptr<string> message);
