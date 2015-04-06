@@ -9,7 +9,7 @@ class InMemoryUserData {
  public:
   InMemoryUserData();
   ~InMemoryUserData();
-  void AddMessage(MessagePtr msg);
+  void AddMessage(MessagePtr msg, int64 ttl);
   MessageDataSet GetMessages();
   void SetAck(int ack) {ack_ = ack;}
   int GetMaxSeq() {return tail_seq_;}
@@ -20,7 +20,8 @@ class InMemoryUserData {
   int tail_;
   int tail_seq_;
   int ack_;
-  vector<StringPtr> msg_queue_;
+  // pair is expired_second + message
+  vector<pair<int64, StringPtr> > msg_queue_;
 };
 
 class InMemoryStorage : public Storage {
@@ -28,7 +29,7 @@ class InMemoryStorage : public Storage {
   InMemoryStorage();
   ~InMemoryStorage();
  private:
-  virtual void SaveMessage(MessagePtr msg, SaveMessageCallback cb);
+  virtual void SaveMessage(MessagePtr msg, int64 ttl, SaveMessageCallback cb);
   virtual void GetMessage(const string& uid, GetMessageCallback cb);
   virtual void GetMaxSeq(const string& uid, GetMaxSeqCallback cb);
   virtual void UpdateAck(const string& uid,

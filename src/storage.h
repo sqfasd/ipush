@@ -25,7 +25,9 @@ class Storage {
   Storage() {}
   virtual ~Storage() {}
 
-  virtual void SaveMessage(MessagePtr msg, SaveMessageCallback cb) = 0;
+  virtual void SaveMessage(MessagePtr msg,
+                           int64 ttl,
+                           SaveMessageCallback cb) = 0;
   virtual void GetMessage(const string& uid, GetMessageCallback cb) = 0;
   virtual void GetMaxSeq(const string& uid, GetMaxSeqCallback cb) = 0;
   virtual void UpdateAck(const string& uid,

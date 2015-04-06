@@ -47,7 +47,8 @@ static void NormalTest(Storage* s) {
     CHECK(seq == 0);
   });
   MessagePtr msg1 = CreateMessage(1);
-  s->SaveMessage(msg1, [](ErrorPtr err) {
+  int64 ttl = 5;
+  s->SaveMessage(msg1, ttl, [](ErrorPtr err) {
     CHECK(err.get() == NULL);
   });
   s->GetMaxSeq("u1", [](ErrorPtr err, int seq) {
@@ -65,7 +66,7 @@ static void NormalTest(Storage* s) {
 
   for (int seq = 2; seq <= 10; ++seq) {
     MessagePtr msg = CreateMessage(seq);
-    s->SaveMessage(msg, [](ErrorPtr err) {
+    s->SaveMessage(msg, ttl, [](ErrorPtr err) {
       CHECK(err.get() == NULL);
     });
   }
@@ -94,7 +95,7 @@ static void NormalTest(Storage* s) {
 
   for (int seq = 11; seq <= 150; ++seq) {
     MessagePtr msg = CreateMessage(seq);
-    s->SaveMessage(msg, [](ErrorPtr err) {
+    s->SaveMessage(msg, ttl, [](ErrorPtr err) {
       CHECK(err.get() == NULL);
     });
   }
@@ -117,6 +118,14 @@ static void NormalTest(Storage* s) {
     CHECK((*msg)["seq"].asInt() == 150);
     (*msg)["seq"] = 1;
     CHECK(*msg == *msg1);
+  });
+
+  LOG(INFO) << "waiting for message expired";
+  ::sleep(4);
+  s->GetMessage("u1", [](ErrorPtr err, MessageDataSet result) {
+    CHECK(err.get() == NULL);
+    CHECK(result.get() != NULL);
+    CHECK(result->size() == 0);
   });
 
   ::sleep(1);
