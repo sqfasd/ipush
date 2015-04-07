@@ -1,7 +1,7 @@
 #ifndef ZMSG_H_
 #define ZMSG_H_
 
-#include "zhelpers.h"
+#include "src/peer/zhelpers.h"
 
 #include <vector>
 #include <string>
