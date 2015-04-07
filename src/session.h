@@ -13,7 +13,7 @@ class Session {
  public:
   Session(struct evhttp_request* req);
   virtual ~Session();
-  void Send(MessagePtr msg);
+  void Send(const Message& msg);
   void Send(const string& packet_str);
   void Send(const string& from_id, const string& type, const string& content);
   void SendHeartbeat();

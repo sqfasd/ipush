@@ -26,7 +26,7 @@ User::~User() {
   VLOG(3) << "User destroy";
 }
 
-void User::Send(MessagePtr msg) {
+void User::Send(const Message& msg) {
   session_.Send(msg);
   if (type_ == COMET_TYPE_POLLING) {
     Close();

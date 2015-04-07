@@ -24,9 +24,9 @@ static int64 Now() {
   return base::GetTimeInSecond();
 }
 
-void InMemoryUserData::AddMessage(MessagePtr msg, int64 ttl) {
-  CHECK(msg->isMember("seq"));
-  int seq = (*msg)["seq"].asInt();
+void InMemoryUserData::AddMessage(const Message& msg, int64 ttl) {
+  CHECK(msg.HasSeq());
+  int seq = msg.Seq();
   VLOG(5) << "AddMessage seq=" << seq;
   CHECK(seq > 0);
   tail_seq_ = seq;
@@ -84,10 +84,10 @@ InMemoryStorage::InMemoryStorage() {
 InMemoryStorage::~InMemoryStorage() {
 }
 
-void InMemoryStorage::SaveMessage(MessagePtr msg,
+void InMemoryStorage::SaveMessage(const Message& msg,
                                   int64 ttl,
                                   SaveMessageCallback cb) {
-  const string& to = (*msg)["to"].asString();
+  const string& to = msg.To();
   user_data_[to].AddMessage(msg, ttl);
   LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR));
 }

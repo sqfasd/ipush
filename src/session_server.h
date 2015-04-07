@@ -56,12 +56,12 @@ class SessionServer {
   bool IsHeartbeatMessage(const string& message);
   bool CheckShard(const string& user);
   int  GetShardId(const string& user);
-  void HandleMessage(MessagePtr msg);
-  void SendUserMsg(MessagePtr msg, int64 ttl, bool check_shard = true);
-  void SendChannelMsg(MessagePtr msg, int64 ttl);
+  void HandleMessage(Message& msg);
+  void SendUserMsg(Message& msg, int64 ttl, bool check_shard = true);
+  void SendChannelMsg(Message& msg, int64 ttl);
 
-  void SendSave(const string& uid, MessagePtr msg, int64 ttl);
-  void DoSendSave(MessagePtr msg, int64 ttl);
+  void SendSave(const string& uid, Message& msg, int64 ttl);
+  void DoSendSave(const Message& msg, int64 ttl);
   void Subscribe(const string& uid, const string& cid);
   void Unsubscribe(const string& uid, const string& cid);
   void UpdateUserAck(const string& uid, int ack);

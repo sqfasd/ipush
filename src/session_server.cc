@@ -214,17 +214,17 @@ void SessionServer::Connect(struct evhttp_request* req) {
   }
 }
 
-void SessionServer::SendUserMsg(MessagePtr msg, int64 ttl, bool check_shard) {
-  VLOG(5) << "SendUserMsg: " << *msg;
-  if (!msg->isMember("to")) {
-    LOG(ERROR) << "invalid message, no target: " << *msg;
+void SessionServer::SendUserMsg(Message& msg, int64 ttl, bool check_shard) {
+  VLOG(5) << "SendUserMsg: " << msg;
+  if (!msg.HasTo()) {
+    LOG(ERROR) << "invalid message, no target: " << msg;
     return;
   }
-  const string& uid = (*msg)["to"].asString();
+  const string& uid = msg.To();
   if (check_shard) {
     int shard_id = GetShardId(uid);
     if (shard_id != peer_id_) {
-      VLOG(4) << "send to peer " << shard_id << ": " << *msg;
+      VLOG(4) << "send to peer " << shard_id << ": " << msg;
       cluster_->Send(shard_id, *(Message::Serialize(msg)));
       return;
     }
@@ -232,7 +232,7 @@ void SessionServer::SendUserMsg(MessagePtr msg, int64 ttl, bool check_shard) {
   SendSave(uid, msg, ttl);
 }
 
-void SessionServer::SendSave(const string& uid, MessagePtr msg, int64 ttl) {
+void SessionServer::SendSave(const string& uid, Message& msg, int64 ttl) {
   auto info_it = user_infos_.find(uid);
   if (info_it == user_infos_.end()) {
     info_it = user_infos_.insert(make_pair(uid, UserInfo(uid))).first;
@@ -247,17 +247,17 @@ void SessionServer::SendSave(const string& uid, MessagePtr msg, int64 ttl) {
       }
       CHECK(seq >= 0);
       info_it->second.SetMaxSeq(seq);
-      (*msg)["seq"] = info_it->second.IncMaxSeq();
+      ((Message&)msg).SetSeq(info_it->second.IncMaxSeq());
       DoSendSave(msg, ttl);
     });
   } else {
-    (*msg)["seq"] = info_it->second.IncMaxSeq();
+    ((Message&)msg).SetSeq(info_it->second.IncMaxSeq());
     DoSendSave(msg, ttl);
   }
 }
 
-void SessionServer::DoSendSave(MessagePtr msg, int64 ttl) {
-  auto user_it = users_.find((*msg)["to"].asString());
+void SessionServer::DoSendSave(const Message& msg, int64 ttl) {
+  auto user_it = users_.find(msg.To());
   if (user_it != users_.end()) {
     user_it->second->Send(msg);
   }
@@ -270,9 +270,9 @@ void SessionServer::DoSendSave(MessagePtr msg, int64 ttl) {
   });
 }
 
-void SessionServer::SendChannelMsg(MessagePtr msg, int64 ttl) {
-  const string cid = (*msg)["channel"].asString();
-  const string uid = (*msg)["from"].asString();
+void SessionServer::SendChannelMsg(Message& msg, int64 ttl) {
+  const string cid = msg.Channel();
+  const string uid = msg.From();
   VLOG(5) << "SendChannelMsg from " << uid << " to " << cid;
   ChannelInfoMap::const_iterator iter = channels_.find(cid);
   if (iter == channels_.end()) {
@@ -285,9 +285,9 @@ void SessionServer::SendChannelMsg(MessagePtr msg, int64 ttl) {
       ChannelInfo channel(cid);
       for (int i = 0; i < u->size(); ++i) {
         channel.AddUser(u->at(i));
-        (*msg)["to"] = u->at(i);
+        ((Message&)msg).SetTo(u->at(i));
         if (CheckShard(u->at(i))) {
-          SendUserMsg(msg, ttl, NO_CHECK_SHARD);
+          SendUserMsg((Message&)msg, ttl, NO_CHECK_SHARD);
         }
       }
       channels_.insert(make_pair(cid, channel));
@@ -296,9 +296,9 @@ void SessionServer::SendChannelMsg(MessagePtr msg, int64 ttl) {
     const set<string>& user_ids = iter->second.GetUsers();
     set<string>::const_iterator uit;
     for (uit = user_ids.begin(); uit != user_ids.end(); ++uit) {
-      (*msg)["to"] = *uit;
+      msg.SetTo(*uit);
       if (CheckShard(*uit)) {
-        SendUserMsg(msg, ttl, NO_CHECK_SHARD);
+        SendUserMsg((Message&)msg, ttl, NO_CHECK_SHARD);
       }
     }
   }
@@ -329,19 +329,19 @@ void SessionServer::Pub(struct evhttp_request* req) {
   stats_.OnPubRequest();
 
   // TODO(qingfeng) maybe reply after save message done is better
-  MessagePtr msg(new Json::Value());
+  Message msg;
   if (to != NULL) {
-    (*msg)["type"] = "msg";
-    (*msg)["from"] = from;
-    (*msg)["to"] = to;
-    (*msg)["body"] = string(bufferstr, len);
+    msg.SetType(Message::T_MESSAGE);
+    msg.SetFrom(from);
+    msg.SetTo(to);
+    msg.SetBody(string(bufferstr, len));
     SendUserMsg(msg, ttl, CHECK_SHARD);
   } else {
     CHECK(channel != NULL);
-    (*msg)["type"] = "cmsg";
-    (*msg)["from"] = from;
-    (*msg)["channel"] = channel;
-    (*msg)["body"] = string(bufferstr, len);
+    msg.SetType(Message::T_CHANNEL_MESSAGE);
+    msg.SetFrom(from);
+    msg.SetTo(channel);
+    msg.SetBody(string(bufferstr, len));
     SendChannelMsg(msg, ttl);
     cluster_->Broadcast(*(Message::Serialize(msg)));
   }
@@ -381,13 +381,11 @@ void SessionServer::Sub(struct evhttp_request* req) {
     if (shard_id == peer_id_) {
       Subscribe(uid, cid);
     } else {
-      Json::Value msg;
-      msg["type"] = "sub";
-      msg["uid"] = uid;
-      msg["cid"] = cid;
-      string data;
-      SerializeJson(msg, data);
-      cluster_->Send(shard_id, data);
+      Message msg;
+      msg.SetType(Message::T_SUBSCRIBE);
+      msg.SetUser(uid);
+      msg.SetChannel(cid);
+      cluster_->Send(shard_id, *(Message::Serialize(msg)));
     }
     ReplyOK(req);
   }
@@ -436,13 +434,11 @@ void SessionServer::Unsub(struct evhttp_request* req) {
     if (shard_id == peer_id_) {
       Unsubscribe(uid, cid);
     } else {
-      Json::Value msg;
-      msg["type"] = "unsub";
-      msg["uid"] = uid;
-      msg["cid"] = cid;
-      string data;
-      SerializeJson(msg, data);
-      cluster_->Send(shard_id, data);
+      Message msg;
+      msg.SetType(Message::T_SUBSCRIBE);
+      msg.SetUser(uid);
+      msg.SetChannel(cid);
+      cluster_->Send(shard_id, *(Message::Serialize(msg)));
     }
     ReplyOK(req);
   }
@@ -551,7 +547,7 @@ void SessionServer::OnUserMessage(const string& from, StringPtr data) {
 
   if (!IsHeartbeatMessage(*data)) {
     try {
-      MessagePtr msg = Message::Unserialize(data);
+      Message msg = Message::Unserialize(data);
       HandleMessage(msg);
     } catch (std::exception& e) {
       LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *data;
@@ -568,68 +564,76 @@ void SessionServer::OnUserMessage(const string& from, StringPtr data) {
   }
 }
 
-void SessionServer::HandleMessage(MessagePtr msg) {
-  Json::Value& value = *msg;
-  if (!value.isMember("type")) {
-    LOG(ERROR) << "invalid message without type: " << *msg;
+void SessionServer::HandleMessage(Message& msg) {
+  if (!msg.HasType()) {
+    LOG(ERROR) << "invalid message without type: " << msg;
     return;
   }
-  const string& type = value["type"].asString();
-  if(IS_MESSAGE(type)) {
-    SendUserMsg(msg, NO_EXPIRE, CHECK_SHARD);
-  } else if(IS_CHANNEL_MSG(type)) {
-    SendChannelMsg(msg, NO_EXPIRE);
-  } else if(IS_ACK(type)) {
-    const string& from = value["from"].asString();
-    UpdateUserAck(from, value["seq"].asInt());
-  } else if(IS_SUB(type)) {
-    const string& from = value["from"].asString();
-    Subscribe(from, value["channel"].asString());
-  } else if(IS_UNSUB(type)) {
-    const string& from = value["from"].asString();
-    Unsubscribe(from, value["channel"].asString());
-  } else {
-    LOG(ERROR) << "unsupport message type: " << type;
+  switch(msg.Type()) {
+    case Message::T_MESSAGE:
+      SendUserMsg(msg, NO_EXPIRE, CHECK_SHARD);
+      break;
+    case Message::T_CHANNEL_MESSAGE:
+      SendChannelMsg(msg, NO_EXPIRE);
+      break;
+    case Message::T_ACK:
+      UpdateUserAck(msg.From(), msg.Seq());
+      break;
+    case Message::T_SUBSCRIBE:
+      Subscribe(msg.User(), msg.Channel());
+      break;
+    case Message::T_UNSUBSCRIBE:
+      Unsubscribe(msg.User(), msg.Channel());
+      break;
+    case Message::T_HEARTBEAT:
+      break;
+    default:
+      LOG(ERROR) << "unsupport message type: " << msg;
+      break;
   }
 }
 
 void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
   VLOG(3) << "OnPeerMessage: " << pmsg->source << ", " << pmsg->content;
   try {
-    MessagePtr msg = Message::UnserializeString(pmsg->content);
-    Json::Value& value = *msg;
-    const string& type = value["type"].asString();
-    int64 ttl = 0;
-    if (value.isMember("ttl")) {
-      ttl = value["ttl"].asInt64();
-      value.removeMember("ttl");
-    }
-    if (IS_MESSAGE(type)) {
-      const string& user = value["to"].asString();
-      if (CheckShard(user)) {
-        LoopExecutor::RunInMainLoop(
-            bind(&SessionServer::SendUserMsg, this, msg, ttl, NO_CHECK_SHARD));
-      } else {
-        LOG(ERROR) << "wrong shard, user: " << user
-                   << ", source: " << pmsg->source
-                   << ", content:" << pmsg->content;
+    Message msg = Message::UnserializeString(pmsg->content);
+    int64 ttl = msg.TTL();
+    switch (msg.Type()) {
+      case Message::T_MESSAGE: {
+        const string& user = msg.User();
+        if (CheckShard(user)) {
+          LoopExecutor::RunInMainLoop(
+              bind(&SessionServer::SendUserMsg, this, msg, ttl, NO_CHECK_SHARD));
+        } else {
+          LOG(ERROR) << "wrong shard, user: " << user
+                     << ", source: " << pmsg->source
+                     << ", content:" << pmsg->content;
+        }
+        break;
       }
-    } else if (IS_CHANNEL_MSG(type)) {
-      LoopExecutor::RunInMainLoop(
-          bind(&SessionServer::SendChannelMsg, this, msg, ttl));
-    } else if (IS_SUB(type)) {
-      string uid = value["uid"].asString();
-      string cid = value["cid"].asString();
-      LoopExecutor::RunInMainLoop(
-          bind(&SessionServer::Subscribe, this, uid, cid));
-    } else if (IS_UNSUB(type)) {
-      string uid = value["uid"].asString();
-      string cid = value["cid"].asString();
-      LoopExecutor::RunInMainLoop(
-          bind(&SessionServer::Unsubscribe, this, uid, cid));
-    } else {
-      LOG(ERROR) << "unexpected peer message type: "
-                 << "from " << pmsg->source << ": " << pmsg->content;
+      case Message::T_CHANNEL_MESSAGE: {
+        LoopExecutor::RunInMainLoop(
+            bind(&SessionServer::SendChannelMsg, this, msg, ttl));
+        break;
+      }
+      case Message::T_SUBSCRIBE: {
+        string uid = msg.User();
+        string cid = msg.Channel();
+        LoopExecutor::RunInMainLoop(
+            bind(&SessionServer::Subscribe, this, uid, cid));
+        break;
+      }
+      case Message::T_UNSUBSCRIBE: {
+        string uid = msg.User();
+        string cid = msg.Channel();
+        LoopExecutor::RunInMainLoop(
+            bind(&SessionServer::Unsubscribe, this, uid, cid));
+        break;
+      }
+      default:
+        LOG(ERROR) << "unexpected peer message type: "
+                   << "from " << pmsg->source << ": " << pmsg->content;
+        break;
     }
   } catch (std::exception& e) {
     LOG(ERROR) << "json exception: " << e.what() << ", msg = " << pmsg->content;

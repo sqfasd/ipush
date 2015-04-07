@@ -26,13 +26,13 @@ class StorageUnittest : public testing::Test {
   EventLoopSetup* event_loop_setup_;
 };
 
-MessagePtr CreateMessage(int seq) {
-  MessagePtr msg(new Json::Value());
-  (*msg)["to"] = "u1";
-  (*msg)["from"] = "test";
-  (*msg)["body"] = "this is a message body";
-  (*msg)["type"] = "msg";
-  (*msg)["seq"] = seq;
+Message CreateMessage(int seq) {
+  Message msg;
+  msg.SetTo("u1");
+  msg.SetFrom("test");
+  msg.SetBody("this is a message body");
+  msg.SetType(Message::T_MESSAGE);
+  msg.SetSeq(seq);
   return msg;
 }
 
@@ -46,7 +46,7 @@ static void NormalTest(Storage* s) {
     VLOG(3) << "seq = " << seq;
     CHECK(seq == 0);
   });
-  MessagePtr msg1 = CreateMessage(1);
+  Message msg1 = CreateMessage(1);
   int64 ttl = 5;
   s->SaveMessage(msg1, ttl, [](ErrorPtr err) {
     CHECK(err.get() == NULL);
@@ -65,7 +65,7 @@ static void NormalTest(Storage* s) {
   });
 
   for (int seq = 2; seq <= 10; ++seq) {
-    MessagePtr msg = CreateMessage(seq);
+    Message msg = CreateMessage(seq);
     s->SaveMessage(msg, ttl, [](ErrorPtr err) {
       CHECK(err.get() == NULL);
     });
@@ -87,14 +87,14 @@ static void NormalTest(Storage* s) {
       VLOG(4) << "result " << i << ": " << result->at(i);
     }
     CHECK(result->at(0) == *(Message::Serialize(msg1)));
-    MessagePtr msg = Message::UnserializeString(result->at(9));
-    CHECK((*msg)["seq"].asInt() == 10);
-    (*msg)["seq"] = 1;
-    CHECK(*msg == *msg1);
+    Message msg = Message::UnserializeString(result->at(9));
+    CHECK(msg.Seq() == 10);
+    msg.SetSeq(1);
+    CHECK(msg == msg1);
   });
 
   for (int seq = 11; seq <= 150; ++seq) {
-    MessagePtr msg = CreateMessage(seq);
+    Message msg = CreateMessage(seq);
     s->SaveMessage(msg, ttl, [](ErrorPtr err) {
       CHECK(err.get() == NULL);
     });
@@ -114,10 +114,10 @@ static void NormalTest(Storage* s) {
     for (int i = 0; i < result->size(); ++i) {
       VLOG(4) << "result " << i << ": " << result->at(i);
     }
-    MessagePtr msg = Message::UnserializeString(result->at(29));
-    CHECK((*msg)["seq"].asInt() == 150);
-    (*msg)["seq"] = 1;
-    CHECK(*msg == *msg1);
+    Message msg = Message::UnserializeString(result->at(29));
+    CHECK(msg.Seq() == 150);
+    msg.SetSeq(1);
+    CHECK(msg == msg1);
   });
 
   LOG(INFO) << "waiting for message expired";

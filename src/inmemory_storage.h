@@ -9,7 +9,7 @@ class InMemoryUserData {
  public:
   InMemoryUserData();
   ~InMemoryUserData();
-  void AddMessage(MessagePtr msg, int64 ttl);
+  void AddMessage(const Message& msg, int64 ttl);
   MessageDataSet GetMessages();
   void SetAck(int ack) {ack_ = ack;}
   int GetMaxSeq() {return tail_seq_;}
@@ -29,7 +29,9 @@ class InMemoryStorage : public Storage {
   InMemoryStorage();
   ~InMemoryStorage();
  private:
-  virtual void SaveMessage(MessagePtr msg, int64 ttl, SaveMessageCallback cb);
+  virtual void SaveMessage(const Message& msg,
+                           int64 ttl,
+                           SaveMessageCallback cb);
   virtual void GetMessage(const string& uid, GetMessageCallback cb);
   virtual void GetMaxSeq(const string& uid, GetMaxSeqCallback cb);
   virtual void UpdateAck(const string& uid,
