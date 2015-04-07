@@ -8,9 +8,25 @@
 
 ## 依赖
 
+* cmake
+* c++11(gcc 4.8 or above)
+* zmq
+* boost
+
+### centos
+
 ```
 sudo yum install cmake
 sudo yum install boost-devel
+(install zmq lib)
+```
+
+### ubuntu
+
+```
+sudo apt-get install cmake
+sudo apt-get install libboost-dev
+sudo apt-get install libzmq-dev
 ```
 
 ## 编译
