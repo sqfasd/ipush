@@ -26,59 +26,60 @@ class StorageUnittest : public testing::Test {
   EventLoopSetup* event_loop_setup_;
 };
 
-Message CreateMessage(int seq) {
+StringPtr CreateMessage(int seq) {
   Message msg;
   msg.SetTo("u1");
   msg.SetFrom("test");
   msg.SetBody("this is a message body");
   msg.SetType(Message::T_MESSAGE);
   msg.SetSeq(seq);
-  return msg;
+  return Message::Serialize(msg);
 }
 
 static void NormalTest(Storage* s) {
-  s->GetMessage("u1", [](ErrorPtr err, MessageDataSet result) {
+  const string user = "u1";
+  s->GetMessage(user, [](ErrorPtr err, MessageDataSet result) {
     CHECK(err.get() == NULL);
     CHECK(result.get() == NULL);
   });
-  s->GetMaxSeq("u1", [](ErrorPtr err, int seq) {
+  s->GetMaxSeq(user, [](ErrorPtr err, int seq) {
     CHECK(err.get() == NULL);
     VLOG(3) << "seq = " << seq;
     CHECK(seq == 0);
   });
-  Message msg1 = CreateMessage(1);
+  StringPtr msg1 = CreateMessage(1);
   int64 ttl = 5;
-  s->SaveMessage(msg1, ttl, [](ErrorPtr err) {
+  s->SaveMessage(msg1, user, ttl, [](ErrorPtr err) {
     CHECK(err.get() == NULL);
   });
-  s->GetMaxSeq("u1", [](ErrorPtr err, int seq) {
+  s->GetMaxSeq(user, [](ErrorPtr err, int seq) {
     CHECK(err.get() == NULL);
     VLOG(3) << "seq = " << seq;
     CHECK(seq == 1);
   });
-  s->GetMessage("u1", [msg1](ErrorPtr err, MessageDataSet result) {
+  s->GetMessage(user, [msg1](ErrorPtr err, MessageDataSet result) {
     CHECK(err.get() == NULL);
     CHECK(result.get() != NULL);
     VLOG(3) << "size = " << result->size();
     CHECK(result->size() == 1);
-    CHECK_EQ(result->at(0), *(Message::Serialize(msg1)));
+    CHECK_EQ(result->at(0), *msg1);
   });
 
   for (int seq = 2; seq <= 10; ++seq) {
-    Message msg = CreateMessage(seq);
-    s->SaveMessage(msg, ttl, [](ErrorPtr err) {
+    StringPtr msg = CreateMessage(seq);
+    s->SaveMessage(msg, user, ttl, [](ErrorPtr err) {
       CHECK(err.get() == NULL);
     });
   }
 
   ::sleep(1);
 
-  s->GetMaxSeq("u1", [](ErrorPtr err, int seq) {
+  s->GetMaxSeq(user, [](ErrorPtr err, int seq) {
     CHECK(err.get() == NULL);
     VLOG(3) << "seq = " << seq;
     CHECK(seq == 10);
   });
-  s->GetMessage("u1", [msg1](ErrorPtr err, MessageDataSet result) {
+  s->GetMessage(user, [msg1](ErrorPtr err, MessageDataSet result) {
     CHECK(err.get() == NULL);
     CHECK(result.get() != NULL);
     VLOG(3) << "size = " << result->size();
@@ -86,27 +87,27 @@ static void NormalTest(Storage* s) {
     for (int i = 0; i < result->size(); ++i) {
       VLOG(4) << "result " << i << ": " << result->at(i);
     }
-    CHECK(result->at(0) == *(Message::Serialize(msg1)));
+    CHECK(result->at(0) == *msg1);
     Message msg = Message::UnserializeString(result->at(9));
     CHECK(msg.Seq() == 10);
     msg.SetSeq(1);
-    CHECK(msg == msg1);
+    CHECK(msg == Message::Unserialize(msg1));
   });
 
   for (int seq = 11; seq <= 150; ++seq) {
-    Message msg = CreateMessage(seq);
-    s->SaveMessage(msg, ttl, [](ErrorPtr err) {
+    StringPtr msg = CreateMessage(seq);
+    s->SaveMessage(msg, user, ttl, [](ErrorPtr err) {
       CHECK(err.get() == NULL);
     });
   }
 
   ::sleep(1);
 
-  s->UpdateAck("u1", 120, [](ErrorPtr err) {
+  s->UpdateAck(user, 120, [](ErrorPtr err) {
     CHECK(err.get() == NULL);
   });
 
-  s->GetMessage("u1", [msg1](ErrorPtr err, MessageDataSet result) {
+  s->GetMessage(user, [msg1](ErrorPtr err, MessageDataSet result) {
     CHECK(err.get() == NULL);
     CHECK(result.get() != NULL);
     VLOG(3) << "size = " << result->size();
@@ -117,12 +118,12 @@ static void NormalTest(Storage* s) {
     Message msg = Message::UnserializeString(result->at(29));
     CHECK(msg.Seq() == 150);
     msg.SetSeq(1);
-    CHECK(msg == msg1);
+    CHECK(msg == Message::Unserialize(msg1));
   });
 
   LOG(INFO) << "waiting for message expired";
   ::sleep(4);
-  s->GetMessage("u1", [](ErrorPtr err, MessageDataSet result) {
+  s->GetMessage(user, [](ErrorPtr err, MessageDataSet result) {
     CHECK(err.get() == NULL);
     CHECK(result.get() != NULL);
     CHECK(result->size() == 0);

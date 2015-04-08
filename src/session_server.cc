@@ -257,11 +257,17 @@ void SessionServer::SendSave(const string& uid, Message& msg, int64 ttl) {
 }
 
 void SessionServer::DoSendSave(const Message& msg, int64 ttl) {
+  StringPtr data = Message::Serialize(msg);
+  if (data->empty()) {
+    LOG(ERROR) << "serialize failed: " << msg;
+    return;
+  }
   auto user_it = users_.find(msg.To());
   if (user_it != users_.end()) {
-    user_it->second->Send(msg);
+    stats_.OnSend(*data);
+    user_it->second->Send(*data);
   }
-  storage_->SaveMessage(msg, ttl, [](ErrorPtr error_save) {
+  storage_->SaveMessage(data, ttl, [](ErrorPtr error_save) {
     if (error_save.get() != NULL) {
       LOG(ERROR) << "SaveMessage failed: " << *error_save;
       return;

@@ -24,17 +24,13 @@ static int64 Now() {
   return base::GetTimeInSecond();
 }
 
-void InMemoryUserData::AddMessage(const Message& msg, int64 ttl) {
-  CHECK(msg.HasSeq());
-  int seq = msg.Seq();
-  VLOG(5) << "AddMessage seq=" << seq;
-  CHECK(seq > 0);
-  tail_seq_ = seq;
+void InMemoryUserData::AddMessage(const StringPtr& msg, int64 ttl) {
+  ++tail_seq_;
   if (ttl <= 0) {
-    msg_queue_[tail_] = make_pair(0, Message::Serialize(msg));
+    msg_queue_[tail_] = make_pair(0, msg);
   } else {
     int64 expired = Now() + ttl;
-    msg_queue_[tail_] = make_pair(expired, Message::Serialize(msg));
+    msg_queue_[tail_] = make_pair(expired, msg);
   }
   if (++tail_ == msg_queue_.size()) {
     tail_ = 0;
@@ -84,11 +80,11 @@ InMemoryStorage::InMemoryStorage() {
 InMemoryStorage::~InMemoryStorage() {
 }
 
-void InMemoryStorage::SaveMessage(const Message& msg,
+void InMemoryStorage::SaveMessage(const StringPtr& msg,
+                                  const string& uid,
                                   int64 ttl,
                                   SaveMessageCallback cb) {
-  const string& to = msg.To();
-  user_data_[to].AddMessage(msg, ttl);
+  user_data_[uid].AddMessage(msg, ttl);
   LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR));
 }
 

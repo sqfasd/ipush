@@ -25,7 +25,8 @@ class Storage {
   Storage() {}
   virtual ~Storage() {}
 
-  virtual void SaveMessage(const Message& msg,
+  virtual void SaveMessage(const StringPtr& msg,
+                           const string& uid,
                            int64 ttl,
                            SaveMessageCallback cb) = 0;
   virtual void GetMessage(const string& uid, GetMessageCallback cb) = 0;
