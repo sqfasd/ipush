@@ -10,6 +10,7 @@
 #include <queue>
 #include <utility>
 #include <iostream>
+#include <fstream>
 
 using std::string;
 using std::vector;
@@ -18,7 +19,9 @@ using std::map;
 using std::queue;
 using std::make_pair;
 using std::iostream;
+using std::ifstream;
 using std::ostream;
+using std::ofstream;
 
 #if __cplusplus >= 201103L
 #include <memory>

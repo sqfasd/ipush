@@ -125,8 +125,7 @@ static void NormalTest(Storage* s) {
   ::sleep(4);
   s->GetMessage(user, [](ErrorPtr err, MessageDataSet result) {
     CHECK(err.get() == NULL);
-    CHECK(result.get() != NULL);
-    CHECK(result->size() == 0);
+    CHECK(result.get() == NULL || result->size() == 0);
   });
 
   ::sleep(1);

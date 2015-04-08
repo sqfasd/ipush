@@ -5,8 +5,8 @@
 #include "src/peer/zhelpers.h"
 
 const int IO_THREAD_NUM = 1;
-const int DEFAULT_START_PORT = 11000;
 const int ALL_PEERS = -1;
+DEFINE_int32(peer_start_port, 11000, "");
 
 Peer::Peer(const int id, const vector<PeerInfo>& peers)
     : id_(id), stoped_(false) {
@@ -69,7 +69,7 @@ void Peer::Stop() {
 void Peer::Sending() {
   zmq::context_t context(IO_THREAD_NUM);
   zmq::socket_t publisher(context, ZMQ_PUB);
-  string address = "tcp://*:" + std::to_string(DEFAULT_START_PORT + id_);
+  string address = "tcp://*:" + std::to_string(FLAGS_peer_start_port + id_);
   publisher.bind(address.c_str());
   
   LOG(INFO) << "ready to publish: " << address;
@@ -100,7 +100,7 @@ void Peer::Receiving() {
   for (int i = 0; i < peers_.size(); ++i) {
     sockets[i].reset(new zmq::socket_t(context, ZMQ_SUB));
     string address = "tcp://" + peers_[i].ip + ":" +
-                     std::to_string(DEFAULT_START_PORT + peers_[i].id);
+                     std::to_string(FLAGS_peer_start_port + peers_[i].id);
     LOG(INFO) << "connecting to peer: " << address;
     sockets[i]->connect(address.c_str());
     sockets[i]->setsockopt(ZMQ_SUBSCRIBE, std::to_string(id_).c_str(), 1);

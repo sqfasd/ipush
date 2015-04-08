@@ -40,7 +40,7 @@ class Message {
   bool operator==(const Message& other) {
     return *data_ == *(other.data_);
   }
-  Message Clone() {
+  Message Clone() const {
     Message msg;
     *(msg.data_) = *(data_);
     return msg;

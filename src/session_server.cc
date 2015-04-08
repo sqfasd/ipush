@@ -10,7 +10,7 @@
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9001, "");
-DEFINE_int32(poll_timeout_sec, 300, "");
+DEFINE_int32(poll_timeout_sec, 1800, "");
 DEFINE_int32(timer_interval_sec, 1, "");
 DEFINE_bool(is_server_heartbeat, false, "");
 DEFINE_int32(peer_id, 0, "");
@@ -289,12 +289,18 @@ void SessionServer::SendChannelMsg(Message& msg, int64 ttl) {
         LOG(ERROR) << "GetChannelUsers failed: " << *error;
         return;
       }
+      if (u.get() == NULL) {
+        LOG(WARNING) << "no user in this channel: " << cid;
+        return;
+      }
       ChannelInfo channel(cid);
       for (int i = 0; i < u->size(); ++i) {
-        channel.AddUser(u->at(i));
-        ((Message&)msg).SetTo(u->at(i));
-        if (CheckShard(u->at(i))) {
-          SendUserMsg((Message&)msg, ttl, NO_CHECK_SHARD);
+        const string& cuser = u->at(i);
+        channel.AddUser(cuser);
+        Message copy = msg.Clone();
+        copy.SetTo(cuser);
+        if (CheckShard(cuser)) {
+          SendUserMsg(copy, ttl, NO_CHECK_SHARD);
         }
       }
       channels_.insert(make_pair(cid, channel));
@@ -303,9 +309,10 @@ void SessionServer::SendChannelMsg(Message& msg, int64 ttl) {
     const set<string>& user_ids = iter->second.GetUsers();
     set<string>::const_iterator uit;
     for (uit = user_ids.begin(); uit != user_ids.end(); ++uit) {
-      msg.SetTo(*uit);
+      Message copy = msg.Clone();
+      copy.SetTo(*uit);
       if (CheckShard(*uit)) {
-        SendUserMsg((Message&)msg, ttl, NO_CHECK_SHARD);
+        SendUserMsg(copy, ttl, NO_CHECK_SHARD);
       }
     }
   }
@@ -347,7 +354,7 @@ void SessionServer::Pub(struct evhttp_request* req) {
     CHECK(channel != NULL);
     msg.SetType(Message::T_CHANNEL_MESSAGE);
     msg.SetFrom(from);
-    msg.SetTo(channel);
+    msg.SetChannel(channel);
     msg.SetBody(string(bufferstr, len));
     SendChannelMsg(msg, ttl);
     cluster_->Broadcast(*(Message::Serialize(msg)));
