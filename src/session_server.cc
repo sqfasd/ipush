@@ -9,7 +9,7 @@
 #include "src/inmemory_storage.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
-DEFINE_int32(admin_listen_port, 9100, "");
+DEFINE_int32(admin_listen_port, 9001, "");
 DEFINE_int32(poll_timeout_sec, 300, "");
 DEFINE_int32(timer_interval_sec, 1, "");
 DEFINE_bool(is_server_heartbeat, false, "");
