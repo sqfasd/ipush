@@ -2,7 +2,7 @@
 
 PROGRAM=session_server
 PID_FILE=./${PROGRAM}.pid
-CONF_FILE=./conf/${PROGRAM}.conf
+CONF_FILE=./conf/default.conf
 LOG_FILE=./logs/${PROGRAM}.log
 
 if [ $# -eq 0 ]; then
