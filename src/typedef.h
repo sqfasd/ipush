@@ -5,9 +5,6 @@
 
 namespace xcomet {
 
-typedef std::string UserID;
-typedef std::string ChannelID;
-typedef int Sid;
 typedef shared_ptr<std::string> StringPtr;
 
 }
