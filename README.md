@@ -192,7 +192,7 @@ $ curl -d "@payload" "http://session_server_host:9001/pub?to=user001&from=op"
 }
 
 // 频道信息发布
-$ curl -d "@payload" "http://session_server_host:8100/pub?channel=channel1&from=op"
+$ curl -d "@payload" "http://session_server_host:9001/pub?channel=channel1&from=op"
 {
       "result": "ok"
 }
