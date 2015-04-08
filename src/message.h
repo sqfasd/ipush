@@ -21,7 +21,7 @@ const int64 NO_EXPIRE = 0;
 #define K_CHANNEL         "c"
 #define K_BODY            "b"
 
-// only used for peer conmunication, removed before save or send to user
+// only used for peer conmunication, remove before save or send to user
 #define K_TTL             "l"
 
 class Message {
@@ -37,15 +37,13 @@ class Message {
 
   Message() : data_(new Json::Value()) {}
   ~Message() {}
-  Message(const Message& other) {
-    data_ = other.data_;
-  }
-  Message& operator=(const Message& other) {
-    data_ = other.data_;
-    return *this;
-  }
   bool operator==(const Message& other) {
     return *data_ == *(other.data_);
+  }
+  Message Clone() {
+    Message msg;
+    *(msg.data_) = *(data_);
+    return msg;
   }
   void SetFrom(const string& uid) {
     (*data_)[K_FROM] = uid;
