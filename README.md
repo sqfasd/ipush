@@ -121,40 +121,63 @@ chunk分两部分，第一部分是消息长度(16进制)加换行符，第二�
 例如,下面是一个心跳包(发送和接收的格式一样，都是长度+消息内容)
 
 ```
-10\r\n
-{"type":"noop"}\r\n
+a\r\n
+{"y":0}\r\n
 ```
 
-客户端可以发送以下5种类型的消息到服务器
+消息key
+
+```
+f 来源
+t 目标
+s 序列号
+y 类型
+u 用户(订阅和取消订阅时使用)
+c 用户(订阅和取消订阅时以及频道消息时使用)
+b 消息主体内容
+```
+
+消息类型
+
+```
+0 心跳
+1 订阅
+2 退订
+3 普通消息
+4 频道消息
+5 ack
+```
+
+示例
 
 ```
 // 订阅
-{“type”: "sub", "from": "user001", "channel": "channel001"}
+{“y”: 1, "f": "user001", "c": "channel001"}
 
 // 取消订阅
-{“type”: "unsub", "from": "user001", "channel": "channel001"}
+{“y”: 2, "f": "user001", "c": "channel001"}
 
 // 发送到单人
-{“type”: "msg", "from": "user001", "to": "user002", "body": "this is a message body"}
+{“y”: 3, "f": "user001", "t": "user002", "b": "this is a message body"}
 
 // 发布到频道
-{“type”: "cmsg", "from": "user001", "channel": "channel1", "body": "this is a message body"}
+{“y”: 4, "f": "user001", "c": "channel1", "b": "this is a message body"}
 
 // 确认
-{“type”: "ack", "from": "user001", "seq": 1}
+{“y”: 5, "f": "user001", "s": 1}
 
 // 心跳
-{"type":"noop"}
+{"y":0}
 ```
 
 客户端接收到的消息
 
 ```
 // 这是一个单人到单人的消息
-{“type”: "msg", "from": "user002", "to": "user001", "body": "this is a message body"， "seq": 123}
+{“y”: 3, "f": "user002", "t": "user001", "b": "this is a message body"， "s": 123}
 
 // 这是一个频道消息
-{“type”: "cmsg", "from": "user002", "to": "user001", "channel": "channel1", body": "this is a message body"， "seq": 123}
+{“y”: 4, "f": "user002", "t": "user001", "c": "channel1", b": "this is a message body"， "s": 123}
 ```
 
 ### 管理员或后端服务
@@ -246,10 +269,10 @@ $ curl "http://session_server_host:9001/stats"
 ```
 $ curl "http://session_server_host:9001/offmsg?uid=user78"
 [
-  "{\"body\":\"this is a channel message\",\"channel\":\"channel1\",\"from\":\"webservice\",\"seq\":1,\"to\":\"user78\",\"type\":\"cmsg\"}\n",
-  "{\"body\":\"this is a channel message\",\"channel\":\"channel1\",\"from\":\"webservice\",\"seq\":2,\"to\":\"user78\",\"type\":\"cmsg\"}\n",
-  "{\"body\":\"this is a channel message\",\"channel\":\"channel1\",\"from\":\"webservice\",\"seq\":3,\"to\":\"user78\",\"type\":\"cmsg\"}\n",
-  "{\"body\":\"this is a channel message\",\"channel\":\"channel1\",\"from\":\"webservice\",\"seq\":4,\"to\":\"user78\",\"type\":\"cmsg\"}\n"
+  "{\"b\":\"this is a channel message\",\"c\":\"channel1\",\"f\":\"webservice\",\"s\":1,\"t\":\"user78\",\"y\":4}\n",
+  "{\"b\":\"this is a channel message\",\"c\":\"channel1\",\"f\":\"webservice\",\"s\":2,\"t\":\"user78\",\"y\":4}\n",
+  "{\"b\":\"this is a channel message\",\"c\":\"channel1\",\"f\":\"webservice\",\"s\":3,\"t\":\"user78\",\"y\":4}\n",
+  "{\"b\":\"this is a channel message\",\"c\":\"channel1\",\"f\":\"webservice\",\"s\":4,\"t\":\"user78\",\"y\":4}\n"
 ]
 ```
 
