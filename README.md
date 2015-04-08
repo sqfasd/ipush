@@ -56,6 +56,11 @@ BUILD_TYPE=debug ./install.sh <install_path>
 // 停止session server
 ./scripts/session_server.sh stop
 
+// 或者
+
+./bin/session_server --flagfile=conf/default.conf
+
+kill $(cat session_server.pid)
 ```
 
 ## 集群部署
