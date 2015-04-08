@@ -258,6 +258,7 @@ void SessionServer::SendSave(const string& uid, Message& msg, int64 ttl) {
 
 void SessionServer::DoSendSave(const Message& msg, int64 ttl) {
   StringPtr data = Message::Serialize(msg);
+  const string& uid = msg.To();
   if (data->empty()) {
     LOG(ERROR) << "serialize failed: " << msg;
     return;
@@ -267,7 +268,7 @@ void SessionServer::DoSendSave(const Message& msg, int64 ttl) {
     stats_.OnSend(*data);
     user_it->second->Send(*data);
   }
-  storage_->SaveMessage(data, ttl, [](ErrorPtr error_save) {
+  storage_->SaveMessage(data, uid, ttl, [](ErrorPtr error_save) {
     if (error_save.get() != NULL) {
       LOG(ERROR) << "SaveMessage failed: " << *error_save;
       return;
