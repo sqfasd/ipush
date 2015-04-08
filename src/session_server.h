@@ -53,7 +53,6 @@ class SessionServer {
   void OnStart();
   void OnStop();
 
-  bool IsHeartbeatMessage(const string& message);
   bool CheckShard(const string& user);
   int  GetShardId(const string& user);
   void HandleMessage(Message& msg);

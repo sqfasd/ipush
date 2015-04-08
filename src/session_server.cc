@@ -519,11 +519,6 @@ void SessionServer::RunInNextTick(function<void ()> fn) {
   task_queue_.Push(fn);
 }
 
-bool SessionServer::IsHeartbeatMessage(const string& message) {
-  return message.find("\"type\"") != string::npos &&
-         message.find("\"noop\"") != string::npos;
-}
-
 void SessionServer::UpdateUserAck(const string& uid, int ack) {
   VLOG(5) << "UpdateUserAck: " << uid << ", " << ack;
   UserInfoMap::iterator uit = user_infos_.find(uid);
@@ -545,15 +540,13 @@ void SessionServer::OnUserMessage(const string& from, StringPtr data) {
   VLOG(4) << "OnUserMessage: " << from << ": " << *data;
   stats_.OnReceive(*data);
 
-  if (!IsHeartbeatMessage(*data)) {
-    try {
-      Message msg = Message::Unserialize(data);
-      HandleMessage(msg);
-    } catch (std::exception& e) {
-      LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *data;
-    } catch (...) {
-      LOG(ERROR) << "unknow exception for user msg: " << *data;
-    }
+  try {
+    Message msg = Message::Unserialize(data);
+    HandleMessage(msg);
+  } catch (std::exception& e) {
+    LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *data;
+  } catch (...) {
+    LOG(ERROR) << "unknow exception for user msg: " << *data;
   }
 
   UserMap::iterator uit = users_.find(from);
