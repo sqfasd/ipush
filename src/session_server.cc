@@ -615,7 +615,7 @@ void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
     int64 ttl = msg.TTL();
     switch (msg.Type()) {
       case Message::T_MESSAGE: {
-        const string& user = msg.User();
+        const string& user = msg.To();
         if (CheckShard(user)) {
           LoopExecutor::RunInMainLoop(
               bind(&SessionServer::SendUserMsg, this, msg, ttl, NO_CHECK_SHARD));
