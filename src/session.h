@@ -32,7 +32,7 @@ class Session {
   static void OnReceive(void* arg);
   void OnReceive();
   void SendHeader();
-  void SendChunk(const char* data);
+  void SendChunk(const char* data, bool newline = true);
 
   struct evhttp_request* req_;
   bool closed_;

@@ -25,12 +25,12 @@ void Session::Send(const Message& msg) {
   if (data->empty()) {
     LOG(ERROR) << "invalid msg: " << msg;
   } else {
-    SendChunk(data->c_str());
+    SendChunk(data->c_str(), false);
   }
 }
 
 void Session::Send(const std::string& packet_str) {
-  SendChunk(packet_str.c_str());
+  SendChunk(packet_str.c_str(), false);
 }
 
 void Session::Send(const string& from_id,
@@ -50,9 +50,13 @@ void Session::SendHeartbeat() {
   SendChunk("{\"type\":\"noop\"}");
 }
 
-void Session::SendChunk(const char* data) {
+void Session::SendChunk(const char* data, bool new_line) {
   struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
-  evbuffer_add_printf(buf, "%s\n", data);
+  if (new_line) {
+    evbuffer_add_printf(buf, "%s\n", data);
+  } else {
+    evbuffer_add_printf(buf, "%s", data);
+  }
   evhttp_send_reply_chunk_bi(req_, buf);
 }
 
@@ -132,7 +136,7 @@ void Session::SendHeader() {
 	evhttp_connection_set_closecb(req_->evcon, OnDisconnect, this);
 
 	evhttp_add_header(req_->output_headers, "Connection", "keep-alive");
-	evhttp_add_header(req_->output_headers, "Content-Type", "text/html; charset=utf-8");
+	evhttp_add_header(req_->output_headers, "Content-Type", "text/json; charset=utf-8");
 	evhttp_send_reply_start_bi(req_, HTTP_OK, "OK", OnReceive, this);
 }
 
