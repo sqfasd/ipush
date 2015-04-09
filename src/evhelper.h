@@ -60,9 +60,9 @@ inline void ReplyRedirect(struct evhttp_request* req,
   location.append(addr);
   location.append(evhttp_request_get_uri(req));
   evhttp_add_header(req->output_headers, "Location", location.c_str());
-  evhttp_add_header(req->output_headers, "Connection", "keep-alive");
-  evhttp_add_header(req->output_headers, "Transfer-Encoding", "chunked");
+  evhttp_add_header(req->output_headers, "Content-Length", "0");
   evhttp_send_reply(req, 303, NULL, NULL);
+  evhttp_send_reply_end(req);
 }
 
 }  // namespace xcomet
