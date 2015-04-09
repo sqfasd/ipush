@@ -53,6 +53,18 @@ inline void ReplyError(struct evhttp_request* req,
   evhttp_send_reply(req, code, error_header.c_str(), output_buffer);
 }
 
+inline void ReplyRedirect(struct evhttp_request* req,
+                          const string& addr) {
+  string location;
+  location.append("http://");
+  location.append(addr);
+  location.append(evhttp_request_get_uri(req));
+  evhttp_add_header(req->output_headers, "Location", location.c_str());
+  evhttp_add_header(req->output_headers, "Connection", "keep-alive");
+  evhttp_add_header(req->output_headers, "Transfer-Encoding", "chunked");
+  evhttp_send_reply(req, 303, NULL, NULL);
+}
+
 }  // namespace xcomet
 
 #endif  // SRC_EVHELPER_H_

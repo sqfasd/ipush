@@ -194,6 +194,13 @@ void SessionServer::Connect(struct evhttp_request* req) {
     return;
   }
 
+  int shard_id = GetShardId(uid);
+  if (shard_id != peer_id_) {
+    VLOG(3) << "redirect to shard " << shard_id;
+    ReplyRedirect(req, peers_[shard_id].public_addr);
+    return;
+  }
+
   int type = query.GetInt("type", 1);
   string token = query.GetStr("token", "");
   // TODO (qingfeng) authenticate token
