@@ -12,6 +12,7 @@ struct PeerInfo {
   int id;
   string ip;
   string public_addr;
+  string admin_addr;
 };
 
 struct PeerMessage {

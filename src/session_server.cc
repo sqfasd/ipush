@@ -16,7 +16,8 @@ DEFINE_int32(timer_interval_sec, 1, "");
 DEFINE_bool(is_server_heartbeat, false, "");
 DEFINE_int32(peer_id, 0, "");
 DEFINE_string(peers_ip, "192.168.2.3", "LAN ip");
-DEFINE_string(peers_address, "192.168.2.3:9000", "public address");
+DEFINE_string(peers_address, "192.168.2.3:9000", "public client address");
+DEFINE_string(peers_admin_address, "192.168.2.3:9001", "admin peers address");
 
 const bool CHECK_SHARD = true;
 const bool NO_CHECK_SHARD = false;
@@ -33,6 +34,26 @@ const bool NO_CHECK_SHARD = false;
   do {\
     if(evhttp_request_get_command(req) != EVHTTP_REQ_POST) {\
       ReplyError(req, HTTP_BADMETHOD);\
+      return;\
+    }\
+  } while(0)
+
+#define CHECK_REDIRECT_CLIENT(uid)\
+  do {\
+    int shard_id = GetShardId(uid);\
+    if (shard_id != peer_id_) {\
+      VLOG(3) << "redirect to shard " << shard_id;\
+      ReplyRedirect(req, peers_[shard_id].public_addr);\
+      return;\
+    }\
+  } while(0)
+
+#define CHECK_REDIRECT_ADMIN(uid)\
+  do {\
+    int shard_id = GetShardId(uid);\
+    if (shard_id != peer_id_) {\
+      VLOG(3) << "redirect to shard " << shard_id;\
+      ReplyRedirect(req, peers_[shard_id].admin_addr);\
       return;\
     }\
   } while(0)
@@ -131,7 +152,9 @@ struct SessionServerPrivate {
 };
 
 SessionServer::SessionServer()
-    : timeout_counter_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
+    : client_listen_port_(FLAGS_client_listen_port),
+      admin_listen_port_(FLAGS_admin_listen_port),
+      timeout_counter_(FLAGS_poll_timeout_sec / FLAGS_timer_interval_sec),
       timeout_queue_(timeout_counter_),
       stats_(FLAGS_timer_interval_sec),
       p_(new SessionServerPrivate()),
@@ -141,13 +164,17 @@ SessionServer::SessionServer()
   SplitString(FLAGS_peers_ip, ',', &peers_ip);
   vector<string> peers_address;
   SplitString(FLAGS_peers_address, ',', &peers_address);
+  vector<string> peers_admin_address;
+  SplitString(FLAGS_peers_admin_address, ',', &peers_admin_address);
   CHECK(peers_ip.size() > 0);
   CHECK(peers_ip.size() == peers_address.size());
+  CHECK(peers_ip.size() == peers_admin_address.size());
   for (int i = 0; i < peers_ip.size(); ++i) {
     PeerInfo info;
     info.id = i;
     info.ip = peers_ip[i];
     info.public_addr = peers_address[i];
+    info.admin_addr = peers_admin_address[i];
     peers_.push_back(info);
   }
   CHECK(peer_id_ < peers_ip.size());
@@ -194,12 +221,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
     return;
   }
 
-  int shard_id = GetShardId(uid);
-  if (shard_id != peer_id_) {
-    VLOG(3) << "redirect to shard " << shard_id;
-    ReplyRedirect(req, peers_[shard_id].public_addr);
-    return;
-  }
+  CHECK_REDIRECT_CLIENT(uid);
 
   int type = query.GetInt("type", 1);
   string token = query.GetStr("token", "");
@@ -380,6 +402,8 @@ void SessionServer::Disconnect(struct evhttp_request* req) {
     return;
   }
 
+  CHECK_REDIRECT_ADMIN(uid);
+
   UserMap::iterator uit = users_.find(uid);
   if (uit == users_.end()) {
     ReplyError(req, HTTP_INTERNAL, "user not found: " + uid);
@@ -475,6 +499,9 @@ void SessionServer::Msg(struct evhttp_request* req) {
     ReplyError(req, HTTP_BADREQUEST, "target id is invalid");
     return;
   }
+
+  CHECK_REDIRECT_ADMIN(uid);
+
   storage_->GetMessage(uid, [req](ErrorPtr error, MessageDataSet m) {
     if (error.get() != NULL) {
       LOG(ERROR) << "GetMessage failed: " << *error;
@@ -688,10 +715,10 @@ void SessionServer::SetupClientHandler() {
   struct evhttp_bound_socket* sock = NULL;
   sock = evhttp_bind_socket_with_handle(p_->client_http,
                                         "0.0.0.0",
-                                        FLAGS_client_listen_port);
+                                        client_listen_port_);
   CHECK(sock) << "bind address failed: " << strerror(errno);
 
-  LOG(INFO) << "clinet server listen on " << FLAGS_client_listen_port;
+  LOG(INFO) << "clinet server listen on " << client_listen_port_;
 
   struct evconnlistener *listener = evhttp_bound_socket_get_listener(sock);
   evconnlistener_set_error_cb(listener, AcceptErrorHandler);
@@ -712,10 +739,10 @@ void SessionServer::SetupAdminHandler() {
   struct evhttp_bound_socket* sock = NULL;
   sock = evhttp_bind_socket_with_handle(p_->admin_http,
                                         "0.0.0.0",
-                                        FLAGS_admin_listen_port);
+                                        admin_listen_port_);
   CHECK(sock) << "bind address failed: " << strerror(errno);
 
-  LOG(INFO) << "admin server listen on " << FLAGS_admin_listen_port;
+  LOG(INFO) << "admin server listen on " << admin_listen_port_;
 
   struct evconnlistener *listener = evhttp_bound_socket_get_listener(sock);
   evconnlistener_set_error_cb(listener, AcceptErrorHandler);

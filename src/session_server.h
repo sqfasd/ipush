@@ -65,6 +65,8 @@ class SessionServer {
   void Unsubscribe(const string& uid, const string& cid);
   void UpdateUserAck(const string& uid, int ack);
 
+  const int client_listen_port_;
+  const int admin_listen_port_;
   const int timeout_counter_;
   UserMap users_;
   UserInfoMap user_infos_;
