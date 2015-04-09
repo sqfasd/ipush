@@ -64,6 +64,9 @@ PathString* log_file_name = NULL;
 // this file is lazily opened and the handle may be NULL
 FileHandle log_file = NULL;
 
+const int64 ROTATE_LOG_SIZE = 1000000000;
+int64 log_file_size = 0;
+
 // what should be prepended to each message?
 bool log_process_id = false;
 bool log_thread_id  = true;
@@ -137,6 +140,33 @@ bool InitializeLogFileHandle() {
   }
 
   return true;
+}
+
+void Rotate() {
+  log_file_size = 0;
+	CloseFile(log_file);
+  log_file = NULL;
+
+	char newpath[MAX_PATH] = {0};
+	time_t time;
+	struct timeval tv;
+	struct tm *tm;
+	gettimeofday(&tv, NULL);
+	time = tv.tv_sec;
+	tm = localtime(&time);
+	sprintf(newpath, "%s.%04d%02d%02d-%02d%02d%02d",
+		log_file_name->c_str(),
+		tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+		tm->tm_hour, tm->tm_min, tm->tm_sec);
+
+	int ret = rename(log_file_name->c_str(), newpath);
+	if(ret == -1) {
+		return;
+	}
+	log_file = fopen(log_file_name->c_str(), "a");
+	if(log_file == NULL) {
+		return;
+	}
 }
 
 void InitLogMutex() {
@@ -377,6 +407,10 @@ LogMessage::~LogMessage() {
       log_lock->Lock();
     }
 
+    log_file_size += str_newline.size();
+    if (log_file_size > ROTATE_LOG_SIZE) {
+      Rotate();
+    }
     fprintf(log_file, "%s", str_newline.c_str());
     fflush(log_file);
 
