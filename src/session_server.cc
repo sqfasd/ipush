@@ -137,17 +137,23 @@ struct SessionServerPrivate {
   struct event* sigint_event;
   struct event* timer_event;
 
-  SessionServerPrivate() {
+  SessionServerPrivate()
+      : evbase(NULL),
+        client_http(NULL),
+        admin_http(NULL),
+        sigterm_event(NULL),
+        sigint_event(NULL),
+        timer_event(NULL) {
     evbase = event_base_new();
     CHECK(evbase) << "create evbase failed";
   }
   ~SessionServerPrivate() {
-    event_free(timer_event);
-    event_free(sigterm_event);
-    event_free(sigint_event);
-    evhttp_free(client_http);
-    evhttp_free(admin_http);
-    event_base_free(evbase);
+    if (timer_event) event_free(timer_event);
+    if (sigterm_event) event_free(sigterm_event);
+    if (sigint_event) event_free(sigint_event);
+    if (client_http) evhttp_free(client_http);
+    if (admin_http) evhttp_free(admin_http);
+    if (evbase) event_base_free(evbase);
   }
 };
 
