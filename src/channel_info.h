@@ -6,7 +6,7 @@
 namespace xcomet {
 
 class ChannelInfo;
-typedef map<string, ChannelInfo> ChannelInfoMap;
+typedef unordered_map<string, ChannelInfo> ChannelInfoMap;
 
 class ChannelInfo {
  public:
@@ -17,12 +17,12 @@ class ChannelInfo {
   int GetUserCount() const {return users_.size();}
   void AddUser(const string& uid) {users_.insert(uid);}
   void RemoveUser(const string& uid) {users_.erase(uid);}
-  const set<string>& GetUsers() const {return users_;}
+  const unordered_set<string>& GetUsers() const {return users_;}
 
  private:
   string id_;
   // TODO(qingfeng) use pointers
-  set<string> users_;
+  unordered_set<string> users_;
 };
 
 }  // namespace xcomet

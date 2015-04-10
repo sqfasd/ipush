@@ -259,7 +259,7 @@ void InMemoryStorage::Load() {
       CHECK(json.isMember("name"));
       CHECK(json.isMember("users"));
       const string& name = json["name"].asString();
-      auto it = channel_map_.insert(make_pair(name, set<string>()));
+      auto it = channel_map_.insert(make_pair(name, unordered_set<string>()));
       const Json::Value& users = json["users"];
       CHECK(users.type() == Json::arrayValue);
       for (Json::ArrayIndex i = 0; i < users.size(); ++i) {

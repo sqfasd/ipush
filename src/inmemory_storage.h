@@ -56,8 +56,8 @@ class InMemoryStorage : public Storage {
   void Dump();
   void Load();
 
-  map<string, InMemoryUserData> user_data_;
-  map<string, set<string> > channel_map_;
+  unordered_map<string, InMemoryUserData> user_data_;
+  unordered_map<string, unordered_set<string> > channel_map_;
 };
 
 }  // namespace xcomet

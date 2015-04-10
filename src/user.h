@@ -14,7 +14,7 @@ class User;
 class UserCircleQueue;
 class SessionServer;
 typedef shared_ptr<User> UserPtr;
-typedef map<string, UserPtr> UserMap;
+typedef unordered_map<string, UserPtr> UserMap;
 
 class User {
  public:

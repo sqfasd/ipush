@@ -349,9 +349,9 @@ void SessionServer::SendChannelMsg(Message& msg, int64 ttl) {
       channels_.insert(make_pair(cid, channel));
     });
   } else {
-    const set<string>& user_ids = iter->second.GetUsers();
-    set<string>::const_iterator uit;
-    for (uit = user_ids.begin(); uit != user_ids.end(); ++uit) {
+    const auto& user_ids = iter->second.GetUsers();
+    auto uit = user_ids.begin();
+    for (; uit != user_ids.end(); ++uit) {
       Message copy = msg.Clone();
       copy.SetTo(*uit);
       if (CheckShard(*uit)) {

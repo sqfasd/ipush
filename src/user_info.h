@@ -6,7 +6,7 @@
 namespace xcomet {
 
 class UserInfo;
-typedef map<string, UserInfo> UserInfoMap;
+typedef unordered_map<string, UserInfo> UserInfoMap;
 
 class UserInfo {
  public:

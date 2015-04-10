@@ -24,11 +24,15 @@ using std::ostream;
 using std::ofstream;
 
 #if __cplusplus >= 201103L
+#include <unordered_map>
+#include <unordered_set>
 #include <memory>
 #include <thread>
 #include <functional>
 #include <atomic>
 
+using std::unordered_map;
+using std::unordered_set;
 using std::shared_ptr;
 using std::thread;
 using std::function;
