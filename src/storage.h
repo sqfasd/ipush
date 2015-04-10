@@ -4,13 +4,11 @@
 #include <inttypes.h>
 #include "src/include_std.h"
 #include "src/message.h"
+#include "src/typedef.h"
 
 namespace xcomet {
 
 typedef shared_ptr<vector<string> > UserResultSet;
-typedef shared_ptr<string> ErrorPtr;
-
-#define NO_ERROR ErrorPtr(NULL)
 
 typedef function<void (ErrorPtr, MessageDataSet)> GetMessageCallback;
 typedef function<void (ErrorPtr)> SaveMessageCallback;
