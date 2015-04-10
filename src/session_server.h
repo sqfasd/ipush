@@ -14,6 +14,7 @@
 #include "src/message.h"
 #include "src/peer/peer.h"
 #include "src/sharding.h"
+#include "src/auth.h"
 
 namespace xcomet {
 
@@ -82,6 +83,8 @@ class SessionServer {
   vector<PeerInfo> peers_;
   scoped_ptr<Peer> cluster_;
   scoped_ptr<Sharding<PeerInfo> > sharding_;
+
+  scoped_ptr<Auth> auth_;
 };
 
 }  // namespace xcomet

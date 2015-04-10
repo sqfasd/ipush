@@ -8,12 +8,14 @@ ADD_EXECUTABLE(unittest.run
   peer_ut.cc
   loop_executor_ut.cc
   storage_ut.cc
+  auth_ut.cc
   ../../src/worker.cc
   ../../src/event_msgqueue.c
   ../../src/utils.cc
   ../../src/peer/peer.cc
   ../../src/loop_executor.cc
   ../../src/inmemory_storage.cc
+  ../../src/auth.cc
 )
 
 TARGET_LINK_LIBRARIES(unittest.run
@@ -23,5 +25,6 @@ TARGET_LINK_LIBRARIES(unittest.run
   jsoncpp
   gtest
   zmq
+  crypto
 )
 

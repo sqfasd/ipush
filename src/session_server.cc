@@ -159,7 +159,8 @@ SessionServer::SessionServer()
       stats_(FLAGS_timer_interval_sec),
       p_(new SessionServerPrivate()),
       storage_(new InMemoryStorage()),
-      peer_id_(FLAGS_peer_id) {
+      peer_id_(FLAGS_peer_id),
+      auth_(new Auth()) {
   vector<string> peers_ip;
   SplitString(FLAGS_peers_ip, ',', &peers_ip);
   vector<string> peers_address;
@@ -216,32 +217,38 @@ void SessionServer::Connect(struct evhttp_request* req) {
   CHECK_HTTP_GET();
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
-  if (uid.empty()) {
-    ReplyError(req, HTTP_BADREQUEST, "invalid uid");
+  string password = query.GetStr("password", "");
+  int type = query.GetInt("type", 1);
+  if (uid.empty() || password.empty()) {
+    ReplyError(req, HTTP_BADREQUEST, "uid or password should not empty");
     return;
   }
 
   CHECK_REDIRECT_CLIENT(uid);
 
-  int type = query.GetInt("type", 1);
-  string token = query.GetStr("token", "");
-  // TODO (qingfeng) authenticate token
+  auth_->Authenticate(uid, password, [req, uid, type, this](ErrorPtr err,
+                                                            bool ok) {
+    if (err.get() != NULL || !ok) {
+      ReplyError(req, HTTP_BADREQUEST, "authentication failed"); 
+      return;
+    }
+    UserPtr user(new User(uid, type, req, *this));
+    UserMap::iterator iter = users_.find(uid);
+    if (iter == users_.end()) {
+      LOG(INFO) << "login user: " << uid;
+    } else {
+      timeout_queue_.RemoveUser(iter->second.get());
+      LOG(INFO) << "relogin user: " << uid;
+    }
+    users_[uid] = user;
+    timeout_queue_.PushUserBack(user.get());
 
-  UserPtr user(new User(uid, type, req, *this));
-  UserMap::iterator iter = users_.find(uid);
-  if (iter == users_.end()) {
-    LOG(INFO) << "login user: " << uid;
-  } else {
-    timeout_queue_.RemoveUser(iter->second.get());
-    LOG(INFO) << "relogin user: " << uid;
-  }
-  users_[uid] = user;
-  timeout_queue_.PushUserBack(user.get());
+    UserInfoMap::iterator info_iter = user_infos_.find(uid);
+    if (info_iter == user_infos_.end()) {
+      user_infos_.insert(make_pair(uid, UserInfo(uid)));
+    }
+  });
 
-  UserInfoMap::iterator info_iter = user_infos_.find(uid);
-  if (info_iter == user_infos_.end()) {
-    user_infos_.insert(make_pair(uid, UserInfo(uid)));
-  }
 }
 
 void SessionServer::SendUserMsg(Message& msg, int64 ttl, bool check_shard) {

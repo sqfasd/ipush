@@ -11,6 +11,7 @@ ADD_EXECUTABLE(session_server
   loop_executor.cc
   inmemory_storage.cc
   peer/peer.cc
+  auth.cc
 )
 TARGET_LINK_LIBRARIES(session_server
   base
@@ -18,4 +19,5 @@ TARGET_LINK_LIBRARIES(session_server
   event
   jsoncpp
   zmq
+  crypto
 )
