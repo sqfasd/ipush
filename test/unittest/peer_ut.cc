@@ -25,13 +25,14 @@ const char* MSG_2_0 = "message from peer2 to peer0";
 const char* MSG_0_1 = "message from peer0 to peer1";
 const char* MSG_1_2 = "message from peer1 to peer2";
 const char* MSG_BROADCAST = "broadcast by peer0";
-
 static std::atomic<int> global_msg_count;
+const int PEER_NUM = 3;
+static Peer* peer0 = NULL;
+static Peer* peer1 = NULL;
+static Peer* peer2 = NULL;
 
-TEST(PeerUnittest, Normal) {
+void NormalTest() {
   CHECK(global_msg_count == 0);
-  const int PEER_NUM = 3;
-  Peer* peer0 = CreatePeer(PEER_NUM, 0);
   peer0->SetMessageCallback([](PeerMessagePtr msg) {
     CHECK(msg->source == 2);
     CHECK(msg->target == 0);
@@ -39,7 +40,6 @@ TEST(PeerUnittest, Normal) {
     ++global_msg_count;
   });
 
-  Peer* peer1 = CreatePeer(PEER_NUM, 1);
   peer1->SetMessageCallback([](PeerMessagePtr msg) {
     CHECK(msg->source == 0);
     CHECK(msg->target == 1);
@@ -47,7 +47,6 @@ TEST(PeerUnittest, Normal) {
     ++global_msg_count;
   });
 
-  Peer* peer2 = CreatePeer(PEER_NUM, 2);
   peer2->SetMessageCallback([](PeerMessagePtr msg) {
     CHECK(msg->source == 1);
     CHECK(msg->target == 2);
@@ -55,17 +54,16 @@ TEST(PeerUnittest, Normal) {
     ++global_msg_count;
   });
 
-  peer0->Start();
-  peer1->Start();
-  peer2->Start();
-
-  ::sleep(1);
+  LOG(INFO) << "after start peers";
+  ::sleep(2);
+  LOG(INFO) << "before send to peers";
 
   peer0->Send(1, MSG_0_1);
   peer1->Send(2, MSG_1_2);
   peer2->Send(0, MSG_2_0);
 
-  ::sleep(1);
+  ::sleep(2);
+  LOG(INFO) << "reset message callback";
 
   peer1->SetMessageCallback([](PeerMessagePtr msg) {
     CHECK(msg->source == 0);
@@ -81,10 +79,31 @@ TEST(PeerUnittest, Normal) {
     ++global_msg_count;
   });
 
+  LOG(INFO) << "broadcast ...";
+
   peer0->Broadcast(MSG_BROADCAST);
 
-  ::sleep(1);
-  CHECK(global_msg_count == 5);
+  ::sleep(2);
+  LOG(INFO) << "2 seconds after broadcast";
+  CHECK(global_msg_count == 5) << global_msg_count;
+}
+
+TEST(PeerUnittest, Normal) {
+  peer0 = CreatePeer(PEER_NUM, 0);
+  peer1 = CreatePeer(PEER_NUM, 1);
+  peer2 = CreatePeer(PEER_NUM, 2);
+
+  global_msg_count = 0;
+  peer0->Start();
+  peer1->Start();
+  peer2->Start();
+  NormalTest();
+
+  global_msg_count = 0;
+  peer0->Restart();
+  peer1->Restart();
+  peer2->Restart();
+  NormalTest();
 
   delete peer0;
   delete peer1;

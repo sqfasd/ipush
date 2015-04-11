@@ -30,6 +30,7 @@ class Peer {
   ~Peer();
   void Start();
   void Stop();
+  void Restart();
   void Broadcast(string& content);
   void Broadcast(const char* content);
   void Send(const int target, string& content);
@@ -39,13 +40,20 @@ class Peer {
  private:
   void Sending();
   void Receiving();
+  void StartSend();
+  void StartReceive();
+  void StopSend();
+  void StopReceive();
+  void RestartSend();
+  void RestartReceive();
 
   const int id_;
   vector<PeerInfo> peers_;
   base::ConcurrentQueue<PeerMessagePtr> outbox_;
-  std::atomic<bool> stoped_;
+  std::atomic<bool> s_stoped_;
+  std::atomic<bool> r_stoped_;
   std::thread send_thread_;
-  std::thread recv_thread_;
+  std::thread receive_thread_;
   PeerMessageCallback msg_cb_;
 };
 

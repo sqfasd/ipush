@@ -9,7 +9,7 @@ const int ALL_PEERS = -1;
 DEFINE_int32(peer_start_port, 11000, "");
 
 Peer::Peer(const int id, const vector<PeerInfo>& peers)
-    : id_(id), stoped_(false) {
+    : id_(id), s_stoped_(false), r_stoped_(false) {
   for (int i = 0; i < peers.size(); ++i) {
     if (peers[i].id != id_) {
       peers_.push_back(peers[i]);
@@ -18,19 +18,29 @@ Peer::Peer(const int id, const vector<PeerInfo>& peers)
 }
 
 Peer::~Peer() {
-  VLOG(3) << "Peer::~Peer";
-  if (!stoped_) {
-    Stop();
-  }
+  Stop();
+  VLOG(3) << "Peer::~Peer " << id_;
 }
 
 void Peer::Start() {
   if (peers_.size() == 0) {
     LOG(INFO) << "single mode, will not start peer service";
+    s_stoped_ = true;
+    r_stoped_ = true;
     return;
   }
+  StartSend();
+  StartReceive();
+}
+
+void Peer::StartSend() {
+  s_stoped_ = false;
   send_thread_ = std::thread(&Peer::Sending, this);
-  recv_thread_ = std::thread(&Peer::Receiving, this);
+}
+
+void Peer::StartReceive() {
+  r_stoped_ = false;
+  receive_thread_ = std::thread(&Peer::Receiving, this);
 }
 
 void Peer::Broadcast(string& content) {
@@ -53,17 +63,59 @@ void Peer::Send(const int target, const char* content) {
   Send(target, str);
 }
 
-void Peer::Stop() {
-  VLOG(3) << "Peer::Stop";
-  stoped_ = true;
-  outbox_.Push(shared_ptr<PeerMessage>(NULL));
+void Peer::StopSend() {
+  if (!s_stoped_) {
+    s_stoped_ = true;
+    outbox_.Push(shared_ptr<PeerMessage>(NULL));
+  }
   if (send_thread_.joinable()) {
+    LOG(INFO) << "join send thread";
     send_thread_.join();
   }
-  if (recv_thread_.joinable()) {
-    recv_thread_.join();
+  LOG(INFO) << "send thread stoped";
+}
+
+void Peer::StopReceive() {
+  if (!r_stoped_) {
+    r_stoped_ = true;
   }
+  if (receive_thread_.joinable()) {
+    LOG(INFO) << "join receive thread";
+    receive_thread_.join();
+  }
+  LOG(INFO) << "receive thread stoped";
+}
+
+void Peer::Stop() {
+  VLOG(3) << "Peer::Stop";
+  StopSend();
+  StopReceive();
   LOG(INFO) << "peer stoped";
+}
+
+void Peer::Restart() {
+  Stop();
+  Start();
+}
+
+void Peer::RestartReceive() {
+  LOG(INFO) << "RestartReceive ...";
+  thread th([this]() {
+    StopReceive();
+    StartReceive();
+  });
+  LOG(INFO) << "wait for RestartReceive finish";
+  th.join();
+}
+
+void Peer::RestartSend() {
+  LOG(INFO) << "RestartSend ...";
+  thread th([this]() {
+    StopSend();
+    StartSend();
+  });
+  LOG(INFO) << "wait for RestartSend finish";
+  th.join();
 }
 
 void Peer::Sending() {
@@ -72,31 +124,36 @@ void Peer::Sending() {
   string address = "tcp://*:" + std::to_string(FLAGS_peer_start_port + id_);
   publisher.bind(address.c_str());
   
-  LOG(INFO) << "ready to publish: " << address;
+  LOG(INFO) << "ready to publish: " << id_;
 
-  while (!stoped_) {
-    //  Write two messages, each with an envelope and content
-    PeerMessagePtr msg;
-    outbox_.Pop(msg);
-    if (msg.get()) {
-      if (msg->target == ALL_PEERS) {
-        for (int i = 0; i < peers_.size(); ++i) {
-          s_sendmore (publisher, std::to_string(peers_[i].id));
+  while (!s_stoped_) {
+    try {
+      //  Write two messages, each with an envelope and content
+      PeerMessagePtr msg;
+      outbox_.Pop(msg);
+      if (msg.get()) {
+        if (msg->target == ALL_PEERS) {
+          for (int i = 0; i < peers_.size(); ++i) {
+            s_sendmore (publisher, std::to_string(peers_[i].id));
+            s_send (publisher, msg->content);
+          }
+        } else {
+          s_sendmore (publisher, std::to_string(msg->target));
           s_send (publisher, msg->content);
         }
-      } else {
-        s_sendmore (publisher, std::to_string(msg->target));
-        s_send (publisher, msg->content);
       }
+    } catch (std::exception& e) {
+     LOG(WARNING) << "zmq sending exception: " << e.what();
     }
   }
+  s_stoped_ = true;
   LOG(INFO) << "sending loop exited";
 }
 
 void Peer::Receiving() {
+  zmq::pollitem_t* poll_items = new zmq::pollitem_t[peers_.size()];
   zmq::context_t context(IO_THREAD_NUM);
   vector<shared_ptr<zmq::socket_t> > sockets(peers_.size());
-  zmq::pollitem_t* poll_items = new zmq::pollitem_t[peers_.size()];
   for (int i = 0; i < peers_.size(); ++i) {
     sockets[i].reset(new zmq::socket_t(context, ZMQ_SUB));
     string address = "tcp://" + peers_[i].ip + ":" +
@@ -107,24 +164,31 @@ void Peer::Receiving() {
     poll_items[i] = {*sockets[i], 0, ZMQ_POLLIN, 0};
   }
 
-  while (!stoped_) {
-    zmq::message_t message;
-    const int DEFAULT_TIMEOUT_MS = 100;
-    zmq::poll(&poll_items[0], peers_.size(), DEFAULT_TIMEOUT_MS);
+  LOG(INFO) << "ready to receive: " << id_;
 
-    for (int i = 0; i < peers_.size(); ++i) {
-      if (poll_items[i].revents & ZMQ_POLLIN) {
-        PeerMessagePtr pmsg(new PeerMessage());
-        pmsg->target = std::stoi(s_recv(*sockets[i]));
-        pmsg->content = s_recv(*sockets[i]);
-        pmsg->source = peers_[i].id;
-        VLOG(4) << "from peer [" << peers_[i].id << "] " << pmsg->content;
-        if (msg_cb_) {
-          msg_cb_(pmsg);
+  while (!r_stoped_) {
+    try {
+      zmq::message_t message;
+      const int DEFAULT_TIMEOUT_MS = 100;
+      zmq::poll(&poll_items[0], peers_.size(), DEFAULT_TIMEOUT_MS);
+
+      for (int i = 0; i < peers_.size(); ++i) {
+        if (poll_items[i].revents & ZMQ_POLLIN) {
+          PeerMessagePtr pmsg(new PeerMessage());
+          pmsg->target = std::stoi(s_recv(*sockets[i]));
+          pmsg->content = s_recv(*sockets[i]);
+          pmsg->source = peers_[i].id;
+          VLOG(4) << "from peer [" << peers_[i].id << "] " << pmsg->content;
+          if (msg_cb_) {
+            msg_cb_(pmsg);
+          }
         }
       }
+    } catch (std::exception& e) {
+      LOG(WARNING) << "zmq receiving exception: " << e.what();
     }
   }
+  r_stoped_ = true;
   delete [] poll_items;
   LOG(INFO) << "receiving loop exited";
 }
