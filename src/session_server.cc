@@ -627,7 +627,7 @@ void SessionServer::OnUserMessage(const string& from, StringPtr data) {
 
   try {
     Message msg = Message::Unserialize(data);
-    HandleMessage(msg);
+    HandleMessage(from, msg);
   } catch (std::exception& e) {
     LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *data;
   } catch (...) {
@@ -642,7 +642,7 @@ void SessionServer::OnUserMessage(const string& from, StringPtr data) {
   }
 }
 
-void SessionServer::HandleMessage(Message& msg) {
+void SessionServer::HandleMessage(const string& from, Message& msg) {
   if (!msg.HasType()) {
     LOG(ERROR) << "invalid message without type: " << msg;
     return;
@@ -655,7 +655,7 @@ void SessionServer::HandleMessage(Message& msg) {
       SendChannelMsg(msg, NO_EXPIRE);
       break;
     case Message::T_ACK:
-      UpdateUserAck(msg.From(), msg.Seq());
+      UpdateUserAck(from, msg.Seq());
       break;
     case Message::T_SUBSCRIBE:
       Subscribe(msg.User(), msg.Channel());

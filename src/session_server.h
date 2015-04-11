@@ -56,7 +56,7 @@ class SessionServer {
 
   bool CheckShard(const string& user);
   int  GetShardId(const string& user);
-  void HandleMessage(Message& msg);
+  void HandleMessage(const string& from, Message& msg);
   void SendUserMsg(Message& msg, int64 ttl, bool check_shard = true);
   void SendChannelMsg(Message& msg, int64 ttl);
 
