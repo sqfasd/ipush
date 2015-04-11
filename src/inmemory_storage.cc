@@ -48,7 +48,7 @@ bool InMemoryUserData::Dump(Json::Value& json) {
   int len;
   GetQueueInfo(start_pos, len);
   if (len <= 0) {
-    return false;
+    return true;
   }
   int size = msg_queue_.size();
   int64 now = Now();
