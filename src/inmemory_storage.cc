@@ -269,44 +269,49 @@ void InMemoryStorage::Load() {
   }
 }
 
+static void Callback(function<void()> f) {
+  // LoopExecutor::RunInMainLoop(f);
+  f();
+}
+
 void InMemoryStorage::SaveMessage(const StringPtr& msg,
                                   const string& uid,
                                   int64 ttl,
                                   SaveMessageCallback cb) {
   VLOG(6) << "SaveMessage " << uid << ": " << *msg;
   user_data_[uid].AddMessage(msg, ttl);
-  LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR));
+  Callback(bind(cb, NO_ERROR));
 }
 
 void InMemoryStorage::GetMessage(const string& uid, GetMessageCallback cb) {
   MessageDataSet msgs = user_data_[uid].GetMessages();
-  LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR, msgs));
+  Callback(bind(cb, NO_ERROR, msgs));
 }
 
 void InMemoryStorage::GetMaxSeq(const string& uid, GetMaxSeqCallback cb) {
   int max_seq = user_data_[uid].GetMaxSeq();
-  LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR, max_seq));
+  Callback(bind(cb, NO_ERROR, max_seq));
 }
 
 void InMemoryStorage::UpdateAck(const string& uid,
                               int ack_seq,
                               UpdateAckCallback cb) {
   user_data_[uid].SetAck(ack_seq);
-  LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR));
+  Callback(bind(cb, NO_ERROR));
 }
 
 void InMemoryStorage::AddUserToChannel(const string& uid,
                                        const string& cid,
                                        AddUserToChannelCallback cb) {
   channel_map_[cid].insert(uid);
-  LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR));
+  Callback(bind(cb, NO_ERROR));
 }
 
 void InMemoryStorage::RemoveUserFromChannel(const string& uid,
                                             const string& cid,
                                             RemoveUserFromChannelCallback cb) {
   channel_map_[cid].erase(uid);
-  LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR));
+  Callback(bind(cb, NO_ERROR));
 }
 
 void InMemoryStorage::GetChannelUsers(const string& cid,
@@ -318,7 +323,7 @@ void InMemoryStorage::GetChannelUsers(const string& cid,
     users->reserve(iter->second.size());
     users->assign(iter->second.begin(), iter->second.end());
   }
-  LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR, users));
+  Callback(bind(cb, NO_ERROR, users));
 }
 
 }  // namespace xcomet
