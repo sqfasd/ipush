@@ -11,7 +11,7 @@ using base::Time;
 
 namespace xcomet {
 
-DEFINE_int32(inmemory_msg_queue_size, 100, "");
+DEFINE_int32(max_offline_msg_num, 100, "");
 DEFINE_string(inmemory_data_dir, "inmemory_data", "");
 
 // current seconds
@@ -25,8 +25,8 @@ InMemoryUserData::InMemoryUserData()
       tail_(0),
       tail_seq_(0),
       ack_(0) {
-  CHECK(FLAGS_inmemory_msg_queue_size > 0);
-  msg_queue_.resize(FLAGS_inmemory_msg_queue_size);
+  CHECK(FLAGS_max_offline_msg_num > 0);
+  msg_queue_.resize(FLAGS_max_offline_msg_num);
 }
 
 InMemoryUserData::~InMemoryUserData() {
