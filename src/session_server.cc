@@ -18,6 +18,7 @@ DEFINE_int32(peer_id, 0, "");
 DEFINE_string(peers_ip, "192.168.2.3", "LAN ip");
 DEFINE_string(peers_address, "192.168.2.3:9000", "public client address");
 DEFINE_string(peers_admin_address, "192.168.2.3:9001", "admin peers address");
+DEFINE_bool(check_offline_msg_on_login, true, "");
 
 const bool CHECK_SHARD = true;
 const bool NO_CHECK_SHARD = false;
@@ -253,8 +254,30 @@ void SessionServer::Connect(struct evhttp_request* req) {
     if (info_iter == user_infos_.end()) {
       user_infos_.insert(make_pair(uid, UserInfo(uid)));
     }
-  });
 
+    if (!FLAGS_check_offline_msg_on_login) {
+      return;
+    }
+
+    storage_->GetMessage(uid, [uid, this](ErrorPtr error, MessageDataSet m) {
+      if (error.get() != NULL) {
+        LOG(ERROR) << "GetMessage failed: " << *error;
+        return;
+      }
+      if (m.get() != NULL && m->size() > 0) {
+        UserMap::iterator uit = users_.find(uid);
+        if (uit == users_.end()) {
+          LOG(WARNING) << "user offline after get offline messages: " << uid;
+          return;
+        }
+        for (int i = 0; i < m->size(); ++i) {
+          uit->second->Send(m->at(i));
+        }
+      } else {
+        VLOG(3) << "no offline message for this user: " << uid;
+      }
+    });
+  });
 }
 
 void SessionServer::SendUserMsg(Message& msg, int64 ttl, bool check_shard) {
@@ -649,7 +672,7 @@ void SessionServer::HandleMessage(Message& msg) {
 }
 
 void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
-  VLOG(3) << "OnPeerMessage: " << pmsg->source << ", " << pmsg->content;
+  VLOG(3) << "OnPeerMessage: " << *pmsg;
   try {
     Message msg = Message::UnserializeString(pmsg->content);
     int64 ttl = msg.TTL();
@@ -661,8 +684,7 @@ void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
               bind(&SessionServer::SendUserMsg, this, msg, ttl, NO_CHECK_SHARD));
         } else {
           LOG(ERROR) << "wrong shard, user: " << user
-                     << ", source: " << pmsg->source
-                     << ", content:" << pmsg->content;
+                     << ", pmsg: " << *pmsg;
         }
         break;
       }
@@ -686,14 +708,13 @@ void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
         break;
       }
       default:
-        LOG(ERROR) << "unexpected peer message type: "
-                   << "from " << pmsg->source << ": " << pmsg->content;
+        LOG(ERROR) << "unexpected peer message type: " << *pmsg;
         break;
     }
   } catch (std::exception& e) {
-    LOG(ERROR) << "json exception: " << e.what() << ", msg = " << pmsg->content;
+    LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *pmsg;
   } catch (...) {
-    LOG(ERROR) << "unknow exception for peer msg: " << pmsg->content;
+    LOG(ERROR) << "unknow exception for peer msg: " << *pmsg;
   }
 }
 
