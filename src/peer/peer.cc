@@ -9,7 +9,11 @@ const int ALL_PEERS = -1;
 DEFINE_int32(peer_start_port, 11000, "");
 
 Peer::Peer(const int id, const vector<PeerInfo>& peers)
-    : id_(id), s_stoped_(false), r_stoped_(false) {
+    : id_(id),
+      s_stoped_(false),
+      r_stoped_(false),
+      s_started_(false),
+      r_started_(false) {
   for (int i = 0; i < peers.size(); ++i) {
     if (peers[i].id != id_) {
       peers_.push_back(peers[i]);
@@ -34,13 +38,31 @@ void Peer::Start() {
 }
 
 void Peer::StartSend() {
+  if (s_started_ || send_thread_.joinable()) {
+    LOG(WARNING) << "sending thread already started";
+    return;
+  }
   s_stoped_ = false;
+  s_started_ = false;
   send_thread_ = std::thread(&Peer::Sending, this);
+  while (!s_started_) {
+    LOG(INFO) << "waiting for sending thread start";
+    ::sleep(1);
+  }
 }
 
 void Peer::StartReceive() {
+  if (r_started_ || receive_thread_.joinable()) {
+    LOG(WARNING) << "receiving thread already started";
+    return;
+  }
   r_stoped_ = false;
+  r_started_ = false;
   receive_thread_ = std::thread(&Peer::Receiving, this);
+  while (!r_started_) {
+    LOG(INFO) << "waiting for receiving thread start";
+    ::sleep(1);
+  }
 }
 
 void Peer::Broadcast(string& content) {
@@ -125,6 +147,7 @@ void Peer::Sending() {
   publisher.bind(address.c_str());
   
   LOG(INFO) << "ready to publish: " << id_;
+  s_started_ = true;
 
   while (!s_stoped_) {
     try {
@@ -147,6 +170,7 @@ void Peer::Sending() {
     }
   }
   s_stoped_ = true;
+  s_started_ = false;
   LOG(INFO) << "sending loop exited";
 }
 
@@ -165,6 +189,7 @@ void Peer::Receiving() {
   }
 
   LOG(INFO) << "ready to receive: " << id_;
+  r_started_ = true;
 
   while (!r_stoped_) {
     try {
@@ -189,6 +214,7 @@ void Peer::Receiving() {
     }
   }
   r_stoped_ = true;
+  r_started_ = false;
   delete [] poll_items;
   LOG(INFO) << "receiving loop exited";
 }

@@ -21,6 +21,11 @@ struct PeerMessage {
   string content;
 };
 
+inline ostream& operator<<(ostream& os, const PeerMessage& msg) {
+  os << "PeerMessage(" << msg.source << ", "
+     << msg.target << ", " << msg.content << ")";
+}
+
 typedef shared_ptr<PeerMessage> PeerMessagePtr;
 typedef function<void (PeerMessagePtr)> PeerMessageCallback;
 
@@ -52,6 +57,8 @@ class Peer {
   base::ConcurrentQueue<PeerMessagePtr> outbox_;
   std::atomic<bool> s_stoped_;
   std::atomic<bool> r_stoped_;
+  std::atomic<bool> s_started_;
+  std::atomic<bool> r_started_;
   std::thread send_thread_;
   std::thread receive_thread_;
   PeerMessageCallback msg_cb_;

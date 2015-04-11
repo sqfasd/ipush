@@ -34,6 +34,7 @@ static Peer* peer2 = NULL;
 void NormalTest() {
   CHECK(global_msg_count == 0);
   peer0->SetMessageCallback([](PeerMessagePtr msg) {
+    LOG(INFO) << *msg;
     CHECK(msg->source == 2);
     CHECK(msg->target == 0);
     CHECK(msg->content == MSG_2_0);
@@ -41,6 +42,7 @@ void NormalTest() {
   });
 
   peer1->SetMessageCallback([](PeerMessagePtr msg) {
+    LOG(INFO) << *msg;
     CHECK(msg->source == 0);
     CHECK(msg->target == 1);
     CHECK(msg->content == MSG_0_1);
@@ -48,6 +50,7 @@ void NormalTest() {
   });
 
   peer2->SetMessageCallback([](PeerMessagePtr msg) {
+    LOG(INFO) << *msg;
     CHECK(msg->source == 1);
     CHECK(msg->target == 2);
     CHECK(msg->content == MSG_1_2);
@@ -62,10 +65,14 @@ void NormalTest() {
   peer1->Send(2, MSG_1_2);
   peer2->Send(0, MSG_2_0);
 
-  ::sleep(2);
+  while (global_msg_count < 3) {
+    LOG(INFO) << "waiting for msg callback";
+    ::sleep(1);
+  }
   LOG(INFO) << "reset message callback";
 
   peer1->SetMessageCallback([](PeerMessagePtr msg) {
+    LOG(INFO) << *msg;
     CHECK(msg->source == 0);
     CHECK(msg->target == 1);
     CHECK(msg->content == MSG_BROADCAST);
@@ -73,6 +80,7 @@ void NormalTest() {
   });
 
   peer2->SetMessageCallback([](PeerMessagePtr msg) {
+    LOG(INFO) << *msg;
     CHECK(msg->source == 0);
     CHECK(msg->target == 2);
     CHECK(msg->content == MSG_BROADCAST);
@@ -83,8 +91,11 @@ void NormalTest() {
 
   peer0->Broadcast(MSG_BROADCAST);
 
-  ::sleep(2);
-  LOG(INFO) << "2 seconds after broadcast";
+  while (global_msg_count < 5) {
+    LOG(INFO) << "waiting for msg callback";
+    ::sleep(1);
+  }
+  LOG(INFO) << "a moment after broadcast";
   CHECK(global_msg_count == 5) << global_msg_count;
 }
 
