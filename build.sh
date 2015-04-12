@@ -11,6 +11,13 @@ cd $SOURCE_DIR/deps/libevent
 test -f Makefile || ./configure
 make
 
+cd $SOURCE_DIR/deps/cassandra/cpp-driver
+if [ -d build ]; then
+  cd build && make
+else
+  mkdir build && cd build && cmake .. && make
+fi
+
 cd $SOURCE_DIR
 test -d $DIR || mkdir -p $DIR 
 cd $DIR \
