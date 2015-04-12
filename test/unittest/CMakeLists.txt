@@ -15,6 +15,7 @@ ADD_EXECUTABLE(unittest.run
   ../../src/peer/peer.cc
   ../../src/loop_executor.cc
   ../../src/inmemory_storage.cc
+  ../../src/cassandra_storage.cc
   ../../src/auth.cc
 )
 
@@ -26,5 +27,6 @@ TARGET_LINK_LIBRARIES(unittest.run
   gtest
   zmq
   crypto
+  cassandra_static
+  uv
 )
-

@@ -276,9 +276,11 @@ static void Callback(function<void()> f) {
 
 void InMemoryStorage::SaveMessage(const StringPtr& msg,
                                   const string& uid,
+                                  int seq,
                                   int64 ttl,
                                   SaveMessageCallback cb) {
-  VLOG(6) << "SaveMessage " << uid << ": " << *msg;
+  // inmemory `seq` is not used
+  VLOG(6) << "SaveMessage " << uid << ": " << *msg << ", seq=" << seq;
   user_data_[uid].AddMessage(msg, ttl);
   Callback(bind(cb, NO_ERROR));
 }

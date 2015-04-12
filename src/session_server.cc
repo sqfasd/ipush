@@ -334,7 +334,7 @@ void SessionServer::DoSendSave(const Message& msg, int64 ttl) {
     stats_.OnSend(*data);
     user_it->second->Send(*data);
   }
-  storage_->SaveMessage(data, uid, ttl, [](Error error_save) {
+  storage_->SaveMessage(data, uid, msg.Seq(), ttl, [](Error error_save) {
     if (error_save != NO_ERROR) {
       LOG(ERROR) << "SaveMessage failed: " << error_save;
       return;

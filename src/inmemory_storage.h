@@ -37,6 +37,7 @@ class InMemoryStorage : public Storage {
  private:
   virtual void SaveMessage(const StringPtr& msg,
                            const string& uid,
+                           int seq,
                            int64 ttl,
                            SaveMessageCallback cb);
   virtual void GetMessage(const string& uid, GetMessageCallback cb);

@@ -34,6 +34,7 @@ include_directories(
 
 link_directories(
   ${PROJECT_SOURCE_DIR}/deps/libevent/.libs
+  ${PROJECT_SOURCE_DIR}/deps/cassandra/cpp-driver/build
   /usr/local/lib
   /usr/lib64/mysql
 )
