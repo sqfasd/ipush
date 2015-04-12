@@ -10,13 +10,13 @@ namespace xcomet {
 
 typedef shared_ptr<vector<string> > UserResultSet;
 
-typedef function<void (ErrorPtr, MessageDataSet)> GetMessageCallback;
-typedef function<void (ErrorPtr)> SaveMessageCallback;
-typedef function<void (ErrorPtr)> UpdateAckCallback;
-typedef function<void (ErrorPtr, int)> GetMaxSeqCallback;
-typedef function<void (ErrorPtr)> AddUserToChannelCallback;
-typedef function<void (ErrorPtr)> RemoveUserFromChannelCallback;
-typedef function<void (ErrorPtr, UserResultSet)> GetChannelUsersCallback;
+typedef function<void (Error, MessageDataSet)> GetMessageCallback;
+typedef function<void (Error)> SaveMessageCallback;
+typedef function<void (Error)> UpdateAckCallback;
+typedef function<void (Error, int)> GetMaxSeqCallback;
+typedef function<void (Error)> AddUserToChannelCallback;
+typedef function<void (Error)> RemoveUserFromChannelCallback;
+typedef function<void (Error, UserResultSet)> GetChannelUsersCallback;
 
 class Storage {
  public:

@@ -6,9 +6,9 @@
 namespace xcomet {
 
 typedef shared_ptr<std::string> StringPtr;
-typedef shared_ptr<string> ErrorPtr;
+typedef const char* Error;
 
-#define NO_ERROR ErrorPtr(NULL)
+#define NO_ERROR ((const char*)NULL)
 
 }
 

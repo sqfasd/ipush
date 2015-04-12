@@ -14,20 +14,20 @@ const char* const TEST_PWD2 = "RAgP1i7r+jLQxFd+VmL/5NBNznPtmW/6YxoTQ4QOZvNptzTbx
 
 TEST(AuthUnittest, Normal) {
   Auth auth;
-  auth.Authenticate(TEST_USER1, TEST_PWD1, [](ErrorPtr err, bool ok) {
-    CHECK(err.get() == NULL);
+  auth.Authenticate(TEST_USER1, TEST_PWD1, [](Error err, bool ok) {
+    CHECK(err == NO_ERROR);
     CHECK(ok);
   });
-  auth.Authenticate(TEST_USER1, TEST_PWD1, [](ErrorPtr err, bool ok) {
-    CHECK(err.get() == NULL);
+  auth.Authenticate(TEST_USER1, TEST_PWD1, [](Error err, bool ok) {
+    CHECK(err == NO_ERROR);
     CHECK(ok);
   });
-  auth.Authenticate(TEST_USER2, TEST_PWD2, [](ErrorPtr err, bool ok) {
-    CHECK(err.get() == NULL);
+  auth.Authenticate(TEST_USER2, TEST_PWD2, [](Error err, bool ok) {
+    CHECK(err == NO_ERROR);
     CHECK(ok);
   });
-  auth.Authenticate(TEST_USER2, TEST_PWD2, [](ErrorPtr err, bool ok) {
-    CHECK(err.get() == NULL);
+  auth.Authenticate(TEST_USER2, TEST_PWD2, [](Error err, bool ok) {
+    CHECK(err == NO_ERROR);
     CHECK(ok);
   });
 }

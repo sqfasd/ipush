@@ -7,7 +7,7 @@
 
 namespace xcomet {
 
-typedef function<void(ErrorPtr, bool)> AuthCallback;
+typedef function<void(Error, bool)> AuthCallback;
 
 class Auth {
  public:

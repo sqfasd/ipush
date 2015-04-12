@@ -38,27 +38,27 @@ StringPtr CreateMessage(int seq) {
 
 static void NormalTest(Storage* s) {
   const string user = "u1";
-  s->GetMessage(user, [](ErrorPtr err, MessageDataSet result) {
-    CHECK(err.get() == NULL);
+  s->GetMessage(user, [](Error err, MessageDataSet result) {
+    CHECK(err == NO_ERROR);
     CHECK(result.get() == NULL);
   });
-  s->GetMaxSeq(user, [](ErrorPtr err, int seq) {
-    CHECK(err.get() == NULL);
+  s->GetMaxSeq(user, [](Error err, int seq) {
+    CHECK(err == NO_ERROR);
     VLOG(3) << "seq = " << seq;
     CHECK(seq == 0);
   });
   StringPtr msg1 = CreateMessage(1);
   int64 ttl = 5;
-  s->SaveMessage(msg1, user, ttl, [](ErrorPtr err) {
-    CHECK(err.get() == NULL);
+  s->SaveMessage(msg1, user, ttl, [](Error err) {
+    CHECK(err == NO_ERROR);
   });
-  s->GetMaxSeq(user, [](ErrorPtr err, int seq) {
-    CHECK(err.get() == NULL);
+  s->GetMaxSeq(user, [](Error err, int seq) {
+    CHECK(err == NO_ERROR);
     VLOG(3) << "seq = " << seq;
     CHECK(seq == 1);
   });
-  s->GetMessage(user, [msg1](ErrorPtr err, MessageDataSet result) {
-    CHECK(err.get() == NULL);
+  s->GetMessage(user, [msg1](Error err, MessageDataSet result) {
+    CHECK(err == NO_ERROR);
     CHECK(result.get() != NULL);
     VLOG(3) << "size = " << result->size();
     CHECK(result->size() == 1);
@@ -67,20 +67,20 @@ static void NormalTest(Storage* s) {
 
   for (int seq = 2; seq <= 10; ++seq) {
     StringPtr msg = CreateMessage(seq);
-    s->SaveMessage(msg, user, ttl, [](ErrorPtr err) {
-      CHECK(err.get() == NULL);
+    s->SaveMessage(msg, user, ttl, [](Error err) {
+      CHECK(err == NO_ERROR);
     });
   }
 
   ::sleep(1);
 
-  s->GetMaxSeq(user, [](ErrorPtr err, int seq) {
-    CHECK(err.get() == NULL);
+  s->GetMaxSeq(user, [](Error err, int seq) {
+    CHECK(err == NO_ERROR);
     VLOG(3) << "seq = " << seq;
     CHECK(seq == 10);
   });
-  s->GetMessage(user, [msg1](ErrorPtr err, MessageDataSet result) {
-    CHECK(err.get() == NULL);
+  s->GetMessage(user, [msg1](Error err, MessageDataSet result) {
+    CHECK(err == NO_ERROR);
     CHECK(result.get() != NULL);
     VLOG(3) << "size = " << result->size();
     CHECK(result->size() == 10);
@@ -96,19 +96,19 @@ static void NormalTest(Storage* s) {
 
   for (int seq = 11; seq <= 150; ++seq) {
     StringPtr msg = CreateMessage(seq);
-    s->SaveMessage(msg, user, ttl, [](ErrorPtr err) {
-      CHECK(err.get() == NULL);
+    s->SaveMessage(msg, user, ttl, [](Error err) {
+      CHECK(err == NO_ERROR);
     });
   }
 
   ::sleep(1);
 
-  s->UpdateAck(user, 120, [](ErrorPtr err) {
-    CHECK(err.get() == NULL);
+  s->UpdateAck(user, 120, [](Error err) {
+    CHECK(err == NO_ERROR);
   });
 
-  s->GetMessage(user, [msg1](ErrorPtr err, MessageDataSet result) {
-    CHECK(err.get() == NULL);
+  s->GetMessage(user, [msg1](Error err, MessageDataSet result) {
+    CHECK(err == NO_ERROR);
     CHECK(result.get() != NULL);
     VLOG(3) << "size = " << result->size();
     CHECK(result->size() == 30);
@@ -123,8 +123,8 @@ static void NormalTest(Storage* s) {
 
   LOG(INFO) << "waiting for message expired";
   ::sleep(4);
-  s->GetMessage(user, [](ErrorPtr err, MessageDataSet result) {
-    CHECK(err.get() == NULL);
+  s->GetMessage(user, [](Error err, MessageDataSet result) {
+    CHECK(err == NO_ERROR);
     CHECK(result.get() == NULL || result->size() == 0);
   });
 

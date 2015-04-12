@@ -122,24 +122,21 @@ void Auth::Authenticate(const string& user,
   VLOG(4) << "decode base64: " << encryped_key;
   string deviceid;
   if (!RSAPrivateDecode(encryped_key, deviceid)) {
-    ErrorPtr error(new string("auth decode key failed"));
-    cb(error, false);
+    cb("auth decode key failed", false);
     return;
   }
   VLOG(4) << "decoded device id: " << deviceid;
   Json::Value json;
   if (!Json::Reader().parse(deviceid, json) ||
       !IsValidDeviceId(json)) {
-    ErrorPtr error(new string("auth invalid deviceid"));
-    cb(error, false);
+    cb("auth invalid deviceid", false);
     return;
   }
   VLOG(4) << "unserialized device id: " << json;
 
   if (type_ == T_FULL) {
     // TODO(qingfeng) request mongodb for user authentiate
-    ErrorPtr error(new string("request mongodb for auth not support yet"));
-    cb(error, false);
+    cb("request mongodb for auth not support yet", false);
     return;
   }
   cache_.Put(password, new bool(true));

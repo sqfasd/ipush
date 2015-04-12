@@ -233,9 +233,9 @@ void SessionServer::Connect(struct evhttp_request* req) {
 
   CHECK_REDIRECT_CLIENT(uid);
 
-  auth_->Authenticate(uid, password, [req, uid, type, this](ErrorPtr err,
+  auth_->Authenticate(uid, password, [req, uid, type, this](Error err,
                                                             bool ok) {
-    if (err.get() != NULL || !ok) {
+    if (err != NO_ERROR || !ok) {
       ReplyError(req, HTTP_BADREQUEST, "authentication failed"); 
       return;
     }
@@ -259,9 +259,9 @@ void SessionServer::Connect(struct evhttp_request* req) {
       return;
     }
 
-    storage_->GetMessage(uid, [uid, this](ErrorPtr error, MessageDataSet m) {
-      if (error.get() != NULL) {
-        LOG(ERROR) << "GetMessage failed: " << *error;
+    storage_->GetMessage(uid, [uid, this](Error error, MessageDataSet m) {
+      if (error != NO_ERROR) {
+        LOG(ERROR) << "GetMessage failed: " << error;
         return;
       }
       if (m.get() != NULL && m->size() > 0) {
@@ -305,10 +305,10 @@ void SessionServer::SendSave(const string& uid, Message& msg, int64 ttl) {
   }
   CHECK(info_it != user_infos_.end());
   if (info_it->second.GetMaxSeq() == -1) {
-    storage_->GetMaxSeq(uid, [this, info_it, msg, ttl](ErrorPtr error,
+    storage_->GetMaxSeq(uid, [this, info_it, msg, ttl](Error error,
                                                        int seq) {
-      if (error.get() != NULL) {
-        LOG(ERROR) << "GetMaxSeq failed: " << *error;
+      if (error != NO_ERROR) {
+        LOG(ERROR) << "GetMaxSeq failed: " << error;
         return;
       }
       CHECK(seq >= 0);
@@ -334,9 +334,9 @@ void SessionServer::DoSendSave(const Message& msg, int64 ttl) {
     stats_.OnSend(*data);
     user_it->second->Send(*data);
   }
-  storage_->SaveMessage(data, uid, ttl, [](ErrorPtr error_save) {
-    if (error_save.get() != NULL) {
-      LOG(ERROR) << "SaveMessage failed: " << *error_save;
+  storage_->SaveMessage(data, uid, ttl, [](Error error_save) {
+    if (error_save != NO_ERROR) {
+      LOG(ERROR) << "SaveMessage failed: " << error_save;
       return;
     }
     VLOG(5) << "SaveMessage done";
@@ -349,10 +349,10 @@ void SessionServer::SendChannelMsg(Message& msg, int64 ttl) {
   VLOG(5) << "SendChannelMsg from " << uid << " to " << cid;
   ChannelInfoMap::const_iterator iter = channels_.find(cid);
   if (iter == channels_.end()) {
-    storage_->GetChannelUsers(cid, [cid, msg, ttl, this](ErrorPtr error,
+    storage_->GetChannelUsers(cid, [cid, msg, ttl, this](Error error,
                                                          UserResultSet u) {
-      if (error.get() != NULL) {
-        LOG(ERROR) << "GetChannelUsers failed: " << *error;
+      if (error != NO_ERROR) {
+        LOG(ERROR) << "GetChannelUsers failed: " << error;
         return;
       }
       if (u.get() == NULL) {
@@ -479,9 +479,9 @@ void SessionServer::Subscribe(const string& uid, const string& cid) {
   if (cit != channels_.end()) {
     cit->second.AddUser(uid);
   }
-  storage_->AddUserToChannel(uid, cid, [](ErrorPtr error) {
-    if (error.get() != NULL) {
-      LOG(ERROR) << "AddUserToChannel failed: " << *error;
+  storage_->AddUserToChannel(uid, cid, [](Error error) {
+    if (error != NO_ERROR) {
+      LOG(ERROR) << "AddUserToChannel failed: " << error;
       return;
     }
     VLOG(5) << "AddUserToChannel done";
@@ -494,9 +494,9 @@ void SessionServer::Unsubscribe(const string& uid, const string& cid) {
   if (cit != channels_.end()) {
     cit->second.RemoveUser(uid);
   }
-  storage_->RemoveUserFromChannel(uid, cid, [](ErrorPtr error) {
-    if (error.get() != NULL) {
-      LOG(ERROR) << "RemoveUserFromChannel failed: " << *error;
+  storage_->RemoveUserFromChannel(uid, cid, [](Error error) {
+    if (error != NO_ERROR) {
+      LOG(ERROR) << "RemoveUserFromChannel failed: " << error;
       return;
     }
     VLOG(5) << "RemoveUserFromChannel done";;
@@ -538,10 +538,10 @@ void SessionServer::Msg(struct evhttp_request* req) {
 
   CHECK_REDIRECT_ADMIN(uid);
 
-  storage_->GetMessage(uid, [req](ErrorPtr error, MessageDataSet m) {
-    if (error.get() != NULL) {
-      LOG(ERROR) << "GetMessage failed: " << *error;
-      ReplyError(req, HTTP_INTERNAL, *error);
+  storage_->GetMessage(uid, [req](Error error, MessageDataSet m) {
+    if (error != NO_ERROR) {
+      LOG(ERROR) << "GetMessage failed: " << error;
+      ReplyError(req, HTTP_INTERNAL, error);
       return;
     }
     Json::Value json(Json::arrayValue);
@@ -612,9 +612,9 @@ void SessionServer::UpdateUserAck(const string& uid, int ack) {
     return;
   }
   uit->second.SetLastAck(ack);
-  storage_->UpdateAck(uid, uit->second.GetLastAck(), [](ErrorPtr error) {
-    if (error.get() != NULL) {
-      LOG(ERROR) << "UpdateAck failed: " << *error;
+  storage_->UpdateAck(uid, uit->second.GetLastAck(), [](Error error) {
+    if (error != NO_ERROR) {
+      LOG(ERROR) << "UpdateAck failed: " << error;
       return;
     }
     VLOG(5) << "UpdateAck done";
