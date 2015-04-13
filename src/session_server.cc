@@ -556,13 +556,14 @@ void SessionServer::Msg(struct evhttp_request* req) {
       ReplyError(req, HTTP_INTERNAL, error);
       return;
     }
-    Json::Value json(Json::arrayValue);
+    Json::Value resp;
+    resp["result"] = Json::Value(Json::arrayValue);
     if (m.get() != NULL) {
       for (int i = 0; i < m->size(); ++i) {
-        json.append(m->at(i));
+        resp["result"].append(m->at(i));
       }
     }
-    ReplyOK(req, json.toStyledString());
+    ReplyOK(req, resp.toStyledString());
   });
 }
 
