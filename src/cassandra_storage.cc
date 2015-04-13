@@ -72,6 +72,7 @@ CassandraStorage::CassandraStorage() {
 
 CassandraStorage::~CassandraStorage() {
   CassFuture* close_future = cass_session_close(cass_session_);
+  cass_future_wait(close_future);
   cass_future_free(close_future);
   cass_cluster_free(cass_cluster_);
   cass_session_free(cass_session_);
