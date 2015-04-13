@@ -195,6 +195,18 @@ a\r\n
 
 管理员向 session_server 请求向id为user001的用户push数据，该请求类型是 HTTP POST，推送的内容为POST body
 
+Error Response
+
+```
+{"error":"this is the reason"}
+```
+
+Successful Response
+
+```
+{"result":<ResultObject>}
+```
+
 ```
 // 单个用户推送
 $ curl -d "@payload" "http://session_server_host:9001/pub?to=user001&from=op"
@@ -216,7 +228,7 @@ $ curl http://session_server_host:9001/sub?uid=user001&cid=channel_id
 $ curl http://session_server_host:9001/unsub?uid=user001&cid=channel_id
 ```
 
-管理员查询服务器状态
+查询服务器状态
 
 ```
 $ curl "http://session_server_host:9001/stats"
@@ -246,45 +258,25 @@ $ curl "http://session_server_host:9001/stats"
       }
    }
 }
-$ curl "http://session_server_host:9001/stats"
-{
-   "result" : {
-      "server_start_datetime" : "2015/03/23 18:19:47",
-      "server_start_timestamp" : 13071579587723487,
-      "throughput" : {
-        "avg_recv_bytes_per_second" : 2629,
-        "avg_recv_number_per_second" : 48,
-        "avg_send_bytes_per_second" : 361852,
-        "avg_send_number_per_second" : 476,
-        "max_recv_bytes_per_second" : 15552,
-        "max_recv_number_per_second" : 288,
-        "max_send_bytes_per_second" : 7598894,
-        "max_send_number_per_second" : 10000,
-        "total_recv_bytes" : 55224,
-        "total_recv_number" : 1024,
-        "total_send_bytes" : 7598894,
-        "total_send_number" : 10000
-      },
-      "user" : {
-        "max_user_growth_per_second" : 1,
-        "max_user_number" : 1,
-        "max_user_reduce_per_second" : 0,
-        "user_number" : 1
-      }
-   }
-}
 ```
 
-管理员向 session_server 请求查询某用户的离线消息接口：
+离线消息查询
 
 ```
-$ curl "http://session_server_host:9001/offmsg?uid=user78"
+$ curl "http://session_server_host:9001/msg?uid=user78"
 [
   "{\"b\":\"this is a channel message\",\"c\":\"channel1\",\"f\":\"webservice\",\"s\":1,\"t\":\"user78\",\"y\":4}\n",
   "{\"b\":\"this is a channel message\",\"c\":\"channel1\",\"f\":\"webservice\",\"s\":2,\"t\":\"user78\",\"y\":4}\n",
   "{\"b\":\"this is a channel message\",\"c\":\"channel1\",\"f\":\"webservice\",\"s\":3,\"t\":\"user78\",\"y\":4}\n",
   "{\"b\":\"this is a channel message\",\"c\":\"channel1\",\"f\":\"webservice\",\"s\":4,\"t\":\"user78\",\"y\":4}\n"
 ]
+```
+
+用户分片查询
+
+```
+$ curl "http://session_server_host:9001/shard?uid=user1"
+{"result":"192.168.2.3:9000"}
 ```
 
 ## 设计和实现
