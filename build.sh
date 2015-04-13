@@ -13,7 +13,7 @@ make
 
 cd $SOURCE_DIR/deps/cassandra/cpp-driver
 if [ -d build ]; then
-  cd build && make
+  cd build && cmake .. && make
 else
   mkdir build && cd build && cmake .. && make
 fi

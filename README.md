@@ -9,9 +9,10 @@
 ## 依赖
 
 * cmake
-* c++11(gcc 4.7 or above)
-* zeromq
+* c++11 (gcc >= 4.7)
+* zeromq (>=3.0)
 * boost
+* openssl
 * libuv (for cassnadra driver)
 
 ### centos
@@ -33,6 +34,7 @@ other libs
 yum install cmake
 yum install boost-devel
 yum install zeromq3-devel
+yum install openssl-devel
 yum install libuv-devel
 ```
 
@@ -41,7 +43,8 @@ yum install libuv-devel
 ```
 apt-get install cmake
 apt-get install libboost-dev
-apt-get install libzmq-dev
+apt-get install libzmq3-dev
+apt-get install libssl-dev
 apt-get install libuv-dev
 ```
 
