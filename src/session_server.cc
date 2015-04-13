@@ -16,9 +16,9 @@ DEFINE_int32(poll_timeout_sec, 1800, "");
 DEFINE_int32(timer_interval_sec, 1, "");
 DEFINE_bool(is_server_heartbeat, false, "");
 DEFINE_int32(peer_id, 0, "");
-DEFINE_string(peers_ip, "192.168.2.3", "LAN ip");
-DEFINE_string(peers_address, "192.168.2.3:9000", "public client address");
-DEFINE_string(peers_admin_address, "192.168.2.3:9001", "admin peers address");
+DEFINE_string(peers_ip, "127.0.0.1", "LAN ip");
+DEFINE_string(peers_address, "127.0.0.1:9000", "public client address");
+DEFINE_string(peers_admin_address, "127.0.0.1:9001", "admin peers address");
 DEFINE_bool(check_offline_msg_on_login, true, "");
 DEFINE_string(persistence, "InMemory", "InMemory|Cassandra");
 

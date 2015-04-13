@@ -4,7 +4,7 @@
 #include "src/loop_executor.h"
 
 DEFINE_int32(cassandra_io_worker_thread_num, 4, "");
-DEFINE_string(cassandra_hosts, "192.168.2.3", "");
+DEFINE_string(cassandra_hosts, "127.0.0.1", "");
 
 namespace xcomet {
 
