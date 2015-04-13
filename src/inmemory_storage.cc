@@ -11,7 +11,6 @@ using base::Time;
 
 namespace xcomet {
 
-DEFINE_int32(max_offline_msg_num, 100, "");
 DEFINE_string(inmemory_data_dir, "inmemory_data", "");
 
 // current seconds

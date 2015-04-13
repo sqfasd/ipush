@@ -14,6 +14,7 @@ ADD_EXECUTABLE(unittest.run
   ../../src/utils.cc
   ../../src/peer/peer.cc
   ../../src/loop_executor.cc
+  ../../src/storage.cc
   ../../src/inmemory_storage.cc
   ../../src/cassandra_storage.cc
   ../../src/auth.cc

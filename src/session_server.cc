@@ -8,6 +8,7 @@
 #include "deps/base/daemonizer.h"
 #include "src/loop_executor.h"
 #include "src/inmemory_storage.h"
+#include "src/cassandra_storage.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9001, "");
@@ -19,6 +20,7 @@ DEFINE_string(peers_ip, "192.168.2.3", "LAN ip");
 DEFINE_string(peers_address, "192.168.2.3:9000", "public client address");
 DEFINE_string(peers_admin_address, "192.168.2.3:9001", "admin peers address");
 DEFINE_bool(check_offline_msg_on_login, true, "");
+DEFINE_string(persistence, "InMemory", "InMemory|Cassandra");
 
 const bool CHECK_SHARD = true;
 const bool NO_CHECK_SHARD = false;
@@ -158,6 +160,16 @@ struct SessionServerPrivate {
   }
 };
 
+Storage* CreateStorage() {
+  if (FLAGS_persistence == "InMemory") {
+    return new InMemoryStorage();
+  } else if (FLAGS_persistence == "Cassandra") {
+    return new CassandraStorage();
+  } else {
+    CHECK(false) << "unknow persistence type";
+  }
+}
+
 SessionServer::SessionServer()
     : client_listen_port_(FLAGS_client_listen_port),
       admin_listen_port_(FLAGS_admin_listen_port),
@@ -165,7 +177,7 @@ SessionServer::SessionServer()
       timeout_queue_(timeout_counter_),
       stats_(FLAGS_timer_interval_sec),
       p_(new SessionServerPrivate()),
-      storage_(new InMemoryStorage()),
+      storage_(CreateStorage()),
       peer_id_(FLAGS_peer_id),
       auth_(new Auth()) {
   vector<string> peers_ip;

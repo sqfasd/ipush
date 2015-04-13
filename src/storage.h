@@ -6,6 +6,8 @@
 #include "src/message.h"
 #include "src/typedef.h"
 
+DECLARE_int32(max_offline_msg_num);
+
 namespace xcomet {
 
 typedef shared_ptr<vector<string> > UserResultSet;

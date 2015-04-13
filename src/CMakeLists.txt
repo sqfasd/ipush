@@ -9,7 +9,9 @@ ADD_EXECUTABLE(session_server
   utils.cc
   stats_manager.cc
   loop_executor.cc
+  storage.cc
   inmemory_storage.cc
+  cassandra_storage.cc
   peer/peer.cc
   auth.cc
 )
@@ -20,4 +22,6 @@ TARGET_LINK_LIBRARIES(session_server
   jsoncpp
   zmq
   crypto
+  cassandra_static
+  uv
 )

@@ -3,12 +3,10 @@
 #include <algorithm>
 #include "src/loop_executor.h"
 
-//using namespace cass;
+DEFINE_int32(cassandra_io_worker_thread_num, 4, "");
+DEFINE_string(cassandra_hosts, "192.168.2.3", "");
 
 namespace xcomet {
-
-#define MAX_BUFFER_LEN 512
-#define ERROR_CASSANDRA "cassandra is error"
 
 struct CassContext {
   CassSession* session;
@@ -53,9 +51,14 @@ static void ExecuteQuery(CassStatement* statement,
 }
 
 CassandraStorage::CassandraStorage() {
+  CHECK(FLAGS_max_offline_msg_num > 0);
   cass_cluster_ = cass_cluster_new();
   CHECK(cass_cluster_);
-  cass_cluster_set_contact_points(cass_cluster_, "192.168.2.3");
+  CHECK(!FLAGS_cassandra_hosts.empty());
+  CHECK(FLAGS_cassandra_io_worker_thread_num > 0);
+  cass_cluster_set_contact_points(cass_cluster_, FLAGS_cassandra_hosts.c_str());
+  cass_cluster_set_num_threads_io(
+      cass_cluster_, FLAGS_cassandra_io_worker_thread_num);
 
   cass_session_ = cass_session_new();
   CHECK(cass_session_);
@@ -130,10 +133,11 @@ static void OnGetLastAck(CassFuture* future, void* data) {
   }
   VLOG(6) << "OnGetLastAck last_ack = " << last_ack;
   const char* query = "SELECT body FROM message WHERE uid = ? AND seq > ?"
-                      " order by seq DESC limit 100;";
-  CassStatement* statement = cass_statement_new(query, 2);
+                      " order by seq DESC limit ?;";
+  CassStatement* statement = cass_statement_new(query, 3);
   cass_statement_bind_string(statement, 0, ctx->uid.c_str());
   cass_statement_bind_int32(statement, 1, last_ack);
+  cass_statement_bind_int32(statement, 2, FLAGS_max_offline_msg_num);
   ExecuteQuery(statement, OnGetMessage, ctx);
 }
 
