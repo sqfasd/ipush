@@ -9,24 +9,40 @@
 ## 依赖
 
 * cmake
-* c++11(gcc 4.8 or above)
-* zmq
+* c++11(gcc 4.7 or above)
+* zeromq
 * boost
+* libuv (for cassnadra driver)
 
 ### centos
 
+install gcc4.7 on centos6.5
+
 ```
-sudo yum install cmake
-sudo yum install boost-devel
-(install zmq lib)
+cd /etc/yum.repos.d
+wget http://people.centos.org/tru/devtools-1.1/devtools-1.1.repo 
+yum --enablerepo=testing-1.1-devtools-6 install devtoolset-1.1-gcc devtoolset-1.1-gcc-c++
+export CC=/opt/centos/devtoolset-1.1/root/usr/bin/gcc  
+export CPP=/opt/centos/devtoolset-1.1/root/usr/bin/cpp
+export CXX=/opt/centos/devtoolset-1.1/root/usr/bin/c++
+```
+
+other libs
+
+```
+yum install cmake
+yum install boost-devel
+yum install zeromq3-devel
+yum install libuv-devel
 ```
 
 ### ubuntu
 
 ```
-sudo apt-get install cmake
-sudo apt-get install libboost-dev
-sudo apt-get install libzmq-dev
+apt-get install cmake
+apt-get install libboost-dev
+apt-get install libzmq-dev
+apt-get install libuv-dev
 ```
 
 ## 编译
@@ -50,16 +66,10 @@ BUILD_TYPE=debug ./install.sh <install_path>
 ## 运行
 
 ```
-// 启动session server
-./scripts/session_server.sh
-
-// 停止session server
-./scripts/session_server.sh stop
-
-// 或者
-
+// 启动
 ./bin/session_server --flagfile=conf/default.conf
 
+// 停止
 kill $(cat session_server.pid)
 ```
 
