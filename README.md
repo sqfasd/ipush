@@ -48,6 +48,12 @@ apt-get install libssl-dev
 apt-get install libuv-dev
 ```
 
+## Cassandra 数据库初始化
+
+```
+cqlsh -f scripts/create_chema.cql
+```
+
 ## 编译
 
 ** 默认编译类型为release **
