@@ -35,6 +35,7 @@ ADD_LIBRARY(base STATIC
   file_posix.cc
   debug_log.cc
   daemonizer.cc
+  md5.cc
 )
 
 TARGET_LINK_LIBRARIES(base pthread rt)
