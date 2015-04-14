@@ -5,7 +5,7 @@
 #include "deps/base/flags.h"
 #include "src/session_server.h"
 
-const char* const SERVER_PID_FILE = "session_server.pid";
+const char* const SERVER_PID_FILE = "xcomet_server.pid";
 
 static void WritePidFile() {
   base::File::WriteStringToFileOrDie(std::to_string(::getpid()),

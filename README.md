@@ -79,10 +79,10 @@ BUILD_TYPE=debug ./install.sh <install_path>
 
 ```
 // 启动
-./bin/session_server --flagfile=conf/default.conf
+./bin/xcomet_server --flagfile=conf/default.conf
 
 // 停止
-kill $(cat session_server.pid)
+kill $(cat xcomet_server.pid)
 ```
 
 ## 集群部署
@@ -95,12 +95,12 @@ kill $(cat session_server.pid)
 
 ### 客户端
 
-客户端向session server发起http请求，请求完毕连接不关闭，服务器可以以chunk的方式持续推送消息
+客户端向xcomet server发起http请求，请求完毕连接不关闭，服务器可以以chunk的方式持续推送消息
 如果客户端使用tcp协议实现，那么客户端也可以随时向服务器发送消息
 下面这个方法是普通的http客户端，所以只能单向的接受服务器推送的消息
 
 ```
-curl http://session_server_host:9000/connect?uid=user001&password=pwd001
+curl http://xcomet_server_host:9000/connect?uid=user001&password=pwd001
 ```
 
 #### 连接协议
@@ -205,7 +205,7 @@ a\r\n
 
 ### 管理员或后端服务
 
-管理员向 session_server 请求向id为user001的用户push数据，该请求类型是 HTTP POST，推送的内容为POST body
+管理员向 xcomet_server 请求向id为user001的用户push数据，该请求类型是 HTTP POST，推送的内容为POST body
 
 Error Response
 
@@ -221,13 +221,13 @@ Successful Response
 
 ```
 // 单个用户推送
-$ curl -d "@payload" "http://session_server_host:9001/pub?to=user001&from=op"
+$ curl -d "@payload" "http://xcomet_server_host:9001/pub?to=user001&from=op"
 {
       "result": "ok"
 }
 
 // 频道信息发布
-$ curl -d "@payload" "http://session_server_host:9001/pub?channel=channel1&from=op"
+$ curl -d "@payload" "http://xcomet_server_host:9001/pub?channel=channel1&from=op"
 {
       "result": "ok"
 }
@@ -236,14 +236,14 @@ $ curl -d "@payload" "http://session_server_host:9001/pub?channel=channel1&from=
 订阅和取消订阅后端接口
 
 ```
-$ curl http://session_server_host:9001/sub?uid=user001&cid=channel_id
-$ curl http://session_server_host:9001/unsub?uid=user001&cid=channel_id
+$ curl http://xcomet_server_host:9001/sub?uid=user001&cid=channel_id
+$ curl http://xcomet_server_host:9001/unsub?uid=user001&cid=channel_id
 ```
 
 查询服务器状态
 
 ```
-$ curl "http://session_server_host:9001/stats"
+$ curl "http://xcomet_server_host:9001/stats"
 {
    "result" : {
       "server_start_datetime" : "2015/03/23 18:19:44",
@@ -275,7 +275,7 @@ $ curl "http://session_server_host:9001/stats"
 离线消息查询
 
 ```
-$ curl "http://session_server_host:9001/msg?uid=user78"
+$ curl "http://xcomet_server_host:9001/msg?uid=user78"
 {
   "result":
     [
@@ -290,7 +290,7 @@ $ curl "http://session_server_host:9001/msg?uid=user78"
 用户分片查询
 
 ```
-$ curl "http://session_server_host:9001/shard?uid=user1"
+$ curl "http://xcomet_server_host:9001/shard?uid=user1"
 {"result":"192.168.2.3:9000"}
 ```
 
