@@ -18,6 +18,8 @@ else
   mkdir build && cd build && cmake .. && make
 fi
 
+cd $SOURCE_DIR/deps/mongo-cxx-driver/ && scons install
+
 cd $SOURCE_DIR
 test -d $DIR || mkdir -p $DIR 
 cd $DIR \

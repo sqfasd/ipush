@@ -14,6 +14,7 @@
 * boost
 * openssl
 * libuv (for cassnadra driver)
+* scons (to build mongo driver)
 
 ### centos
 
@@ -36,6 +37,7 @@ yum install boost-devel
 yum install zeromq3-devel
 yum install openssl-devel
 yum install libuv-devel
+yum install scons
 ```
 
 ### ubuntu
@@ -46,6 +48,7 @@ apt-get install libboost-dev
 apt-get install libzmq3-dev
 apt-get install libssl-dev
 apt-get install libuv-dev
+apt-get install scons
 ```
 
 ## Cassandra 数据库初始化
