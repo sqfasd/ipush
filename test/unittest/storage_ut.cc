@@ -1,10 +1,14 @@
 #include "gtest/gtest.h"
 
 #include "deps/base/logging.h"
+#include "deps/base/file.h"
+#include "deps/base/flags.h"
 #include "src/include_std.h"
 #include "src/inmemory_storage.h"
 #include "src/cassandra_storage.h"
 #include "test/unittest/event_loop_setup.h"
+
+DECLARE_string(inmemory_data_dir);
 
 namespace xcomet {
 class StorageUnittest : public testing::Test {
@@ -15,12 +19,14 @@ class StorageUnittest : public testing::Test {
  protected:
   virtual void SetUp() {
     LOG(INFO) << "SetUp";
+    FLAGS_inmemory_data_dir = "/tmp/test_inmemory_data";
     event_loop_setup_ = new EventLoopSetup();
   }
 
   virtual void TearDown() {
     LOG(INFO) << "TearDown";
     delete event_loop_setup_;
+    base::File::DeleteRecursively(FLAGS_inmemory_data_dir);
   }
 
  private:
@@ -117,6 +123,14 @@ static void NormalTest(Storage* s) {
       ++counter;
     });
   }
+
+  ::sleep(1);
+
+  s->GetMessage(user, [](Error err, MessageDataSet result) {
+    CHECK(err == NO_ERROR) << err;
+    CHECK(result.get() != NULL);
+    CHECK(result->size() == 100) << result->size();
+  });
 
   ::sleep(1);
 

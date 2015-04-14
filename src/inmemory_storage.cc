@@ -9,9 +9,9 @@
 using base::File;
 using base::Time;
 
-namespace xcomet {
-
 DEFINE_string(inmemory_data_dir, "inmemory_data", "");
+
+namespace xcomet {
 
 // current seconds
 static int64 Now() {
@@ -25,7 +25,7 @@ InMemoryUserData::InMemoryUserData()
       tail_seq_(0),
       ack_(0) {
   CHECK(FLAGS_max_offline_msg_num > 0);
-  msg_queue_.resize(FLAGS_max_offline_msg_num);
+  msg_queue_.resize(FLAGS_max_offline_msg_num+1);
 }
 
 InMemoryUserData::~InMemoryUserData() {
@@ -51,7 +51,11 @@ bool InMemoryUserData::Dump(Json::Value& json) {
   }
   int size = msg_queue_.size();
   int64 now = Now();
-  for (int i = start_pos; i < size && i < tail_; ++i) {
+  int end = tail_;
+  if (tail_ < start_pos) {
+    end = size;
+  }
+  for (int i = start_pos; i < end; ++i) {
     if (IsMsgOK(now, msg_queue_[i])) {
       Json::Value msg;
       msg["i"] = i;
@@ -122,7 +126,7 @@ void InMemoryUserData::AddMessage(const StringPtr& msg, int64 ttl) {
 void InMemoryUserData::GetQueueInfo(int& start_pos, int& len) {
   int size = msg_queue_.size();
   CHECK(size > 0);
-  start_pos = head_seq_;
+  start_pos = head_;
   VLOG(6) << "start_pos=" << start_pos;
   if (ack_ > head_seq_) {
     start_pos = (head_ + ack_ - head_seq_ + size) % size;
@@ -146,7 +150,11 @@ MessageDataSet InMemoryUserData::GetMessages() {
     result->reserve(len);
     int size = msg_queue_.size();
     int64 now = Now();
-    for (int i = start_pos; i < size && i < tail_; ++i) {
+    int end = tail_;
+    if (tail_ < start_pos) {
+      end = size;
+    }
+    for (int i = start_pos; i < end; ++i) {
       if (IsMsgOK(now, msg_queue_[i])) {
         result->push_back(*(msg_queue_[i].second));
       }
