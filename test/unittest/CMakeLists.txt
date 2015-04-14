@@ -1,7 +1,7 @@
-SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/test)
+SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
-ADD_EXECUTABLE(unittest.run
+ADD_EXECUTABLE(unittest
   gtest_main.cc
   worker_ut.cc
   sharding_ut.cc
@@ -9,25 +9,11 @@ ADD_EXECUTABLE(unittest.run
   loop_executor_ut.cc
   storage_ut.cc
   auth_ut.cc
-  ../../src/worker.cc
-  ../../src/event_msgqueue.c
-  ../../src/utils.cc
-  ../../src/peer/peer.cc
-  ../../src/loop_executor.cc
-  ../../src/storage.cc
-  ../../src/inmemory_storage.cc
-  ../../src/cassandra_storage.cc
-  ../../src/auth.cc
+  mongo_client_ut.cc
 )
 
-TARGET_LINK_LIBRARIES(unittest.run
-  pthread
+TARGET_LINK_LIBRARIES(unittest
   event
-  base
-  jsoncpp
   gtest
-  zmq
-  crypto
-  cassandra_static
-  uv
+  xcomet
 )

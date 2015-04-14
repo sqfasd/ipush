@@ -29,12 +29,14 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/deps/gtest/include
   ${PROJECT_SOURCE_DIR}/deps/libevent
   ${PROJECT_SOURCE_DIR}/deps/libevent/include
+  ${PROJECT_SOURCE_DIR}/deps/mongo-cxx-driver/build/install/include
   /usr/local/include
 )
 
 link_directories(
   ${PROJECT_SOURCE_DIR}/deps/libevent/.libs
   ${PROJECT_SOURCE_DIR}/deps/cassandra/cpp-driver/build
+  ${PROJECT_SOURCE_DIR}/deps/mongo-cxx-driver/build/install/lib
   /usr/local/lib
   /usr/lib64/mysql
 )
