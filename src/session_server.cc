@@ -281,6 +281,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
           return;
         }
         for (int i = 0; i < m->size(); ++i) {
+          stats_.OnSend(m->at(i));
           uit->second->Send(m->at(i));
         }
       } else {
