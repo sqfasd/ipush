@@ -11,6 +11,10 @@
 #include "deps/base/logging.h"
 #include "deps/base/flags.h"
 #include "deps/base/file.h"
+#include "deps/base/md5.h"
+#include "deps/base/string_util.h"
+#include "src/mongo_client.h"
+#include "src/loop_executor.h"
 
 using base::LRUCache;
 
@@ -81,7 +85,10 @@ bool Auth::RSAPrivateDecode(const string& input, string& output) {
   return ret != -1;
 }
 
-Auth::Auth() : cache_(DEFAULT_AUTH_LRU_CACHE_SIZE) {
+Auth::Auth()
+    : cache_(DEFAULT_AUTH_LRU_CACHE_SIZE),
+      mongo_(new MongoClient()) {
+  LOG(INFO) << "Auth()";
   base::File::ReadFileToStringOrDie(FLAGS_auth_private_key_file, &private_key_);
   if (FLAGS_auth_type == "None") {
     type_ = T_NONE;
@@ -95,6 +102,7 @@ Auth::Auth() : cache_(DEFAULT_AUTH_LRU_CACHE_SIZE) {
 }
 
 Auth::~Auth() {
+  LOG(INFO) << "~Auth()";
 }
 
 static bool IsValidDeviceId(const Json::Value& id) {
@@ -112,7 +120,8 @@ void Auth::Authenticate(const string& user,
     cb(NO_ERROR, true);
     return;
   }
-  if (cache_.Get(password).get() != NULL) {
+  base::shared_ptr<bool> cache_value;
+  if (cache_.Get(user, &cache_value)) {
     cb(NO_ERROR, true);
     return;
   }
@@ -135,12 +144,31 @@ void Auth::Authenticate(const string& user,
   VLOG(4) << "unserialized device id: " << json;
 
   if (type_ == T_FULL) {
-    // TODO(qingfeng) request mongodb for user authentiate
-    cb("request mongodb for auth not support yet", false);
-    return;
+    string joined_devid = StringPrintf("%s%s%s%s%s",
+        json["AID"].asCString(),
+        json["WMAC"].asCString(),
+        json["BMAC"].asCString(),
+        json["IMEI"].asCString(),
+        json["PUID"].asCString());
+    VLOG(4) << "joined deviceid: " << joined_devid;
+    StringPtr md5_devid(new string());
+    *md5_devid = base::MD5String(joined_devid);
+    VLOG(4) << "md5 deviceid: " << *md5_devid;
+    mongo_->GetUserNameByDevId(md5_devid,
+                               [user, cb, this](Error err, StringPtr name) {
+      if (err != NO_ERROR) {
+        LoopExecutor::RunInMainLoop(bind(cb, err, false));
+      } else if (*name != user) {
+        LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR, false));
+      } else {
+        cache_.Put(user, new bool(true));
+        LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR, true));
+      }
+    });
+  } else {
+    cache_.Put(user, new bool(true));
+    cb(NO_ERROR, true);
   }
-  cache_.Put(password, new bool(true));
-  cb(NO_ERROR, true);
 }
 
 }  // namespace xcomet
