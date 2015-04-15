@@ -231,13 +231,26 @@ $ curl -d "@payload" "http://xcomet_server_host:9001/pub?channel=channel1&from=o
 {
       "result": "ok"
 }
+
+// 推送一个一小时后过期的消息
+$ curl -d "@payload" "http://xcomet_server_host:9001/pub?to=user001&from=op&ttl=3600"
+{
+      "result": "ok"
+}
 ```
 
 订阅和取消订阅后端接口
 
 ```
 $ curl http://xcomet_server_host:9001/sub?uid=user001&cid=channel_id
+{
+      "result": "ok"
+}
+
 $ curl http://xcomet_server_host:9001/unsub?uid=user001&cid=channel_id
+{
+      "result": "ok"
+}
 ```
 
 查询服务器状态
