@@ -13,7 +13,8 @@ fi
 install_dir=$1
 mkdir -p $install_dir/{conf,scripts,bin,logs} || exit 1
 
-cp build/release/bin/* $install_dir/bin/
+BUILD_TYPE=${BUILD_TYPE:-release}
+cp build/$BUILD_TYPE/bin/* $install_dir/bin/
 cp conf/* $install_dir/conf/
 cp scripts/* $install_dir/scripts/ && chmod +x $install_dir/scripts/*
 
