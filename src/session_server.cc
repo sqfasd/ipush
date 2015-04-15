@@ -323,7 +323,9 @@ void SessionServer::SendSave(const string& uid, Message& msg, int64 ttl) {
         return;
       }
       CHECK(seq >= 0);
-      info_it->second.SetMaxSeq(seq);
+      if (info_it->second.GetMaxSeq() < seq) {
+        info_it->second.SetMaxSeq(seq);
+      }
       ((Message&)msg).SetSeq(info_it->second.IncMaxSeq());
       DoSendSave(msg, ttl);
     });
