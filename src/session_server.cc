@@ -302,6 +302,7 @@ void SessionServer::SendUserMsg(Message& msg, int64 ttl, bool check_shard) {
     int shard_id = GetShardId(uid);
     if (shard_id != peer_id_) {
       VLOG(4) << "send to peer " << shard_id << ": " << msg;
+      msg.SetTTL(ttl);
       cluster_->Send(shard_id, *(Message::Serialize(msg)));
       return;
     }
@@ -436,6 +437,7 @@ void SessionServer::Pub(struct evhttp_request* req) {
     msg.SetChannel(channel);
     msg.SetBody(string(bufferstr, len));
     SendChannelMsg(msg, ttl);
+    msg.SetTTL(ttl);
     cluster_->Broadcast(*(Message::Serialize(msg)));
   }
   ReplyOK(req);
