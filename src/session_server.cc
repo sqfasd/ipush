@@ -532,7 +532,7 @@ void SessionServer::Unsub(struct evhttp_request* req) {
       Unsubscribe(uid, cid);
     } else {
       Message msg;
-      msg.SetType(Message::T_SUBSCRIBE);
+      msg.SetType(Message::T_UNSUBSCRIBE);
       msg.SetUser(uid);
       msg.SetChannel(cid);
       cluster_->Send(shard_id, *(Message::Serialize(msg)));
