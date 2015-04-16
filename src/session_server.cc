@@ -669,6 +669,7 @@ void SessionServer::HandleMessage(const string& from, Message& msg) {
       break;
     case Message::T_CHANNEL_MESSAGE:
       SendChannelMsg(msg, NO_EXPIRE);
+      cluster_->Broadcast(*(Message::Serialize(msg)));
       break;
     case Message::T_ACK:
       UpdateUserAck(from, msg.Seq());
