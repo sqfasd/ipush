@@ -259,27 +259,46 @@ $ curl http://xcomet_server_host:9001/unsub?uid=user001&cid=channel_id
 $ curl "http://xcomet_server_host:9001/stats"
 {
    "result" : {
-      "server_start_datetime" : "2015/03/23 18:19:44",
-      "server_start_timestamp" : 13071579584867722,
+      "auth_fail_number" : 0,
+      "bad_request_number" : 1,
+      "error_number" : 0,
+      "recv_type" : {
+         "ack" : 0,
+         "cmsg" : 0,
+         "hb" : 0,
+         "msg" : 0,
+         "sub" : 0,
+         "unsub" : 0
+      },
+      "redirect_number" : 0,
+      "request" : {
+         "Connect" : 1,
+         "Stats" : 2
+      },
+      "server_start_datetime" : "2015/04/16 17:21:57",
+      "server_start_timestamp" : 13073649717331811,
       "throughput" : {
-        "avg_recv_bytes_per_second" : 2129,
-        "avg_recv_number_per_second" : 42,
-        "avg_send_bytes_per_second" : 316620,
-        "avg_send_number_per_second" : 416,
-        "max_recv_bytes_per_second" : 12800,
-        "max_recv_number_per_second" : 256,
-        "max_send_bytes_per_second" : 7598894,
-        "max_send_number_per_second" : 10000,
-        "total_recv_bytes" : 51103,
-        "total_recv_number" : 1024,
-        "total_send_bytes" : 7598894,
-        "total_send_number" : 10000
+         "avg_recv_bytes_per_second" : 0,
+         "avg_recv_number_per_second" : 0,
+         "avg_send_bytes_per_second" : 0,
+         "avg_send_number_per_second" : 0,
+         "max_recv_bytes_per_second" : 0,
+         "max_recv_number_per_second" : 0,
+         "max_send_bytes_per_second" : 0,
+         "max_send_number_per_second" : 0,
+         "total_recv_bytes" : 0,
+         "total_recv_number" : 0,
+         "total_send_bytes" : 0,
+         "total_send_number" : 0
       },
       "user" : {
-        "max_user_growth_per_second" : 1,
-        "max_user_number" : 1,
-        "max_user_reduce_per_second" : 0,
-        "user_number" : 1
+         "connect" : 0,
+         "disconnect" : 0,
+         "max_user_growth_per_second" : 0,
+         "max_user_number" : 0,
+         "max_user_reduce_per_second" : 0,
+         "reconnect" : 0,
+         "user_number" : 0
       }
    }
 }

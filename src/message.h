@@ -33,7 +33,21 @@ class Message {
     T_MESSAGE,
     T_CHANNEL_MESSAGE,
     T_ACK,
+    T_COUNT,
   };
+
+  static const char* EnumTypeToString(MType type) {
+    CHECK(type >= 0 && type < T_COUNT);
+    static const char* const MTYPE_STRINGS[] = {
+      "hb",
+      "sub",
+      "unsub",
+      "msg",
+      "cmsg",
+      "ack",
+    };
+    return MTYPE_STRINGS[type];
+  }
 
   Message() : data_(new Json::Value()) {}
   ~Message() {}

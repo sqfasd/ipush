@@ -26,6 +26,7 @@ const bool NO_CHECK_SHARD = false;
 #define CHECK_HTTP_GET()\
   do {\
     if(evhttp_request_get_command(req) != EVHTTP_REQ_GET) {\
+      stats_.OnBadRequest();\
       ReplyError(req, HTTP_BADMETHOD);\
       return;\
     }\
@@ -34,6 +35,7 @@ const bool NO_CHECK_SHARD = false;
 #define CHECK_HTTP_POST()\
   do {\
     if(evhttp_request_get_command(req) != EVHTTP_REQ_POST) {\
+      stats_.OnBadRequest();\
       ReplyError(req, HTTP_BADMETHOD);\
       return;\
     }\
@@ -44,6 +46,7 @@ const bool NO_CHECK_SHARD = false;
     int shard_id = GetShardId(uid);\
     if (shard_id != peer_id_) {\
       VLOG(3) << "redirect to shard " << shard_id;\
+      stats_.OnRedirect();\
       ReplyRedirect(req, peers_[shard_id].public_addr);\
       return;\
     }\
@@ -54,6 +57,7 @@ const bool NO_CHECK_SHARD = false;
     int shard_id = GetShardId(uid);\
     if (shard_id != peer_id_) {\
       VLOG(3) << "redirect to shard " << shard_id;\
+      stats_.OnRedirect();\
       ReplyRedirect(req, peers_[shard_id].admin_addr);\
       return;\
     }\
@@ -231,12 +235,14 @@ void SessionServer::OnStop() {
 
 // /connect?uid=123&token=ABCDE&type=1|2
 void SessionServer::Connect(struct evhttp_request* req) {
+  stats_.OnRequest("Connect");
   CHECK_HTTP_GET();
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   string password = query.GetStr("password", "");
   int type = query.GetInt("type", 1);
   if (uid.empty() || password.empty()) {
+    stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "uid or password should not empty");
     return;
   }
@@ -246,14 +252,17 @@ void SessionServer::Connect(struct evhttp_request* req) {
   auth_->Authenticate(uid, password, [req, uid, type, this](Error err,
                                                             bool ok) {
     if (err != NO_ERROR || !ok) {
+      stats_.OnAuthFailed();
       ReplyError(req, HTTP_BADREQUEST, "authentication failed"); 
       return;
     }
     UserPtr user(new User(uid, type, req, *this));
     UserMap::iterator iter = users_.find(uid);
     if (iter == users_.end()) {
+      stats_.OnUserConnect();
       LOG(INFO) << "login user: " << uid;
     } else {
+      stats_.OnUserReconnect();
       timeout_queue_.RemoveUser(iter->second.get());
       LOG(INFO) << "relogin user: " << uid;
     }
@@ -271,6 +280,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
 
     storage_->GetMessage(uid, [uid, this](Error error, MessageDataSet m) {
       if (error != NO_ERROR) {
+        stats_.OnError();
         LOG(ERROR) << "GetMessage failed: " << error;
         return;
       }
@@ -294,6 +304,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
 void SessionServer::SendUserMsg(Message& msg, int64 ttl, bool check_shard) {
   VLOG(5) << "SendUserMsg: " << msg;
   if (!msg.HasTo()) {
+    stats_.OnError();
     LOG(ERROR) << "invalid message, no target: " << msg;
     return;
   }
@@ -303,7 +314,8 @@ void SessionServer::SendUserMsg(Message& msg, int64 ttl, bool check_shard) {
     if (shard_id != peer_id_) {
       VLOG(4) << "send to peer " << shard_id << ": " << msg;
       msg.SetTTL(ttl);
-      cluster_->Send(shard_id, *(Message::Serialize(msg)));
+      StringPtr data = Message::Serialize(msg);
+      cluster_->Send(shard_id, *data);
       return;
     }
   }
@@ -320,6 +332,7 @@ void SessionServer::SendSave(const string& uid, Message& msg, int64 ttl) {
     storage_->GetMaxSeq(uid, [this, info_it, msg, ttl](Error error,
                                                        int seq) {
       if (error != NO_ERROR) {
+        stats_.OnError();
         LOG(ERROR) << "GetMaxSeq failed: " << error;
         return;
       }
@@ -340,6 +353,7 @@ void SessionServer::DoSendSave(const Message& msg, int64 ttl) {
   StringPtr data = Message::Serialize(msg);
   const string& uid = msg.To();
   if (data->empty()) {
+    stats_.OnError();
     LOG(ERROR) << "serialize failed: " << msg;
     return;
   }
@@ -348,8 +362,9 @@ void SessionServer::DoSendSave(const Message& msg, int64 ttl) {
     stats_.OnSend(*data);
     user_it->second->Send(*data);
   }
-  storage_->SaveMessage(data, uid, msg.Seq(), ttl, [](Error error_save) {
+  storage_->SaveMessage(data, uid, msg.Seq(), ttl, [this](Error error_save) {
     if (error_save != NO_ERROR) {
+      stats_.OnError();
       LOG(ERROR) << "SaveMessage failed: " << error_save;
       return;
     }
@@ -366,6 +381,7 @@ void SessionServer::SendChannelMsg(Message& msg, int64 ttl) {
     storage_->GetChannelUsers(cid, [cid, msg, ttl, this](Error error,
                                                          UserResultSet u) {
       if (error != NO_ERROR) {
+        stats_.OnError();
         LOG(ERROR) << "GetChannelUsers failed: " << error;
         return;
       }
@@ -399,6 +415,7 @@ void SessionServer::SendChannelMsg(Message& msg, int64 ttl) {
 }
 
 void SessionServer::Pub(struct evhttp_request* req) {
+  stats_.OnRequest("Pub");
   CHECK_HTTP_POST();
 
   HttpQuery query(req);
@@ -407,6 +424,7 @@ void SessionServer::Pub(struct evhttp_request* req) {
   const char* channel = query.GetStr("channel", NULL);
   int64 ttl = query.GetInt("ttl", NO_EXPIRE);
   if ((to == NULL && channel == NULL) || from == NULL) {
+    stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "target or source id is invalid");
     return;
   }
@@ -416,11 +434,10 @@ void SessionServer::Pub(struct evhttp_request* req) {
   VLOG(5) << "data length:" << len;
   const char * bufferstr = (const char*)evbuffer_pullup(input_buffer, len);
   if(bufferstr == NULL) {
+    stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "body cannot be empty");
     return;
   }
-
-  stats_.OnPubRequest();
 
   // TODO(qingfeng) maybe reply after save message done is better
   Message msg;
@@ -444,11 +461,13 @@ void SessionServer::Pub(struct evhttp_request* req) {
 }
 
 void SessionServer::Disconnect(struct evhttp_request* req) {
+  stats_.OnRequest("Disconnect");
   CHECK_HTTP_GET();
 
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   if (uid.empty()) {
+    stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "uid is empty");
     return;
   }
@@ -457,20 +476,22 @@ void SessionServer::Disconnect(struct evhttp_request* req) {
 
   UserMap::iterator uit = users_.find(uid);
   if (uit == users_.end()) {
-    ReplyError(req, HTTP_INTERNAL, "user not found: " + uid);
+    LOG(WARNING) << "user not found";
   } else {
     uit->second->Close();
-    ReplyOK(req);
   }
+  ReplyOK(req);
 }
 
 void SessionServer::Sub(struct evhttp_request* req) {
+  stats_.OnRequest("Sub");
   CHECK_HTTP_GET();
 
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   string cid = query.GetStr("cid", "");
   if (uid.empty() || cid.empty()) {
+    stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "uid and cid should not be empty");
   } else {
     // TODO(qingfeng) if failed to subscribe, reply error
@@ -494,8 +515,9 @@ void SessionServer::Subscribe(const string& uid, const string& cid) {
   if (cit != channels_.end()) {
     cit->second.AddUser(uid);
   }
-  storage_->AddUserToChannel(uid, cid, [](Error error) {
+  storage_->AddUserToChannel(uid, cid, [this](Error error) {
     if (error != NO_ERROR) {
+      stats_.OnError();
       LOG(ERROR) << "AddUserToChannel failed: " << error;
       return;
     }
@@ -509,8 +531,9 @@ void SessionServer::Unsubscribe(const string& uid, const string& cid) {
   if (cit != channels_.end()) {
     cit->second.RemoveUser(uid);
   }
-  storage_->RemoveUserFromChannel(uid, cid, [](Error error) {
+  storage_->RemoveUserFromChannel(uid, cid, [this](Error error) {
     if (error != NO_ERROR) {
+      stats_.OnError();
       LOG(ERROR) << "RemoveUserFromChannel failed: " << error;
       return;
     }
@@ -519,12 +542,14 @@ void SessionServer::Unsubscribe(const string& uid, const string& cid) {
 }
 
 void SessionServer::Unsub(struct evhttp_request* req) {
+  stats_.OnRequest("Unsub");
   CHECK_HTTP_GET();
 
   HttpQuery query(req);
   string uid = query.GetStr("uid", "");
   string cid = query.GetStr("cid", "");
   if (uid.empty() || cid.empty()) {
+    stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "uid and cid should not be empty");
   } else {
     int shard_id = GetShardId(uid);
@@ -542,20 +567,22 @@ void SessionServer::Unsub(struct evhttp_request* req) {
 }
 
 void SessionServer::Msg(struct evhttp_request* req) {
+  stats_.OnRequest("Msg");
   CHECK_HTTP_GET();
 
   HttpQuery query(req);
   const char * uid = query.GetStr("uid", NULL);
   if (uid == NULL) {
+    stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "target id is invalid");
     return;
   }
 
   CHECK_REDIRECT_ADMIN(uid);
 
-  storage_->GetMessage(uid, [req](Error error, MessageDataSet m) {
+  storage_->GetMessage(uid, [req, this](Error error, MessageDataSet m) {
     if (error != NO_ERROR) {
-      LOG(ERROR) << "GetMessage failed: " << error;
+      stats_.OnError();
       ReplyError(req, HTTP_INTERNAL, error);
       return;
     }
@@ -571,11 +598,13 @@ void SessionServer::Msg(struct evhttp_request* req) {
 }
 
 void SessionServer::Shard(struct evhttp_request* req) {
+  stats_.OnRequest("Shard");
   CHECK_HTTP_GET();
 
   HttpQuery query(req);
   const char* uid = query.GetStr("uid", NULL);
   if (uid == NULL) {
+    stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "uid is needed");
     return;
   }
@@ -624,12 +653,14 @@ void SessionServer::UpdateUserAck(const string& uid, int ack) {
   VLOG(5) << "UpdateUserAck: " << uid << ", " << ack;
   UserInfoMap::iterator uit = user_infos_.find(uid);
   if (uit == user_infos_.end()) {
+    stats_.OnError();
     LOG(ERROR) << "user not found: " << uid;
     return;
   }
   uit->second.SetLastAck(ack);
-  storage_->UpdateAck(uid, uit->second.GetLastAck(), [](Error error) {
+  storage_->UpdateAck(uid, uit->second.GetLastAck(), [this](Error error) {
     if (error != NO_ERROR) {
+      stats_.OnError();
       LOG(ERROR) << "UpdateAck failed: " << error;
       return;
     }
@@ -639,30 +670,34 @@ void SessionServer::UpdateUserAck(const string& uid, int ack) {
 
 void SessionServer::OnUserMessage(const string& from, StringPtr data) {
   VLOG(4) << "OnUserMessage: " << from << ": " << *data;
-  stats_.OnReceive(*data);
 
   try {
     Message msg = Message::Unserialize(data);
+    if (!msg.HasType()) {
+      stats_.OnError();
+      LOG(ERROR) << "invalid message without type: " << msg;
+      return;
+    }
+    stats_.OnReceive(*data, msg);
     HandleMessage(from, msg);
   } catch (std::exception& e) {
+    stats_.OnError();
     LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *data;
   } catch (...) {
+    stats_.OnError();
     LOG(ERROR) << "unknow exception for user msg: " << *data;
   }
 
   UserMap::iterator uit = users_.find(from);
   if (uit == users_.end()) {
-    LOG(WARNING) << "user not found: " << from;
+    stats_.OnError();
+    LOG(ERROR) << "user not found: " << from;
   } else {
     timeout_queue_.PushUserBack(uit->second.get());
   }
 }
 
 void SessionServer::HandleMessage(const string& from, Message& msg) {
-  if (!msg.HasType()) {
-    LOG(ERROR) << "invalid message without type: " << msg;
-    return;
-  }
   switch(msg.Type()) {
     case Message::T_MESSAGE:
       SendUserMsg(msg, NO_EXPIRE, CHECK_SHARD);
@@ -683,6 +718,7 @@ void SessionServer::HandleMessage(const string& from, Message& msg) {
     case Message::T_HEARTBEAT:
       break;
     default:
+      stats_.OnError();
       LOG(ERROR) << "unsupport message type: " << msg;
       break;
   }
@@ -700,6 +736,7 @@ void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
           LoopExecutor::RunInMainLoop(
               bind(&SessionServer::SendUserMsg, this, msg, ttl, NO_CHECK_SHARD));
         } else {
+          stats_.OnError();
           LOG(ERROR) << "wrong shard, user: " << user
                      << ", pmsg: " << *pmsg;
         }
@@ -725,12 +762,15 @@ void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
         break;
       }
       default:
+        stats_.OnError();
         LOG(ERROR) << "unexpected peer message type: " << *pmsg;
         break;
     }
   } catch (std::exception& e) {
+    stats_.OnError();
     LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *pmsg;
   } catch (...) {
+    stats_.OnError();
     LOG(ERROR) << "unknow exception for peer msg: " << *pmsg;
   }
 }
@@ -744,6 +784,7 @@ int SessionServer::GetShardId(const string& user) {
 }
 
 void SessionServer::OnUserDisconnect(User* user) {
+  stats_.OnUserDisconnect();
   const string& uid = user->GetId();
   LOG(INFO) << "OnUserDisconnect: " << uid;
   timeout_queue_.RemoveUser(user);
@@ -751,7 +792,7 @@ void SessionServer::OnUserDisconnect(User* user) {
 }
 
 void SessionServer::Stats(struct evhttp_request* req) {
-  // TODO(qingfeng) check pretty json format parameter
+  stats_.OnRequest("Stats");
   Json::Value response;
   Json::Value& result = response["result"];
   stats_.GetReport(result);
