@@ -259,27 +259,46 @@ $ curl http://xcomet_server_host:9001/unsub?uid=user001&cid=channel_id
 $ curl "http://xcomet_server_host:9001/stats"
 {
    "result" : {
-      "server_start_datetime" : "2015/03/23 18:19:44",
-      "server_start_timestamp" : 13071579584867722,
+      "auth_fail_number" : 0,
+      "bad_request_number" : 1,
+      "error_number" : 0,
+      "recv_type" : {
+         "ack" : 0,
+         "cmsg" : 0,
+         "hb" : 0,
+         "msg" : 0,
+         "sub" : 0,
+         "unsub" : 0
+      },
+      "redirect_number" : 0,
+      "request" : {
+         "Connect" : 1,
+         "Stats" : 2
+      },
+      "server_start_datetime" : "2015/04/16 17:21:57",
+      "server_start_timestamp" : 13073649717331811,
       "throughput" : {
-        "avg_recv_bytes_per_second" : 2129,
-        "avg_recv_number_per_second" : 42,
-        "avg_send_bytes_per_second" : 316620,
-        "avg_send_number_per_second" : 416,
-        "max_recv_bytes_per_second" : 12800,
-        "max_recv_number_per_second" : 256,
-        "max_send_bytes_per_second" : 7598894,
-        "max_send_number_per_second" : 10000,
-        "total_recv_bytes" : 51103,
-        "total_recv_number" : 1024,
-        "total_send_bytes" : 7598894,
-        "total_send_number" : 10000
+         "avg_recv_bytes_per_second" : 0,
+         "avg_recv_number_per_second" : 0,
+         "avg_send_bytes_per_second" : 0,
+         "avg_send_number_per_second" : 0,
+         "max_recv_bytes_per_second" : 0,
+         "max_recv_number_per_second" : 0,
+         "max_send_bytes_per_second" : 0,
+         "max_send_number_per_second" : 0,
+         "total_recv_bytes" : 0,
+         "total_recv_number" : 0,
+         "total_send_bytes" : 0,
+         "total_send_number" : 0
       },
       "user" : {
-        "max_user_growth_per_second" : 1,
-        "max_user_number" : 1,
-        "max_user_reduce_per_second" : 0,
-        "user_number" : 1
+         "connect" : 0,
+         "disconnect" : 0,
+         "max_user_growth_per_second" : 0,
+         "max_user_number" : 0,
+         "max_user_reduce_per_second" : 0,
+         "reconnect" : 0,
+         "user_number" : 0
       }
    }
 }
@@ -311,29 +330,22 @@ $ curl "http://xcomet_server_host:9001/shard?uid=user1"
 
 ### 一致性哈希
 
-通过一致性哈希算法进行分片
+以用户名为key进行分片
 每个服务器只服务本节点的用户，同时担任其他节点的代理角色
 频道消息通过一个cluter内部广播来实现
 
 ### 离线消息
 
-无论用户是否在线，推送一条消息时给用户的同时进行持久化
-每个用户的消息都有一个序列号seq，表示每个用户收到的消息条数
-客户端收到消息后会回传一个ack, 并携带收到的消息序列号（不是每个包都会回传ack）
-数据库还会对每个用户记录以下三个元信息，用来管理离线消息
-
-* max_seq表示最大序列号
-* min_seq表示离线消息中最小的序列号
-* last_ack表示用户返回的确认序列号
-
-服务器收到ack后即更新last_ack到存储层, 等服务器空闲的时候会删除min_seq与last_ack之间的所有消息
-当用户登陆的时候，系统会取出last_ack到max_seq之间的所有消息(即用户未收到的离线消息）,发送给用户
+无论用户是否在线，推送一条消息给用户的同时进行持久化
+每个消息都有一个序列号seq，表示每个用户收到的消息条数
+客户端收到消息后会回传一个ack, 并携带收到的消息序列号,服务器收到ack后会将序列号更新到数据库对应user的last_ack字段
+请求离线消息时即取回seq > last_ack的所有消息即可
 
 ### 频道(或群组)
 
 当用户发送一个订阅的消息到服务器时，服务器立即将频道名与用户名的关系存到数据库
 取消订阅时，将从数据库中删除频道与用户的关系数据
-服务器第一次启动时，并不会加载所有的频道信息，只有第一次给频道发消息时，才会去请求数据库
+服务器第一次启动时，并不会加载所有的频道信息，只有第一次给频道发消息时，才会去请求数据库,并缓存在本地内存中
 
 ## TODO
 

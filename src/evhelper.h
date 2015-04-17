@@ -24,8 +24,8 @@ inline void ReplyOK(struct evhttp_request* req, const std::string& res = "") {
 
 inline void ReplyError(struct evhttp_request* req,
                        int code,
-                       const std::string& res = "") {
-  std::string error_header;
+                       const char* reason = NULL) {
+  const char* error_header = NULL;
   switch (code) {
     case HTTP_BADREQUEST:  // 400
       error_header = "Bad Request";
@@ -43,14 +43,14 @@ inline void ReplyError(struct evhttp_request* req,
       error_header = "Unknwo Error";
       break;
   }
-  LOG(ERROR) << error_header << ": " << res;
+  LOG(ERROR) << error_header << ": " << (reason ? reason : "");
   evhttp_add_header(req->output_headers,
                     "Content-Type",
                     "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  const char* eptr = res.empty() ? error_header.c_str() : res.c_str();
+  const char* eptr = (reason == NULL ? error_header : reason);
   evbuffer_add_printf(output_buffer, "{\"error\":\"%s\"}\n", eptr);
-  evhttp_send_reply(req, code, error_header.c_str(), output_buffer);
+  evhttp_send_reply(req, code, error_header, output_buffer);
 }
 
 inline void ReplyRedirect(struct evhttp_request* req,
