@@ -2,7 +2,7 @@ package main
 
 import (
   "bytes"
-  l4g "code.google.com/p/log4go"
+  //l4g "code.google.com/p/log4go"
   "io/ioutil"
   "net/http"
   "strconv"
@@ -10,13 +10,14 @@ import (
   "time"
 )
 
+/*
 var Log l4g.Logger
 
 func init() {
   Log = make(l4g.Logger)
   Log.LoadConfiguration("sendConf.xml")
 }
-
+*/
 const (
   MaxUserCount = 40000
   MaxSendCount = 10000
@@ -56,19 +57,19 @@ func main() {
         body := bytes.NewBuffer([]byte("this is a test message to " + userName))
         res, err := http.Post(Url+userName+"&from=op", "application/json;charset=utf-8", body)
         if err != nil {
-          Log.Error("body:%s,err:%v,user:%s", body, err, userName)
+          fmt.Println("body:%s,err:%v,user:%s", body, err, userName)
           m[userName].PostErr += 1
           continue
         }
         result, err := ioutil.ReadAll(res.Body)
         if err != nil {
-          Log.Error("read resp err:%v,user:%s", err, userName)
+          fmt.Println("read resp err:%v,user:%s", err, userName)
           m[userName].ReadErr += 1
           continue
         }
 
         if !strings.Contains(string(result), "ok") {
-          Log.Error("ok resp err:%v,user:%s,response:%s", userName, string(result))
+          fmt.Println("ok resp err:%v,user:%s,response:%s", userName, string(result))
           m[userName].UnFoundKey += 1
           continue
         } else {
@@ -77,9 +78,9 @@ func main() {
       }
       time.Sleep(5 * time.Second)
     }
-    Log.Info("ip:%s end", ip)
+    fmt.Println("ip:%s end", ip)
   }
   for u, v := range m {
-    Log.Info("totalResult:user:%s:%d:%d:%d:%d", u, v.Succ, v.UnFoundKey, v.ReadErr, v.PostErr)
+    fmt.Println("totalResult:user:%s:%d:%d:%d:%d", u, v.Succ, v.UnFoundKey, v.ReadErr, v.PostErr)
   }
 }

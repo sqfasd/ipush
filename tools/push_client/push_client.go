@@ -3,7 +3,6 @@ package main
 import (
   "bufio"
   "bytes"
-  l4g "code.google.com/p/log4go"
   "encoding/json"
   "flag"
   "fmt"
@@ -35,7 +34,7 @@ const (
   StatsOrderExit       = `exit`
   StatsClosed          = `closed`
   TimeOutMaxNum        = 1
-  ConnTimeOutNum       = 100 * time.Second
+  ConnTimeOutNum       = 300 * time.Second
   ConnClosedMsg        = "1"
   MaxSendMsgErrCount   = 5
 )
@@ -47,10 +46,10 @@ type Ack struct {
 }
 
 type Msg struct {
-  Type string `json:"type"`
-  To   string `json:"to"`
-  Body string `json:"body"`
-  Seq  int64  `json:"seq"`
+  Type int    `json:"y"`
+  To   string `json:"t"`
+  Body string `json:"b"`
+  Seq  int64  `json:"s"`
 }
 
 type HeartBeatMsg struct {
@@ -92,13 +91,6 @@ type ClientInfo struct {
   BreakLoop               bool
 }
 
-var Log l4g.Logger
-
-func init() {
-  Log = make(l4g.Logger)
-  Log.LoadConfiguration("conf.xml")
-}
-
 var clientInfoMap map[string]*ClientInfo
 var localVirPort int
 var localVirIp string
@@ -106,7 +98,7 @@ var localVirIp string
 func main() {
   defer func() { //必须要先声明defer，否则不能捕获到panic异常
     if err := recover(); err != nil {
-      Log.Error("err:%v", err) //这里的err其实就是panic传入的内容
+      fmt.Println("err:%v", err) //这里的err其实就是panic传入的内容
     }
   }()
   numCpu := runtime.NumCPU()
@@ -118,7 +110,7 @@ func main() {
   port := flag.String("p", "", "listen port")
   flag.Parse()
 
-  Log.Error("start check server,addr:%s,cpu:%d,clientNum:%d, port:%s, userNamePrefix:%s", *checkServerAddr, numCpu, *clientNum, *port, *userName)
+  fmt.Println("start check server,addr:%s,cpu:%d,clientNum:%d, port:%s, userNamePrefix:%s", *checkServerAddr, numCpu, *clientNum, *port, *userName)
   clientInfoMap = make(map[string]*ClientInfo, *clientNum)
   localArr := strings.Split(*localAddr, ":")
 
@@ -133,11 +125,10 @@ func main() {
     client.UserName = *userName + "_" + strconv.Itoa(i)
     client.Pass = client.UserName
     client.TimeUnix = time.Now().Unix()
-    //client.LoginMsg = "GET /connect?uid=" + client.UserName + "&password=" + client.Pass + " HTTP/1.1\r\nUser-Agent: mobile_socket_client/0.1.0\r\nAccept: */*\r\n\r\n"
     clientInfoMap[client.UserName] = client
     go handleClient(i, *checkServerAddr, client)
     if i%1000 == 0 {
-      time.Sleep(10 * time.Second)
+      time.Sleep(1 * time.Second)
     }
   }
   http.HandleFunc("/stats", statsClientInfo)
@@ -147,14 +138,14 @@ func main() {
 func statsClientInfo(w http.ResponseWriter, r *http.Request) {
   body, err := ioutil.ReadAll(r.Body)
   if err != nil {
-    Log.Error("accept order error, err:%v", err)
+    fmt.Println("accept order error, err:%v", err)
     w.Write([]byte("order is error!"))
     return
   }
   msg := &OrderMsg{}
   err = json.Unmarshal(body, msg)
   if err != nil {
-    Log.Error("order unmarshal error,body:%s, err:%v", string(body), err)
+    fmt.Println("order unmarshal error,body:%s, err:%v", string(body), err)
     w.Write([]byte("order unmarshal is error!"))
     return
   }
@@ -222,7 +213,7 @@ func writeStatsToFile(fileName string) {
   w := bufio.NewWriter(f) //创建新的 Writer 对象
   c, err := w.WriteString(strStats.String())
   if err != nil || c <= 0 {
-    Log.Error("write to file is error, err:%s" + err.Error())
+    fmt.Println("write to file is error, err:%s" + err.Error())
     return
   }
   w.Flush()
@@ -252,10 +243,10 @@ func recvLoginRespMsg(conn net.Conn, index int, msgType string) bool {
       }
       e, ok := err.(net.Error)
       if !ok || !e.Temporary() {
-        Log.Error("%d user exit, err:%v", index, err)
+        fmt.Println("%d user exit, err:%v", index, err)
         return false
       }
-      Log.Error("%d ok user exit, err:%v", index, err)
+      fmt.Println("%d ok user exit, err:%v", index, err)
       return false
     }
     if len(line) == 0 {
@@ -270,10 +261,10 @@ func recvLoginRespMsg(conn net.Conn, index int, msgType string) bool {
         }
         e, ok := err.(net.Error)
         if !ok || !e.Temporary() {
-          Log.Error("%d flag user exit, err:%v", index, err)
+          fmt.Println("%d flag user exit, err:%v", index, err)
           return false
         }
-        Log.Error("%d flag ok user exit, err:%v", index, err)
+        fmt.Println("%d flag ok user exit, err:%v", index, err)
         return false
       }
       if string(lineAftfix) == "\r\n" {
@@ -310,14 +301,14 @@ func handleClient(index int, checkServerAddr string, client *ClientInfo) {
 
   remoteaddr.Port, err = strconv.Atoi(remoteArr[1])
   if err != nil {
-    Log.Error("err:%v", err)
+    fmt.Println("err:%v", err)
     return
   }
-
+  time.Sleep(2 * time.Second)
   conn, err = net.DialTCP("tcp", &localaddr, &remoteaddr)
 
   if err != nil {
-    Log.Error("%v connect server error,err:%v", localaddr, err)
+    fmt.Println("%v connect server error,err:%v", localaddr, err)
     return
   }
 
@@ -353,7 +344,7 @@ func handleClient(index int, checkServerAddr string, client *ClientInfo) {
           client.JsonErr += 1
         }
       } else {
-        Log.Error("user %s status(%s) is error!", client.UserName, client.Status)
+        fmt.Println("user %s status(%s) is error!", client.UserName, client.Status)
         return
       }
     case <-client.ExitCh:
@@ -364,31 +355,25 @@ func handleClient(index int, checkServerAddr string, client *ClientInfo) {
 }
 
 func buildMsg(msgType string, client *ClientInfo) string {
-  var content []byte
+  var content string
   switch msgType {
   case MsgTypeAck:
-    ackMsg := &Ack{}
-    ackMsg.Type = msgType
-    ackMsg.From = client.UserName
-    ackMsg.Seq = client.Seq
-    content, _ = json.Marshal(ackMsg)
+    content = `{"y": 5, "f": "` + client.UserName + `", "s":`
+    content = fmt.Sprintf(content+"%d}", client.Seq)
   case MsgTypeHeartBeat:
-    hb := &HeartBeatMsg{}
-    hb.Type = msgType
-    content, _ = json.Marshal(hb)
+    content = `{"y":0}`
   }
 
-  strContent := string(content)
-  header := strconv.FormatInt(int64(len(strContent)), 16)
+  header := strconv.FormatInt(int64(len(content)), 16)
 
-  return (header + "\r\n" + strContent + "\r\n")
+  return (header + "\r\n" + content + "\r\n")
 }
 
 func handleMsg(buf []byte, client *ClientInfo) bool {
   msg := &Msg{}
   err := json.Unmarshal(buf, msg)
   if err != nil {
-    Log.Error("%s user unmarshal msg error,err:%v, buf:%s", client.UserName, err, string(buf))
+    fmt.Println("%s user unmarshal msg error,err:%v, buf:%s", client.UserName, err, string(buf))
     return false
   }
   seqId := client.Seq
@@ -408,7 +393,7 @@ func sendMsgRoutine(conn net.Conn, client *ClientInfo) {
   for {
     select {
     case sendData := <-client.SendCh:
-      //Log.Error("sendData:%s", sendData)
+      //fmt.Println("sendData:%s", sendData)
       sendFlag := writeMsg([]byte(sendData), conn)
       if !sendFlag {
         client.ExitCh <- ConnClosedMsg
@@ -436,7 +421,7 @@ func writeMsg(buf []byte, conn net.Conn) bool {
         sendErrCn += 1
         continue
       }
-      //Log.Error("%d user %s error,err:%v", index, msgType, err)
+      //fmt.Println("%d user %s error,err:%v", index, msgType, err)
       return false
     }
     sendLen += tmpLen
@@ -455,7 +440,7 @@ func recvMsgRoutine(conn net.Conn, client *ClientInfo) {
         return
       }
       client.ExitCh <- ConnClosedMsg
-      Log.Error("user(%s), read msg flag is error,err:%v", client.UserName, err)
+      fmt.Println("user(%s), read msg flag is error,err:%v", client.UserName, err)
       return
     }
 
@@ -465,7 +450,7 @@ func recvMsgRoutine(conn net.Conn, client *ClientInfo) {
     }
     prefixArr := strings.Split(line, "\r")
     if len(prefixArr) != 2 {
-      Log.Error("user %s read header error, header:%v", client.UserName, line)
+      fmt.Println("user %s read header error, header:%v", client.UserName, line)
       client.ExitCh <- ConnClosedMsg
       return
     }
@@ -479,11 +464,11 @@ func recvMsgRoutine(conn net.Conn, client *ClientInfo) {
       tmpLen, err := reader.Read(buf[bodyLen:])
       if err != nil {
         if err == io.EOF {
-          //Log.Error("%d user closed,op:%s", index, msgType)
+          //fmt.Println("%d user closed,op:%s", index, msgType)
           client.ExitCh <- ConnClosedMsg
           return
         }
-        Log.Error("user %s recv data error,err:%v", client.UserName, err)
+        fmt.Println("user %s recv data error,err:%v", client.UserName, err)
         client.ExitCh <- ConnClosedMsg
         return
       }
@@ -495,12 +480,12 @@ func recvMsgRoutine(conn net.Conn, client *ClientInfo) {
         client.ExitCh <- ConnClosedMsg
         return
       }
-      Log.Error("user(%s) read after flag is error,err;%v", client.UserName, err)
+      fmt.Println("user(%s) read after flag is error,err;%v", client.UserName, err)
       client.ExitCh <- ConnClosedMsg
       return
     }
     if string(verify) != "\r\n" {
-      Log.Error("user verify msg:%s,op:%s", client.UserName, string(verify))
+      fmt.Println("user verify msg:%s,op:%s", client.UserName, string(verify))
       client.ExitCh <- ConnClosedMsg
       return
     }
