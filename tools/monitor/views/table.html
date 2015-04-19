@@ -1,0 +1,118 @@
+<table id="table" class="table table-bordered table-condensed">
+  <thead>
+    <tr>
+      <th rowspan=2>Time</th>
+      <th rowspan=2>Delay</th>
+      <th colspan=2 class="text-center">Send</th>
+      <th colspan=2 class="text-center">Recv</a></th>
+      <th colspan=4 class="text-center">User</a></th>
+      <th colspan=8 class="text-center">Request</a></th>
+      <th colspan=4 class="text-center">Other</a></th>
+    </tr>
+    <tr>
+      <!-- Send -->
+      <th>Total</th>
+      <th>Total-B</th>
+
+      <!-- Receive -->
+      <th>Total</th>
+      <th>Total-B</th>
+
+      <!-- User -->
+      <th>Online</th>
+      <th>Conn</th>
+      <th>Recon</th>
+      <th>Discon</th>
+
+      <!-- Request -->
+      <th>Connect</th>
+      <th>Disconnect</th>
+      <th>Pub</th>
+      <th>Msg</th>
+      <th>Sub</th>
+      <th>Unsub</th>
+      <th>Shard</th>
+      <th>Stats</th>
+
+      <!-- Other -->
+      <th>Error</th>
+      <th>Auth Fail</th>
+      <th>Bad Req</th>
+      <th>Redirect</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!--
+    <tr id="tr_latest">
+      <td>00:01</td>
+      <td>100ms</td>
+
+      <td>0</td>
+      <td>0</td>
+
+      <td>0</td>
+      <td>0</td>
+
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    -->
+    <% if (stats_list) { %>
+    <% for (var i = stats_list.length - 1; i != -1; --i) { %>
+    <% var stats = stats_list[i]; %>
+    <% var throughput = stats.info.throughput; %>
+    <% var user_info = stats.info.user; %>
+    <% var req_info = stats.info.request; %>
+    <% if (i == stats_list.length - 1) { %>
+    <tr class="tr_latest">
+    <% } else { %>
+    <tr>
+    <% } %>
+      <td><%= stats.minute %></td>
+      <td><%= stats.delay + ' ms' %></td>
+
+      <td><%= throughput.total_send_number %></td>
+      <td><%= throughput.total_send_bytes %></td>
+
+      <td><%= throughput.total_recv_number %></td>
+      <td><%= throughput.total_recv_bytes %></td>
+
+      <td><%= user_info.user_number %></td>
+      <td><%= user_info.connect %></td>
+      <td><%= user_info.reconnect %></td>
+      <td><%= user_info.disconnect %></td>
+
+      <td><%= req_info.Connect || 0 %></td>
+      <td><%= req_info.Disconnect || 0 %></td>
+      <td><%= req_info.Pub || 0 %></td>
+      <td><%= req_info.Msg || 0 %></td>
+      <td><%= req_info.Sub || 0 %></td>
+      <td><%= req_info.Unsub || 0 %></td>
+      <td><%= req_info.Shard || 0 %></td>
+      <td><%= req_info.Stats || 0 %></td>
+
+      <td><%= stats.info.error_number %></td>
+      <td><%= stats.info.auth_fail_number %></td>
+      <td><%= stats.info.bad_request_number %></td>
+      <td><%= stats.info.redirect_number %></td>
+    </tr>
+    <% } %>
+    <% } %>
+  </tbody>
+</table>

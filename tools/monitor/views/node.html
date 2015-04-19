@@ -1,0 +1,13 @@
+<% include header.html %>
+</div>
+<!-- end div container -->
+
+<h2 class="text-center">Stats Report For Node <%= node_id %></h2>
+<p class="text-center"><%= node_addr %></p>
+<p><a href="/chart?node_id=<%= node_id %>">see chart</a></p>
+<p><a href="/history?node_id=<%= node_id %>">see history</a></p>
+
+<% include realtime_table.html %>
+
+<div>
+<% include footer.html %>

@@ -1,0 +1,196 @@
+<% include header.html %>
+
+<script>
+$(function () {
+  function createNormalChart(name, data) {
+    var option = getDefaultCharOption();
+    option.title.text = name + ' Chart';
+    option.series[0].pointStart = getDateStart().getTime();
+    option.series[0].data = data[0];
+    createChart('#' + name, option);
+  }
+
+  function createReceiveMsgChart(stats_log) {
+    var recv_number_data = [];
+    var detail_data = {
+      'ack': [],
+      'cmsg': [],
+      'hb': [],
+      'msg': [],
+      'sub': [],
+      'unsub': [],
+    };
+    for (var i = 0; i < stats_log.length; ++i) {
+      var recv_type_info = stats_log[i].info.recv_type;
+      recv_number_data.push(stats_log[i].info.total_recv_number);
+      for (var type in detail_data) {
+        detail_data[type].push(recv_type_info[type] || 0);
+      }
+    }
+
+    var start_point = getDateStart().getTime();
+    var option = getDefaultCharOption();
+    option.title.text = 'recv_number_detail Chart';
+    option.series[0].pointStart = start_point;
+    option.series[0].name = 'total';
+    option.series[0].data = recv_number_data;
+    var i = 1;
+    for (var msg_type in detail_data) {
+      option.series[i++] = {
+        type: option.series[0].type,
+        name: msg_type,
+        pointInterval: option.series[0].pointInterval,
+        pointStart: start_point,
+        data: detail_data[msg_type],
+      };
+    }
+    createChart('#recv_number_detail', option);
+  }
+
+  $.ajax({
+    type : 'GET',
+    url: '/get_stats_log?node_id=<%= node_id %>&offset=<%= offset %>',
+    success: function(res) {
+      if (res.error) {
+        console.log('get_stats_log internal error: ' + res.error);
+      } else {
+        console.log('get_stats_log res.result.length=' + res.result.length);
+        var send_number_data = [];
+        var send_bytes_data = [];
+        var recv_bytes_data = [];
+        var user_number_data= [];
+        var user_conn_data = [];
+        var user_recon_data = [];
+        var user_discon_data = [];
+        var req_connect_data = [];
+        var req_disconnect_data = [];
+        var req_pub_data = [];
+        var req_msg_data = [];
+        var req_sub_data = [];
+        var req_unsub_data = [];
+        var req_shard_data = [];
+        var req_stats_data = [];
+        var error_data = [];
+        var auth_fail_data = [];
+        var bad_req_data = [];
+        var redirect_data = [];
+        for (var i = 0; i < res.result.length; ++i) {
+          var info = res.result[i].info;
+          var tp = info.throughput;
+          var req_info = info.request;
+          var user_info = info.user;
+          var recv_type_info = info.recv_type;
+          send_number_data.push(tp.total_send_number);
+          send_bytes_data.push(tp.total_send_bytes);
+          recv_bytes_data.push(tp.total_recv_bytes);
+          user_number_data.push(user_info.user_number);
+          user_conn_data.push(user_info.connect);
+          user_recon_data.push(user_info.reconnect);
+          user_discon_data.push(user_info.disconnect);
+          req_connect_data.push(req_info.Connect || 0);
+          req_disconnect_data.push(req_info.Disconnect || 0);
+          req_pub_data.push(req_info.Pub || 0);
+          req_msg_data.push(req_info.Msg || 0);
+          req_sub_data.push(req_info.Sub || 0);
+          req_unsub_data.push(req_info.Unsub || 0);
+          req_shard_data.push(req_info.Shard || 0);
+          req_stats_data.push(req_info.Stats || 0);
+          error_data.push(info.error_number);
+          auth_fail_data.push(info.auth_fail_number);
+          bad_req_data.push(info.bad_request_number);
+          redirect_data.push(info.redirect_number);
+        }
+        createReceiveMsgChart(res.result);
+        createNormalChart('total_send_number', [send_number_data]);
+        createNormalChart('total_send_bytes', [send_bytes_data]);
+        createNormalChart('total_recv_bytes', [recv_bytes_data]);
+        createNormalChart('user_number', [user_number_data]);
+        createNormalChart('user_connect', [user_conn_data]);
+        createNormalChart('user_reconnect', [user_recon_data]);
+        createNormalChart('user_disconnect', [user_discon_data]);
+        createNormalChart('req_Connect', [req_connect_data]);
+        createNormalChart('req_Disconnect', [req_disconnect_data]);
+        createNormalChart('req_Pub', [req_pub_data]);
+        createNormalChart('req_Msg', [req_msg_data]);
+        createNormalChart('req_Sub', [req_sub_data]);
+        createNormalChart('req_Unsub', [req_unsub_data]);
+        createNormalChart('req_Shard', [req_shard_data]);
+        createNormalChart('req_Stats', [req_stats_data]);
+        createNormalChart('error_number', [error_data]);
+        createNormalChart('auth_fail_number', [auth_fail_data]);
+        createNormalChart('bad_request_number', [bad_req_data]);
+        createNormalChart('redirect_number', [redirect_data]);
+      }
+    }
+  });
+});
+</script>
+
+<% if (node_id == -1) { %>
+<h2 class="text-center">Merged Stats Report Chart</h2>
+<% } else { %>
+<h2 class="text-center">Stats Report For Node <%= node_id %></h2>
+<% } %>
+<p>Date: <%= date %></p>
+<nav>
+  <ul class="pagination">
+    <% if (offset == -stats_file_number+1) { %>
+    <li class="disabled">
+      <span>
+        <span aria-hidden="true">&laquo;</span>
+      </span>
+    <% } else { %>
+    <li>
+      <span>
+        <span aria-hidden="true"><a href="/chart?node_id=<%= node_id %>&offset=<%= offset-1 %>">&laquo;</a></span>
+      </span>
+    <% } %>
+    </li>
+    <% for (var i = stats_file_number-1; i != -1; --i) { %>
+    <% if (-i == offset) { %>
+    <li class="active">
+      <a href="#"><%= -i %><span class="sr-only">(current)</span></a>
+    <% } else { %>
+    <li>
+      <span><a href="/chart?node_id=<%= node_id %>&offset=<%= -i %>"><%= -i %></a></span>
+    <% } %>
+    </li>
+    <% } %>
+    <% if (offset == 0) { %>
+    <li class="disabled">
+      <span>
+        <span aria-hidden="true">&raquo;</span>
+      </span>
+    <% } else { %>
+    <li>
+      <span>
+        <span aria-hidden="true"><a href="/chart?node_id=<%= node_id %>&offset=<%= offset+1 %>">&raquo;</a></span>
+      </span>
+    <% } %>
+    </li>
+  </ul>
+</nav>
+
+<div id="recv_number_detail" style="min-width:800;height:400"></div>
+
+<div id="total_send_number" style="min-width:800;height:400"></div>
+<div id="total_send_bytes" style="min-width:800;height:400"></div>
+<div id="total_recv_bytes" style="min-width:800;height:400"></div>
+<div id="user_number" style="min-width:800;height:400"></div>
+<div id="user_connect" style="min-width:800;height:400"></div>
+<div id="user_reconnect" style="min-width:800;height:400"></div>
+<div id="user_disconnect" style="min-width:800;height:400"></div>
+<div id="req_Connect" style="min-width:800;height:400"></div>
+<div id="req_Disconnect" style="min-width:800;height:400"></div>
+<div id="req_Pub" style="min-width:800;height:400"></div>
+<div id="req_Msg" style="min-width:800;height:400"></div>
+<div id="req_Sub" style="min-width:800;height:400"></div>
+<div id="req_Unsub" style="min-width:800;height:400"></div>
+<div id="req_Shard" style="min-width:800;height:400"></div>
+<div id="req_Stats" style="min-width:800;height:400"></div>
+<div id="error_number" style="min-width:800;height:400"></div>
+<div id="auth_fail_number" style="min-width:800;height:400"></div>
+<div id="bad_request_number" style="min-width:800;height:400"></div>
+<div id="redirect_number" style="min-width:800;height:400"></div>
+
+<% include footer.html %>

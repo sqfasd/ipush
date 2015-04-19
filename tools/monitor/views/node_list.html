@@ -1,0 +1,55 @@
+<script>
+$(function() {
+  var NODE_INFO_COLUMN_LEN = 3;
+  var ID_COLUMN_INDEX = 0;
+  var STATUS_COLUMN_INDEX = 2;
+  var socket = io();
+
+  function updateNodeStatus(id, status) {
+    var tr_list = $('#node_list tr');
+    if (tr_list.length == 0) {
+      return;
+    }
+    for (var i = 0; i < tr_list.length; ++i) {
+      var tds = $(tr_list[i]).children('td');
+      if (tds.length != NODE_INFO_COLUMN_LEN) {
+        continue;
+      }
+      var node_id = $(tds[ID_COLUMN_INDEX]).text();
+      if (Number(node_id) != Number(id)) {
+        continue;
+      } else {
+        $(tds[STATUS_COLUMN_INDEX]).text(status);
+        if (status == 'alive') {
+          $(tds[2]).attr('class', 'success');
+        } else if (status == 'dead') {
+          $(tds[2]).attr('class', 'warning');
+        }
+      }
+    }
+  }
+  socket.on('server status', function(data) {
+    updateNodeStatus(data.id, data.status);
+  });
+});
+</script>
+<h2 class="text-center">All Nodes</h2>
+<table id="node_list" class="table table-striped table-hover">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Address</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+  <% for (var i in node_list) { %>
+  <% var node = node_list[i]; %>
+    <tr>
+      <td><a href='/node?id=<%= node.id %>'><%= node.id %></a></td>
+      <td><a href='<%= node.stats_url %>'><%= node.addr %></a></td>
+      <td class="success">alive</td>
+    </tr>
+  <% } %>
+  </tbody>
+</table>

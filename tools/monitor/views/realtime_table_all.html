@@ -1,0 +1,61 @@
+<script>
+$(function() {
+  var socket = io();
+  var data_sum = [];
+
+  function convertJsonToArray(data) {
+    var throughput = data.info.throughput;
+    var user_info = data.info.user;
+    var req_info = data.info.request;
+    var arr = [];
+    arr.push(getMinuteOfTime(data.time));
+    arr.push(throughput.total_send_number);
+    arr.push(throughput.total_send_bytes);
+    arr.push(throughput.total_recv_number);
+    arr.push(throughput.total_recv_bytes);
+    arr.push(user_info.user_number);
+    arr.push(user_info.connect);
+    arr.push(user_info.reconnect);
+    arr.push(user_info.disconnect);
+    arr.push(req_info.Connect || 0);
+    arr.push(req_info.Disonnect || 0);
+    arr.push(req_info.Pub || 0);
+    arr.push(req_info.Msg || 0);
+    arr.push(req_info.Sub || 0);
+    arr.push(req_info.Unsub || 0);
+    arr.push(req_info.Shard || 0);
+    arr.push(req_info.Stats || 0);
+    arr.push(data.info.error_number);
+    arr.push(data.info.auth_fail_number);
+    arr.push(data.info.bad_request_number);
+    arr.push(data.info.redirect_number);
+    return arr;
+  }
+
+  socket.on('new stats', function(data) {
+    var tr_latest = $('#table_all .tr_latest');
+    var data_arr = convertJsonToArray(data);
+    var minute = data_arr[0];
+    if (tr_latest.length > 0) {
+      if (tr_latest.children('td').first().text() == minute) {
+        accumulateArray(data_sum, data_arr);
+        console.log('update tr: ' + data_sum);
+        updateTr(tr_latest, data_sum);
+      } else {
+        data_sum = [];
+        accumulateArray(data_sum, data_arr);
+        tr_latest.attr('class', '');
+        console.log('insert tr: ' + data_sum);
+        tr_latest.before(buildNewTr(data_sum));
+      }
+    } else {
+      data_sum = [];
+      accumulateArray(data_sum, data_arr);
+      $('#table_all').append(buildNewTr(data_sum));
+    }
+  });
+  console.log('{0} {1} {2} {3}'.format('this', 'is a', 'format', 'test'));
+});
+</script>
+
+<% include table_all.html %>

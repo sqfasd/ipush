@@ -1,0 +1,55 @@
+<% include header.html %>
+
+</div> <!-- bootstrap container end -->
+
+<% if (node_id == -1) { %>
+<h2 class="text-center">History Merged Stats Report</h2>
+<% } else { %>
+<h2 class="text-center">History Stats Report For Node <%= node_id %></h2>
+<% } %>
+<p>Date: <%= date %></p>
+<nav>
+  <ul class="pagination">
+    <% if (offset == -history_file_number) { %>
+    <li class="disabled">
+      <span>
+        <span aria-hidden="true">&laquo;</span>
+      </span>
+    <% } else { %>
+    <li>
+      <span>
+        <span aria-hidden="true"><a href="/history?offset=<%= offset-1 %>">&laquo;</a></span>
+      </span>
+    <% } %>
+    </li>
+    <% for (var i = history_file_number; i != 0; --i) { %>
+    <% if (-i == offset) { %>
+    <li class="active">
+      <a href="#"><%= -i %><span class="sr-only">(current)</span></a>
+    <% } else { %>
+    <li>
+      <span><a href="/history?offset=<%= -i %>"><%= -i %></a></span>
+    <% } %>
+    </li>
+    <% } %>
+    <% if (offset == -1) { %>
+    <li class="disabled">
+      <span>
+        <span aria-hidden="true">&raquo;</span>
+      </span>
+    <% } else { %>
+    <li>
+      <span>
+        <span aria-hidden="true"><a href="/history?offset=<%= offset+1 %>">&raquo;</a></span>
+      </span>
+    <% } %>
+    </li>
+  </ul>
+</nav>
+
+<% if (node_id == -1) { %>
+<% include table_all.html %>
+<% } else { %>
+<% include table.html %>
+<% } %>
+<% include footer.html %>
