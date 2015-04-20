@@ -43,6 +43,8 @@ function Node(id, addr) {
     this.stats_url = 'http://' + this.stats_url;
   }
   this.alive = true;
+  this.server_start_time = '';
+  this.user_pk = 0;
 }
 
 function addNode(id, addr) {
@@ -60,10 +62,8 @@ function queryNode(start_time, index, node) {
   request(node.stats_url, function(error, response, body) {
     if (error || response.statusCode != 200) {
       g_logger.error('failed to query node: ' + node.stats_url_);
-      if (node.alive_) {
-        fireEvent('server status', {id: node.id, status: 'dead'});
-        node.alive = false;
-      }
+      node.alive = false;
+      fireEvent('server status', {id: node.id, status: node});
       return;
     }
     var end_time = new Date();
@@ -79,10 +79,10 @@ function queryNode(start_time, index, node) {
           delay,
           json_info.result);
       fireEvent('new stats', stats_item);
-      if (!node.alive_) {
-        fireEvent('server status', {id: node.id, status: 'alive'});
-        node.alive = true;
-      }
+      node.alive = true;
+      node.server_start_time = json_info.result.server_start_datetime;
+      node.user_pk = json_info.result.user.max_user_number;
+      fireEvent('server status', {id: node.id, status: node});
       fs.appendFile(g_file, JSON.stringify(stats_item) + '\n', function(err) {
         if (err) {
           g_logger.error('failed to append to file ' + g_file + ' ' + err);

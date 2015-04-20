@@ -1,8 +1,9 @@
 <script>
 $(function() {
-  var NODE_INFO_COLUMN_LEN = 3;
   var ID_COLUMN_INDEX = 0;
-  var STATUS_COLUMN_INDEX = 2;
+  var TIME_COLUMN_INDEX = 2;
+  var USER_PK_COLUMN_INDEX = 3;
+  var STATUS_COLUMN_INDEX = 4;
   var socket = io();
 
   function updateNodeStatus(id, status) {
@@ -12,19 +13,22 @@ $(function() {
     }
     for (var i = 0; i < tr_list.length; ++i) {
       var tds = $(tr_list[i]).children('td');
-      if (tds.length != NODE_INFO_COLUMN_LEN) {
+      if (tds.length == 0) {
         continue;
       }
       var node_id = $(tds[ID_COLUMN_INDEX]).text();
       if (Number(node_id) != Number(id)) {
         continue;
       } else {
-        $(tds[STATUS_COLUMN_INDEX]).text(status);
-        if (status == 'alive') {
-          $(tds[2]).attr('class', 'success');
-        } else if (status == 'dead') {
-          $(tds[2]).attr('class', 'warning');
+        if (status.alive) {
+          $(tds[STATUS_COLUMN_INDEX]).text('alive');
+          $(tds[STATUS_COLUMN_INDEX]).attr('class', 'success');
+        } else {
+          $(tds[STATUS_COLUMN_INDEX]).text('dead');
+          $(tds[STATUS_COLUMN_INDEX]).attr('class', 'warning');
         }
+        $(tds[TIME_COLUMN_INDEX]).text(status.server_start_time);
+        $(tds[USER_PK_COLUMN_INDEX]).text(status.user_pk);
       }
     }
   }
@@ -39,6 +43,8 @@ $(function() {
     <tr>
       <th>ID</th>
       <th>Address</th>
+      <th>Start Time</th>
+      <th>User PK</th>
       <th>Status</th>
     </tr>
   </thead>
@@ -48,6 +54,8 @@ $(function() {
     <tr>
       <td><a href='/node?id=<%= node.id %>'><%= node.id %></a></td>
       <td><a href='<%= node.stats_url %>'><%= node.addr %></a></td>
+      <td><%= node.server_start_time %></td>
+      <td><%= node.user_pk %></td>
       <td class="success">alive</td>
     </tr>
   <% } %>
