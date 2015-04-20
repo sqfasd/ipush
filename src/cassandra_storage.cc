@@ -18,7 +18,7 @@ struct CbContext : public CassContext {
   string uid;
 };
 
-void RunCallback(const function<void()>& cb) {
+static void RunCallback(const function<void()>& cb) {
   LoopExecutor::RunInMainLoop(cb);
 }
 
@@ -66,7 +66,8 @@ CassandraStorage::CassandraStorage() {
   CassFuture* future = cass_session_connect_keyspace(
       cass_session_, cass_cluster_, "xcomet");
   cass_future_wait(future);
-  CHECK(cass_future_error_code(future) == CASS_OK) << "cassandra connect failed";
+  CHECK(cass_future_error_code(future) == CASS_OK)
+      << "cassandra connect failed";
   cass_future_free(future);
 }
 
