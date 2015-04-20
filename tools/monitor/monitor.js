@@ -143,10 +143,21 @@ function onClientDisconnect(client) {
 
 function accumulateObj(dst, src) {
   for (var i in src) {
-    var type = typeof(dst[i]);
+    var type = typeof(src[i]);
     if (type == 'number') {
+      if (!dst[i]) {
+        dst[i] = 0;
+      }
       dst[i] += src[i];
-    } else if (type == 'object' || type == 'array') {
+    } else if (type == 'object') {
+      if (!dst[i]) {
+        dst[i] = {};
+      }
+      accumulateObj(dst[i], src[i]);
+    } else if (type == 'array') {
+      if (!dst[i]) {
+        dst[i] = [];
+      }
       accumulateObj(dst[i], src[i]);
     }
   }
@@ -182,9 +193,8 @@ function cloneObjTemplate(src) {
 
 function getStatsOfDay(option, cb) {
   g_logger.info('getStatsOfDay option: ' + util.inspect(option));
-  var offset = Number(option.offset || 0);
-  var node_id = Number(option.id || -1);
-  g_logger.info('node_id=' + node_id);
+  var offset = option.offset;
+  var node_id = option.id;
   var date = new Date();
   date.setDate(date.getDate() + option.offset);
   var filename = getFileName(date);

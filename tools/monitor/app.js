@@ -97,18 +97,18 @@ app.get('/get_stats_log', function(req, res, next) {
 
 app.get('/node', function(req, res, next) {
   logger.info('request: ' + req.url);
-  var id = req.query.id;
-  if (id) {
-    monitor.getStatsOfDay({offset: 0, id: id}, function(stats_list) {
-      res.render('node', {
-        node_id: id,
-        node_addr: config.nodes[id],
-        stats_list: stats_list
-      });
-    });
-  } else {
-    res.send('Bad Request: node id should be provided');
+  var node_id = Number(req.query.id || -1);
+  if (node_id <= -1 || node_id >= config.nodes.length) {
+    res.send('Bad Request: invalid node id ' + node_id);
+    return;
   }
+  monitor.getStatsOfDay({offset: 0, id: node_id}, function(stats_list) {
+    res.render('node', {
+      node_id: node_id,
+      node_addr: config.nodes[node_id],
+      stats_list: stats_list
+    });
+  });
 });
 
 io.on('connection', function(socket) {
