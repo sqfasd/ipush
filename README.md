@@ -34,6 +34,7 @@ other libs
 ```
 yum install cmake
 yum install boost-devel
+ln -s /usr/lib64/libboost_thread-mt.so /usr/lib64/libboost_thread.so
 yum install zeromq3-devel
 yum install openssl-devel
 yum install libuv-devel
