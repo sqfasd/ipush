@@ -25,6 +25,8 @@ net.ipv4.tcp_tw_recycle = 1
 net.ipv4.tcp_max_orphans = 131072
 net.ipv4.tcp_keepalive_time = 1200
 net.ipv4.tcp_max_tw_buckets = 60000
+net.netfilter.nf_conntrack_max = 1000000
+net.netfilter.nf_conntrack_tcp_timeout_established = 1200
 fs.file-max = 2000000
 fs.nr_open = 1900000
 EOF
