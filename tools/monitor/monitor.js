@@ -238,7 +238,7 @@ function getStatsOfDay(option, cb) {
         g_logger.error('failed to parse stats log: ' + e + '\n' + line);
       }
     }
-    if (merged_stats.m_index && stats_list.length > 0 &&
+    if (merged_stats.m_index != undefined && stats_list.length > 0 &&
         merged_stats.m_index != stats_list[stats_list.length-1].m_index) {
       stats_list.push(merged_stats);
     }
