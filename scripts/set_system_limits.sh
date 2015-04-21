@@ -31,8 +31,8 @@ EOF
 
 test -f ${LIMITS_CONF}.bak || mv $LIMITS_CONF ${LIMITS_CONF}.bak
 cat >> /etc/security/limits.conf <<EOF
-root    soft    nofile  1700000
-root    hard    nofile  1800000
+*    soft    nofile  1700000
+*    hard    nofile  1800000
 EOF
 
 sysctl -w
