@@ -88,7 +88,6 @@ bool Auth::RSAPrivateDecode(const string& input, string& output) {
 Auth::Auth()
     : cache_(DEFAULT_AUTH_LRU_CACHE_SIZE) {
   LOG(INFO) << "Auth()";
-  base::File::ReadFileToStringOrDie(FLAGS_auth_private_key_file, &private_key_);
   if (FLAGS_auth_type == "None") {
     type_ = T_NONE;
   } else if (FLAGS_auth_type == "Fast") {
@@ -98,6 +97,10 @@ Auth::Auth()
     mongo_.reset(new MongoClient());
   } else {
     CHECK(false) << "unknow auth type";
+  }
+  if (type_ > T_NONE) {
+    base::File::ReadFileToStringOrDie(FLAGS_auth_private_key_file,
+                                      &private_key_);
   }
 }
 
