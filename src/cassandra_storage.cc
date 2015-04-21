@@ -4,6 +4,7 @@
 #include "src/loop_executor.h"
 
 DEFINE_int32(cassandra_io_worker_thread_num, 4, "");
+DEFINE_int32(cassandra_connection_per_thread, 4, "");
 DEFINE_string(cassandra_hosts, "127.0.0.1", "");
 
 namespace xcomet {
@@ -52,13 +53,18 @@ static void ExecuteQuery(CassStatement* statement,
 
 CassandraStorage::CassandraStorage() {
   CHECK(FLAGS_max_offline_msg_num > 0);
-  cass_cluster_ = cass_cluster_new();
-  CHECK(cass_cluster_);
   CHECK(!FLAGS_cassandra_hosts.empty());
   CHECK(FLAGS_cassandra_io_worker_thread_num > 0);
+  CHECK(FLAGS_cassandra_connection_per_thread > 0);
+  cass_cluster_ = cass_cluster_new();
+  CHECK(cass_cluster_);
   cass_cluster_set_contact_points(cass_cluster_, FLAGS_cassandra_hosts.c_str());
   cass_cluster_set_num_threads_io(
       cass_cluster_, FLAGS_cassandra_io_worker_thread_num);
+  cass_cluster_set_max_connections_per_host(
+      cass_cluster_, FLAGS_cassandra_connection_per_thread);
+  cass_cluster_set_core_connections_per_host(cass_cluster_, 1);
+
 
   cass_session_ = cass_session_new();
   CHECK(cass_session_);
