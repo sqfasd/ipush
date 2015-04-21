@@ -25,6 +25,6 @@ echo -e "\n[Git]" >> $version_file
 git branch | grep '^*' >> $version_file
 git log | head -n 1 >> $version_file
 echo -e "\n[MD5]" >> $version_file
-md5sum build/release/bin/* >> $version_file
+md5sum build/$BUILD_TYPE/bin/* >> $version_file
 
 echo "ok"
