@@ -1,0 +1,18 @@
+{
+  "name": "monitor",
+  "version": "0.1.0",
+  "description": "xcomet monitor",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ejs": "~2.3.1",
+    "express": "~4.12.3",
+    "request": "~2.55.0",
+    "winston": "~1.0.0",
+    "socket.io": "~1.3.5"
+  }
+}
