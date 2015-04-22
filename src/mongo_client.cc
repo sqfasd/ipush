@@ -115,7 +115,7 @@ struct MongoClientPrivate {
           req->cb("invalid mongo response", NULL);
         }
         bson_free(json_str);
-      } else if (mongoc_cursor_error (cursor, &error)) {
+      } else if (mongoc_cursor_error(cursor, &error)) {
         LOG(ERROR) << "mongo cursor error: " << error.message;
         req->cb(error.message, NULL);
       } else {
