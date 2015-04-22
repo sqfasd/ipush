@@ -18,7 +18,14 @@ else
   mkdir build && cd build && cmake .. && make
 fi
 
-cd $SOURCE_DIR/deps/mongo-cxx-driver/ && scons install
+cd $SOURCE_DIR/deps/mongo-c-driver/build
+test -f Makefile || \
+  ../configure --enable-static=yes \
+               --enable-ssl=no \
+               --enable-examples=no \
+               --enable-tests=no \
+               --enable-sasl=no
+make
 
 cd $SOURCE_DIR
 test -d $DIR || mkdir -p $DIR 
