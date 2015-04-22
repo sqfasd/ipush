@@ -37,4 +37,4 @@ cat >> /etc/security/limits.conf <<EOF
 *    hard    nofile  1800000
 EOF
 
-sysctl -w
+sysctl -p
