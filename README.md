@@ -32,9 +32,9 @@ export CXX=/opt/centos/devtoolset-1.1/root/usr/bin/c++
 other libs
 
 ```
+yum install epel-release
 yum install cmake
 yum install boost-devel
-ln -s /usr/lib64/libboost_thread-mt.so /usr/lib64/libboost_thread.so
 yum install zeromq3-devel
 yum install openssl-devel
 yum install libuv-devel
