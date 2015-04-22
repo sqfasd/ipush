@@ -161,7 +161,7 @@ void Auth::Authenticate(const string& user,
                                [user, cb, this](Error err, StringPtr name) {
       if (err != NO_ERROR) {
         LoopExecutor::RunInMainLoop(bind(cb, err, false));
-      } else if (*name != user) {
+      } else if (name.get() == NULL || *name != user) {
         LoopExecutor::RunInMainLoop(bind(cb, NO_ERROR, false));
       } else {
         cache_.Put(user, new bool(true));

@@ -29,14 +29,18 @@ include_directories(
   ${PROJECT_SOURCE_DIR}/deps/gtest/include
   ${PROJECT_SOURCE_DIR}/deps/libevent
   ${PROJECT_SOURCE_DIR}/deps/libevent/include
-  ${PROJECT_SOURCE_DIR}/deps/mongo-cxx-driver/build/install/include
+  ${PROJECT_SOURCE_DIR}/deps/mongo-c-driver/src/mongoc
+  ${PROJECT_SOURCE_DIR}/deps/mongo-c-driver/build/src/mongoc
+  ${PROJECT_SOURCE_DIR}/deps/mongo-c-driver/src/libbson/src/bson
+  ${PROJECT_SOURCE_DIR}/deps/mongo-c-driver/build/src/libbson/src/bson
   /usr/local/include
 )
 
 link_directories(
   ${PROJECT_SOURCE_DIR}/deps/libevent/.libs
   ${PROJECT_SOURCE_DIR}/deps/cassandra/cpp-driver/build
-  ${PROJECT_SOURCE_DIR}/deps/mongo-cxx-driver/build/install/lib
+  ${PROJECT_SOURCE_DIR}/deps/mongo-c-driver/build/.libs
+  ${PROJECT_SOURCE_DIR}/deps/mongo-c-driver/build/src/libbson/.libs
   /usr/local/lib
   /usr/lib64/mysql
 )

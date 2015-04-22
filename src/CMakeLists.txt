@@ -25,10 +25,8 @@ TARGET_LINK_LIBRARIES(xcomet
   crypto
   cassandra_static
   uv
-  mongoclient
-  boost_thread
-  boost_regex
-  boost_system
+  mongoc-1.0
+  bson
 )
 
 ADD_EXECUTABLE(xcomet_server
