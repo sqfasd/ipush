@@ -14,7 +14,7 @@
 * boost
 * openssl
 * libuv (for cassnadra driver)
-* scons (to build mongo driver)
+* automake & autoconf (to compile mongo-c-driver)
 
 ### centos
 
@@ -38,7 +38,7 @@ ln -s /usr/lib64/libboost_thread-mt.so /usr/lib64/libboost_thread.so
 yum install zeromq3-devel
 yum install openssl-devel
 yum install libuv-devel
-yum install scons
+yum install automake autoconf
 ```
 
 ### ubuntu
@@ -49,7 +49,7 @@ apt-get install libboost-dev
 apt-get install libzmq3-dev
 apt-get install libssl-dev
 apt-get install libuv-dev
-apt-get install scons
+apt-get install automake autoconf
 ```
 
 ## Cassandra 数据库初始化
