@@ -101,7 +101,7 @@ kill $(cat xcomet_server.pid)
 下面这个方法是普通的http客户端，所以只能单向的接受服务器推送的消息
 
 ```
-curl http://xcomet_server_host:9000/connect?uid=user001&password=pwd001
+curl -L http://xcomet_server_host:9000/connect?uid=user001&password=pwd001
 ```
 
 #### 连接协议
@@ -116,7 +116,11 @@ Accept: */*\r\n
 \r\n
 ```
 
-第三部，检查http返回结果,主要检查http response code， 200表示成功，其他表示失败
+第三步，检查http返回结果,主要检查http response code
+
+* 200表示成功
+* 303表示需要客户端重定向到其他分片
+* 其他表示失败
 
 连接成功
 
@@ -127,6 +131,15 @@ Content-Type: text/html; charset=utf-8\r\n
 Transfer-Encoding: chunked\r\n
 Date: Thu, 26 Mar 2015 07:08:43 GMT\r\n
 \r\n
+```
+
+重定向
+
+```
+HTTP/1.1 303 See Other
+Location: http://192.168.2.3:9002/connect?uid=user2&password=123
+Content-Length: 0
+Date: Thu, 23 Apr 2015 14:32:19 GMT
 ```
 
 连接失败
