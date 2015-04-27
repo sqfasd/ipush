@@ -445,14 +445,14 @@ void SessionServer::Pub(struct evhttp_request* req) {
     msg.SetType(Message::T_MESSAGE);
     msg.SetFrom(from);
     msg.SetTo(to);
-    msg.SetBody(string(bufferstr, len));
+    msg.SetBody(bufferstr, len);
     SendUserMsg(msg, ttl, CHECK_SHARD);
   } else {
     CHECK(channel != NULL);
     msg.SetType(Message::T_CHANNEL_MESSAGE);
     msg.SetFrom(from);
     msg.SetChannel(channel);
-    msg.SetBody(string(bufferstr, len));
+    msg.SetBody(bufferstr, len);
     SendChannelMsg(msg, ttl);
     msg.SetTTL(ttl);
     cluster_->Broadcast(*(Message::Serialize(msg)));
@@ -488,9 +488,9 @@ void SessionServer::Sub(struct evhttp_request* req) {
   CHECK_HTTP_GET();
 
   HttpQuery query(req);
-  string uid = query.GetStr("uid", "");
-  string cid = query.GetStr("cid", "");
-  if (uid.empty() || cid.empty()) {
+  const char* uid = query.GetStr("uid", NULL);
+  const char* cid = query.GetStr("cid", NULL);
+  if (uid == NULL || cid == NULL) {
     stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "uid and cid should not be empty");
   } else {
@@ -546,9 +546,9 @@ void SessionServer::Unsub(struct evhttp_request* req) {
   CHECK_HTTP_GET();
 
   HttpQuery query(req);
-  string uid = query.GetStr("uid", "");
-  string cid = query.GetStr("cid", "");
-  if (uid.empty() || cid.empty()) {
+  const char* uid = query.GetStr("uid", NULL);
+  const char* cid = query.GetStr("cid", NULL);
+  if (uid == NULL || cid == NULL) {
     stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "uid and cid should not be empty");
   } else {
