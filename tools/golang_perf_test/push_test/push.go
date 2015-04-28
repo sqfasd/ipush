@@ -1,6 +1,7 @@
 package main
 
 import (
+  "flag"
   "bufio"
   "bytes"
   "encoding/json"
@@ -36,12 +37,12 @@ const (
   ConnTimeOutNum       = 100 * time.Second
   ConnClosedMsg        = "1"
   MaxSendMsgErrCount   = 5
-  host1 = `localhost:9003`
-  host2 = `localhost:9001`
-  session_host1 = `localhost:9002`
-  session_host2 = `localhost:9000`
 )
-
+var host1 string = `localhost:9003`
+var host2 string = `localhost:9001`
+var session_host1 string = `localhost:9002`
+var session_host2 string = `localhost:9000`
+var g_log_switch bool = false
 /*
 type Ack struct {
   Type string `json:"type"`
@@ -119,6 +120,34 @@ func main() {
   }()
   numCpu := runtime.NumCPU()
   runtime.GOMAXPROCS(numCpu)
+  checkServerAddr := flag.String("r", "", "to do check server addr,eg:127.0.0.1")
+  verbos := flag.String("v", "0", "1:open the log;0:close the log")
+  flag.Parse()
+  if *verbos == "1" {
+    g_log_switch = true
+  }
+  hostArr := strings.Split(*checkServerAddr, ",")  
+  if len(hostArr) == 1 {
+      if !strings.Contains(hostArr[0], ".") {
+        fmt.Println("-r must fill![192.168.1.60,192.168.1.60]or[192.168.1.60]")
+        return
+      }
+      host2 = hostArr[0] + ":9001"
+      host1 = hostArr[0] + ":9001"
+      session_host1 = hostArr[0] + ":9000"
+      session_host2 = hostArr[0] + ":9000"
+  }
+  if len(hostArr) == 2 {
+      host2 = hostArr[0] + ":9001"
+      host1 = hostArr[1] + ":9003"
+      session_host1 = hostArr[1] + ":9002"
+      session_host2 = hostArr[0] + ":9000"
+  }
+
+  if len(hostArr) > 2 || len(hostArr) < 1 {
+      fmt.Println("-r must fill correct!")
+      return
+  }
   userName1 := "test_1"
   userName2 := "test_2"
   fmt.Println("begin check server")
@@ -736,6 +765,10 @@ func recvMsgAndSendAck(conn net.Conn, client *ClientInfo) {
   recvFlag := handleMsg(buf, client)
   if recvFlag {
     toSendAckMsg := buildMsg(MsgTypeAck, client)
+    if g_log_switch {
+      fmt.Println("-----" + string(buf))
+      fmt.Println("-----" + toSendAckMsg)
+    }
     flag := sendMsgRoutine(conn, client, []byte(toSendAckMsg))
     if !flag {
       return
