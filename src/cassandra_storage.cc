@@ -5,6 +5,9 @@
 
 DEFINE_int32(cassandra_io_worker_thread_num, 4, "");
 DEFINE_int32(cassandra_connection_per_thread, 4, "");
+DEFINE_int32(cassandra_low_water_mark, 5000, "");
+DEFINE_int32(cassandra_high_water_mark, 10000, "");
+DEFINE_int32(cassandra_queue_size, 10000, "");
 DEFINE_string(cassandra_hosts, "127.0.0.1", "");
 
 namespace xcomet {
@@ -64,7 +67,11 @@ CassandraStorage::CassandraStorage() {
   cass_cluster_set_max_connections_per_host(
       cass_cluster_, FLAGS_cassandra_connection_per_thread);
   cass_cluster_set_core_connections_per_host(cass_cluster_, 1);
-
+  cass_cluster_set_pending_requests_low_water_mark(
+      cass_cluster_, FLAGS_cassandra_low_water_mark);
+  cass_cluster_set_pending_requests_high_water_mark(
+      cass_cluster_, FLAGS_cassandra_high_water_mark);
+  cass_cluster_set_queue_size_io(cass_cluster_, FLAGS_cassandra_queue_size);
 
   cass_session_ = cass_session_new();
   CHECK(cass_session_);
