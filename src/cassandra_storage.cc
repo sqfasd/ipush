@@ -275,7 +275,7 @@ void CassandraStorage::AddUserToChannel(const string& uid,
   auto ctx = CreateContext(callback);
   ctx->session = cass_session_;
   const char* query = "INSERT INTO channel (cid, uid) VALUES (?, ?);";
-  CassStatement* statement = cass_statement_new("", 2);
+  CassStatement* statement = cass_statement_new(query, 2);
   cass_statement_bind_string(statement, 0, cid.c_str());
   cass_statement_bind_string(statement, 1, uid.c_str());
   ExecuteQuery(statement, OnAddUserToChannel, ctx);
