@@ -336,10 +336,12 @@ void SessionServer::SendSave(const string& uid, Message& msg, int64 ttl) {
         LOG(ERROR) << "GetMaxSeq failed: " << error;
         return;
       }
+      VLOG(7) << "GetMaxSeq " << seq;
       CHECK(seq >= 0);
       if (info_it->second.GetMaxSeq() < seq) {
         info_it->second.SetMaxSeq(seq);
       }
+      VLOG(7) << "current max seq: " << info_it->second.GetMaxSeq();
       ((Message&)msg).SetSeq(info_it->second.IncMaxSeq());
       DoSendSave(msg, ttl);
     });
