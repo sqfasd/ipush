@@ -117,6 +117,9 @@ void InMemoryUserData::AddMessage(const StringPtr& msg, int64 ttl) {
   }
   if (tail_ == head_) {
     ++head_seq_;
+    if (ack_ < head_seq_) {
+      ack_ = head_seq_;
+    }
     if (++head_ == msg_queue_.size()) {
       head_ = 0;
     }
@@ -141,6 +144,9 @@ bool InMemoryUserData::IsMsgOK(int64 now, const pair<int64, StringPtr>& msg) {
 }
 
 MessageDataSet InMemoryUserData::GetMessages() {
+  VLOG(6) << "head_ =" << head_ << ", head_seq_ = " << head_seq_
+          << ", tail_ = " << tail_ << ", tail_seq_ = " << tail_seq_
+          << "ack_ = " << ack_;
   MessageDataSet result(NULL);
   int start_pos;
   int len;
