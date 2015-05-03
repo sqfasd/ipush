@@ -6,7 +6,7 @@
 namespace {
 
 // IMPORTANT: DON'T CHANGE THIS VALUE.
-const uint32 kFingerPrintSeed = 19820125;
+const uint32 kFingerPrintSeed = 19861225;
 }
 
 namespace base {
