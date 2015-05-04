@@ -2,6 +2,7 @@ var util = require('util');
 var path = require('path');
 var fs = require('fs');
 var request = require('request');
+var EventProxy = require('eventproxy');
 
 // global variables
 var g_datadir = path.join(__dirname, 'data');
@@ -23,6 +24,7 @@ module.exports = {
   getStatsOfDay: getStatsOfDay,
   getNodeList: getNodeList,
   getLogFileNumber: getLogFileNumber,
+  getDailyStats: getDailyStats,
 }
 
 function StatInfo(id, addr, url, time, index, delay, info) {
@@ -163,6 +165,27 @@ function accumulateObj(dst, src) {
   }
 }
 
+function subtractObj(minuend, subtractor) {
+  var result = {};
+  for (var i in minuend) {
+    var type = typeof(minuend[i]);
+    if (type == 'number') {
+      if (!subtractor[i]) {
+        result[i] = minuend[i];
+      } else {
+        result[i] = minuend[i] - subtractor[i];
+      }
+    } else if (type == 'object' || type == 'array') {
+      if (!subtractor[i]) {
+        result[i] = {};
+      } else {
+        result[i] = subtractObj(minuend[i], subtractor[i]);
+      }
+    }
+  }
+  return result;
+}
+
 function getMinuteOfTime(time) {
   var d = new Date(time);
   var hour = d.getHours();
@@ -189,6 +212,103 @@ function cloneObjTemplate(src) {
     }
   }
   return dst;
+}
+
+function readFileNoError(filename, cb) {
+  fs.readFile(filename, 'utf8', function(err, content) {
+    if (err) {
+      cb(null, null);
+    } else {
+      cb(null, {file: filename, content: content});
+    }
+  });
+}
+
+function parseDailyStat(content, node_id) {
+  var lines = content.split('\n');
+  var min_log = null;
+  var max_log = null;
+  var merged_stats = {};
+  for (var i in lines) {
+    var line = lines[i];
+    if (!line || line == '') {
+      continue;
+    }
+    try {
+      var item = JSON.parse(line);
+      if (node_id != -1) {
+        if (item.node_id == node_id) {
+          if (!min_log) {
+            min_log = item;
+          }
+          max_log = item;
+        }
+      } else {
+        if (merged_stats.m_index != undefined) {
+          if (merged_stats.m_index == item.m_index) {
+            accumulateObj(merged_stats.info, item.info);
+          } else {
+            if (!min_log) {
+              min_log = merged_stats;
+            }
+            max_log = merged_stats;
+            merged_stats = item;
+          }
+        } else {
+          merged_stats = item;
+        }
+      }
+    } catch (e) {
+      g_logger.error('json parse filed: ' + e + '\n' + line);
+    }
+  }
+  if (!min_log || !max_log) {
+    return null;
+  }
+  var diff_log = subtractObj(max_log, min_log);
+  diff_log.start_minute = getMinuteOfTime(min_log.time);
+  diff_log.end_minute = getMinuteOfTime(max_log.time);
+  diff_log.date = new Date(min_log.time);
+  return diff_log;
+}
+
+function getDailyStats(option, cb) {
+  g_logger.info('getDailyStats option: ' + util.inspect(option));
+  var offset = option.offset;
+  var node_id = option.id;
+  var max = option.max || 30;
+  var date = new Date();
+  date.setDate(date.getDate() + option.offset + 1);
+  var file_list = [];
+  for (var i = 0; i < max; ++i) {
+    date.setDate(date.getDate() - 1);
+    file_list.push(getFileName(date));
+  }
+  g_logger.debug('getDailyStats file_list.length = ' + file_list.length);
+  var ep = new EventProxy();
+  ep.after('read_file', file_list.length, function(content_list) {
+    g_logger.debug('ep read_file content_list.length = ' + content_list.length);
+    var valid_stats = [];
+    for (var i = 0; i < content_list.length; ++i) {
+      if (content_list[i]) {
+        var stat_of_a_day = parseDailyStat(content_list[i].content, node_id);
+        if (stat_of_a_day) {
+          valid_stats.push(stat_of_a_day);
+        } else {
+          g_logger.error('parseDailyStat failed: file = ' +
+                         content_list[i].file);
+        }
+      }
+    }
+    g_logger.info('valid_stats.length = ' + valid_stats.length);
+    valid_stats.sort(function(left, right) {
+      return left.date.getTime() > right.date.getTime();
+    });
+    cb(valid_stats);
+  });
+  for (var i = 0; i < file_list.length; ++i) {
+    readFileNoError(file_list[i], ep.group('read_file'));
+  }
 }
 
 function getStatsOfDay(option, cb) {

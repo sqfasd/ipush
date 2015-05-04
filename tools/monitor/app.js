@@ -111,6 +111,30 @@ app.get('/node', function(req, res, next) {
   });
 });
 
+app.get('/daily_report', function(req, res, next) {
+  logger.info('request: ' + req.url);
+  var node_id = Number(req.query.id || -1);
+  if (node_id < -1 || node_id >= config.nodes.length) {
+    res.send('Bad Request: invalid node id ' + node_id);
+    return;
+  }
+  monitor.getDailyStats({offset: 0, id: node_id, max: 30}, function(stats_list) {
+    if (node_id == -1) {
+      res.render('daily_report', {
+        node_id: node_id,
+        node_addr: config.nodes[node_id],
+        stats_list: stats_list
+      });
+    } else {
+      res.render('daily_report', {
+        node_id: node_id,
+        node_addr: config.nodes[node_id],
+        stats_list: stats_list
+      });
+    }
+  });
+});
+
 io.on('connection', function(socket) {
   logger.info('new socket come');
   monitor.onClientConnect(socket);
