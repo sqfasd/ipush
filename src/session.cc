@@ -33,19 +33,6 @@ void Session::Send(const std::string& packet_str) {
   SendChunk(packet_str.c_str(), false);
 }
 
-void Session::Send(const string& from_id,
-                   const string& type,
-                   const string& content) {
-  struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
-  evbuffer_add_printf(buf, "{\"from\":\"%s\","
-                           "\"type\":\"%s\","
-                           "\"body\":\"%s\"}\n",
-                           from_id.c_str(),
-                           type.c_str(),
-                           content.c_str());
-  evhttp_send_reply_chunk_bi(req_, buf);
-}
-
 void Session::SendHeartbeat() {
   SendChunk("{\"type\":\"noop\"}");
 }

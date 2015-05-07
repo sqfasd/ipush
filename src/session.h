@@ -15,7 +15,6 @@ class Session {
   virtual ~Session();
   void Send(const Message& msg);
   void Send(const string& packet_str);
-  void Send(const string& from_id, const string& type, const string& content);
   void SendHeartbeat();
   void Close();
   void Reset(struct evhttp_request* req);

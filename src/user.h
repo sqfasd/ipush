@@ -30,7 +30,6 @@ class User {
   string GetId() const {return uid_;}
   void Send(const Message& msg);
   void Send(const string& packet_str);
-  void Send(const string& from_id, const string& type, const string& content);
   void Close();
   void SendHeartbeat();
 

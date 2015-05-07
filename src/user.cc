@@ -40,15 +40,6 @@ void User::Send(const std::string& pakcet_str) {
   }
 }
 
-void User::Send(const string& from_id,
-                const string& type,
-                const string& content) {
-  session_.Send(from_id, type, content);
-  if (type_ == COMET_TYPE_POLLING) {
-    Close();
-  }
-}
-
 void User::SendHeartbeat() {
   session_.SendHeartbeat();
   if (type_ == COMET_TYPE_POLLING) {
