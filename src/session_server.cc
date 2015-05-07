@@ -441,7 +441,6 @@ void SessionServer::Pub(struct evhttp_request* req) {
     return;
   }
 
-  // TODO(qingfeng) maybe reply after save message done is better
   Message msg;
   if (to != NULL) {
     msg.SetType(Message::T_MESSAGE);
@@ -455,9 +454,10 @@ void SessionServer::Pub(struct evhttp_request* req) {
     msg.SetFrom(from);
     msg.SetChannel(channel);
     msg.SetBody(bufferstr, len);
-    SendChannelMsg(msg, ttl);
     msg.SetTTL(ttl);
     cluster_->Broadcast(*(Message::Serialize(msg)));
+    msg.RemoveTTL();
+    SendChannelMsg(msg, ttl);
   }
   ReplyOK(req);
 }
@@ -495,20 +495,13 @@ void SessionServer::Sub(struct evhttp_request* req) {
   if (uid == NULL || cid == NULL) {
     stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "uid and cid should not be empty");
-  } else {
-    // TODO(qingfeng) if failed to subscribe, reply error
-    int shard_id = GetShardId(uid);
-    if (shard_id == peer_id_) {
-      Subscribe(uid, cid);
-    } else {
-      Message msg;
-      msg.SetType(Message::T_SUBSCRIBE);
-      msg.SetUser(uid);
-      msg.SetChannel(cid);
-      cluster_->Send(shard_id, *(Message::Serialize(msg)));
-    }
-    ReplyOK(req);
+    return;
   }
+
+  CHECK_REDIRECT_ADMIN(uid);
+
+  Subscribe(uid, cid);
+  ReplyOK(req);
 }
 
 void SessionServer::Subscribe(const string& uid, const string& cid) {
@@ -553,19 +546,13 @@ void SessionServer::Unsub(struct evhttp_request* req) {
   if (uid == NULL || cid == NULL) {
     stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "uid and cid should not be empty");
-  } else {
-    int shard_id = GetShardId(uid);
-    if (shard_id == peer_id_) {
-      Unsubscribe(uid, cid);
-    } else {
-      Message msg;
-      msg.SetType(Message::T_UNSUBSCRIBE);
-      msg.SetUser(uid);
-      msg.SetChannel(cid);
-      cluster_->Send(shard_id, *(Message::Serialize(msg)));
-    }
-    ReplyOK(req);
+    return;
   }
+
+  CHECK_REDIRECT_ADMIN(uid);
+
+  Unsubscribe(uid, cid);
+  ReplyOK(req);
 }
 
 void SessionServer::Msg(struct evhttp_request* req) {
@@ -621,7 +608,7 @@ void SessionServer::Broadcast(struct evhttp_request* req) {
 }
 
 void SessionServer::OnTimer() {
-  VLOG(5) << "OnTimer";
+  VLOG(7) << "OnTimer";
   stats_.OnTimer(users_.size());
   DLinkedList<User*> timeout_users = timeout_queue_.GetFront();
   DLinkedList<User*>::Iterator it = timeout_users.GetIterator();

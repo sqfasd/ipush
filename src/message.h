@@ -135,6 +135,9 @@ class Message {
     p_->ttl = -1;
     return ttl;
   }
+  void RemoveTTL() {
+    p_->ttl = -1;
+  }
   MType Type() const {
     return (MType)p_->type;
   }
