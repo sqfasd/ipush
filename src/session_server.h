@@ -66,6 +66,9 @@ class SessionServer {
   void Unsubscribe(const string& uid, const string& cid);
   void UpdateUserAck(const string& uid, int ack);
 
+  bool IsUserOnline(const string& user);
+  bool IsHeartbeatMessage(const string& msg);
+
   const int client_listen_port_;
   const int admin_listen_port_;
   const int timeout_counter_;

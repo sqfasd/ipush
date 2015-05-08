@@ -459,7 +459,15 @@ void SessionServer::Pub(struct evhttp_request* req) {
     msg.RemoveTTL();
     SendChannelMsg(msg, ttl);
   }
-  ReplyOK(req);
+  if (IsUserOnline(to)) {
+    ReplyOK(req);
+  } else {
+    ReplyOK(req, "{\"result\":\"ok\",\"user_offline\":1}\n");
+  }
+}
+
+bool SessionServer::IsUserOnline(const string& user) {
+  return users_.find(user) != users_.end();
 }
 
 void SessionServer::Disconnect(struct evhttp_request* req) {
@@ -657,24 +665,32 @@ void SessionServer::UpdateUserAck(const string& uid, int ack) {
   });
 }
 
+bool SessionServer::IsHeartbeatMessage(const string& msg) {
+  return msg.length() == 1 && msg[0] == ' ';
+}
+
 void SessionServer::OnUserMessage(const string& from, StringPtr data) {
   VLOG(4) << "OnUserMessage: " << from << ": " << *data;
 
-  try {
-    Message msg = Message::Unserialize(data);
-    if (!msg.HasType()) {
+  if (!IsHeartbeatMessage(*data)) {
+    try {
+      Message msg = Message::Unserialize(data);
+      if (!msg.HasType()) {
+        stats_.OnError();
+        LOG(ERROR) << "invalid message without type: " << msg;
+        return;
+      }
+      stats_.OnReceive(*data, msg);
+      HandleMessage(from, msg);
+    } catch (std::exception& e) {
       stats_.OnError();
-      LOG(ERROR) << "invalid message without type: " << msg;
-      return;
+      LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *data;
+    } catch (...) {
+      stats_.OnError();
+      LOG(ERROR) << "unknow exception for user msg: " << *data;
     }
-    stats_.OnReceive(*data, msg);
-    HandleMessage(from, msg);
-  } catch (std::exception& e) {
-    stats_.OnError();
-    LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *data;
-  } catch (...) {
-    stats_.OnError();
-    LOG(ERROR) << "unknow exception for user msg: " << *data;
+  } else {
+    VLOG(4) << "receive heartbeat message";
   }
 
   UserMap::iterator uit = users_.find(from);

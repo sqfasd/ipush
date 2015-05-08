@@ -120,11 +120,11 @@ void Session::OnReceive() {
 }
 
 void Session::SendHeader() {
-	evhttp_connection_set_closecb(req_->evcon, OnDisconnect, this);
+  evhttp_connection_set_closecb(req_->evcon, OnDisconnect, this);
 
-	evhttp_add_header(req_->output_headers, "Connection", "keep-alive");
-	evhttp_add_header(req_->output_headers, "Content-Type", "text/json; charset=utf-8");
-	evhttp_send_reply_start_bi(req_, HTTP_OK, "OK", OnReceive, this);
+  evhttp_add_header(req_->output_headers, "Connection", "keep-alive");
+  evhttp_add_header(req_->output_headers, "Content-Type", "text/json; charset=utf-8");
+  evhttp_send_reply_start_bi(req_, HTTP_OK, "OK", OnReceive, this);
 }
 
 void Session::Reset(struct evhttp_request* req) {
