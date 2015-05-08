@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include <unistd.h>
 #include "deps/base/logging.h"
 #include "deps/base/flags.h"
 #include "src/include_std.h"
@@ -13,7 +14,7 @@ namespace xcomet {
 const char* const TEST_USER0 = "un_authed_user";
 const char* const TEST_PWD0 = "un_authed_pwd";
 
-const char* const TEST_USER1 = "f55dd7ac7845bc989ba5415d17fea7fc";
+const char* const TEST_USER1 = "54b6260cb8575c2784a05c95";
 const char* const TEST_PWD1 = "dTxBq4Zkuj/amoApyrVmb6HZP7xPRo9Qi8FQKbAS4umQWMEJjy1Ii7JfXOW4WYoZLUatQ8lY3HeqYRyRcjlUZWJLuiAxEbJAp1zT4bTeM8aJSNm46NkapyMMn1LK9FlgDspChcGCaXaViyx8WLbm9a7gPtzngk4mfRRj/osjpgd++sRXggAybawKl4N+XC3iFSY3JQ/R4YpK02TIG5ydrZDdJOxLzNcH23jyBwLDdDwATZM/tJ2w+fxbHpCCnhxkro0AE2nzWQNGAStGv5jWcoabmGqldR2Ia+5cmPexnHI5OBfdSeohYUNskv+aCrIIVbyIXXNrzJGggSH5P3QVOw==";
 
 const char* const TEST_USER2 = "un_matched_user";
@@ -66,6 +67,7 @@ TEST_F(AuthUnittest, NoneAuth) {
     CHECK(err == NO_ERROR);
     CHECK(ok);
   });
+  ::sleep(1);
 }
 
 TEST_F(AuthUnittest, FastAuth) {
@@ -95,6 +97,7 @@ TEST_F(AuthUnittest, FastAuth) {
     CHECK(err == NO_ERROR);
     CHECK(ok);
   });
+  ::sleep(1);
 }
 
 TEST_F(AuthUnittest, FullAuth) {
@@ -124,6 +127,7 @@ TEST_F(AuthUnittest, FullAuth) {
     CHECK(err == NO_ERROR);
     CHECK(!ok);
   });
+  ::sleep(1);
 }
 
 }  // namespace xcomet

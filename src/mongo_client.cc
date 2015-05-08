@@ -42,6 +42,9 @@ struct MongoConnection {
   
 };
 
+static const char* QUERY_FIELD = "deviceid";
+static const char* RESPONSE_FIELD = "_id";
+
 struct MongoClientPrivate {
   const int conn_pool_size;
   const string db_uri;
@@ -58,7 +61,7 @@ struct MongoClientPrivate {
         db_uri(FLAGS_mongo_user_db_uri),
         db_name(FLAGS_mongo_user_db_name),
         collection_name(FLAGS_mongo_user_collection_name),
-        fields(BCON_NEW("name", BCON_INT32(1))),
+        fields(BCON_NEW(RESPONSE_FIELD, BCON_INT32(1))),
         stoped(false) {
     CHECK(conn_pool_size > 0);
     mongo_worker_threads.resize(conn_pool_size);
@@ -97,7 +100,7 @@ struct MongoClientPrivate {
       if (req.get() == NULL) {
         continue;
       }
-      bson_t* query = BCON_NEW("deviceid", BCON_UTF8(req->devid->c_str()));
+      bson_t* query = BCON_NEW(QUERY_FIELD, BCON_UTF8(req->devid->c_str()));
       mongoc_cursor_t* cursor = conn->FindOne(query, fields);
       const bson_t* doc;
       bson_error_t error;
@@ -107,8 +110,9 @@ struct MongoClientPrivate {
         Json::Value json;
         if (json_str != NULL &&
             Json::Reader().parse(json_str, json) &&
-            json.isMember("name")) {
-          StringPtr name(new string(json["name"].asCString()));
+            json.isMember(RESPONSE_FIELD) &&
+            json[RESPONSE_FIELD].isMember("$oid")) {
+          StringPtr name(new string(json[RESPONSE_FIELD]["$oid"].asCString()));
           req->cb(NULL, name);
         } else {
           LOG(ERROR) << "mongo response is invalid: " << json_str;

@@ -10,7 +10,7 @@ struct NameDevidPair {
   const char* devid;
   const char* name;
 } user_infos[] = {
-  {"fe41165a05b77f11bcebe79862c01590", "fe41165a05b77f11bcebe79862c01590"},
+  {"fe41165a05b77f11bcebe79862c01590", "5527a0a96bdd8e3e534e5283"},
 };
 
 TEST(MongoClientUnittest, Normal) {
