@@ -29,6 +29,7 @@ class Auth {
     T_FAST,
     T_FULL,
   } type_;
+  vector<string> device_id_fields_;
 };
 
 }  // namespace xcomet

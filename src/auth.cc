@@ -7,6 +7,8 @@
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 
+#include <sstream>
+
 #include "deps/jsoncpp/include/json/json.h"
 #include "deps/base/logging.h"
 #include "deps/base/flags.h"
@@ -20,6 +22,9 @@ using base::LRUCache;
 
 DEFINE_string(auth_private_key_file, "./res/private/private.pem", "");
 DEFINE_string(auth_type, "None", "None|Fast|Full");
+DEFINE_string(device_id_fields,
+              "AID,WMAC,BMAC,IMEI,PUID",
+              "");
 
 const int DEFAULT_AUTH_LRU_CACHE_SIZE = 100000;
 
@@ -101,6 +106,7 @@ Auth::Auth()
   if (type_ > T_NONE) {
     base::File::ReadFileToStringOrDie(FLAGS_auth_private_key_file,
                                       &private_key_);
+    SplitString(FLAGS_device_id_fields, ',', &device_id_fields_);
   }
 }
 
@@ -108,12 +114,23 @@ Auth::~Auth() {
   LOG(INFO) << "~Auth()";
 }
 
-static bool IsValidDeviceId(const Json::Value& id) {
-  return id.isMember("AID") &&
-         id.isMember("WMAC") &&
-         id.isMember("BMAC") &&
-         id.isMember("IMEI") &&
-         id.isMember("PUID");
+static bool IsValidDeviceId(const Json::Value& id,
+                            const vector<string>& required_fields) {
+  for (int i = 0; i < required_fields.size(); ++i) {
+    if (!id.isMember(required_fields[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static string JoinDeviceId(const Json::Value& id,
+                           const vector<string>& required_fields) {
+  std::ostringstream stream;
+  for (int i = 0; i < required_fields.size(); ++i) {
+    stream << id[required_fields[i]].asCString();
+  }
+  return stream.str();
 }
 
 void Auth::Authenticate(const string& user,
@@ -140,19 +157,14 @@ void Auth::Authenticate(const string& user,
   VLOG(4) << "decoded device id: " << deviceid;
   Json::Value json;
   if (!Json::Reader().parse(deviceid, json) ||
-      !IsValidDeviceId(json)) {
+      !IsValidDeviceId(json, device_id_fields_)) {
     cb("auth invalid deviceid", false);
     return;
   }
   VLOG(4) << "unserialized device id: " << json;
 
   if (type_ == T_FULL) {
-    string joined_devid = StringPrintf("%s%s%s%s%s",
-        json["AID"].asCString(),
-        json["WMAC"].asCString(),
-        json["BMAC"].asCString(),
-        json["IMEI"].asCString(),
-        json["PUID"].asCString());
+    string joined_devid = JoinDeviceId(json, device_id_fields_);
     VLOG(4) << "joined deviceid: " << joined_devid;
     StringPtr md5_devid(new string());
     *md5_devid = base::MD5String(joined_devid);
