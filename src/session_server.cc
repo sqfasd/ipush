@@ -424,7 +424,8 @@ void SessionServer::Pub(struct evhttp_request* req) {
   const char * to = query.GetStr("to", NULL);
   const char * from = query.GetStr("from", NULL);
   const char* channel = query.GetStr("channel", NULL);
-  int64 ttl = query.GetInt("ttl", NO_EXPIRE);
+  const int default_ttl = 7 * 24 * 3600;
+  int64 ttl = query.GetInt("ttl", default_ttl);
   if ((to == NULL && channel == NULL) || from == NULL) {
     stats_.OnBadRequest();
     ReplyError(req, HTTP_BADREQUEST, "target or source id is invalid");
