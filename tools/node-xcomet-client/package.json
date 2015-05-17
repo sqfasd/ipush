@@ -1,0 +1,19 @@
+{
+  "name": "xcomet-client",
+  "version": "0.1.4",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "xcomet",
+    "client"
+  ],
+  "author": "qingfeng",
+  "license": "ISC",
+  "dependencies": {
+    "request": "^2.55.0",
+    "sharding": "^0.1.6"
+  }
+}
