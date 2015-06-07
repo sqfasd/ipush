@@ -52,35 +52,6 @@ apt-get install libuv-dev
 apt-get install automake autoconf
 ```
 
-## install cassandra
-
-```
-scp vendor/apache-cassandra-2.0.14-bin.tar.gz root@192.168.1.31:/data/prj
-cd /data/prj
-tar zxvf apache-cassandra-2.0.14-bin.tar.gz
-cd apache-cassandra-2.0.14
-
-// modify 'seed', 'listen_address' field
-vi conf/cassandra.yaml
-
-// modify log configure
-vi conf/log4j-server.properties
-
-// run
-bin/cassandra
-
-// verify
-netstat -nltp | grep 9160
-bin/nodetool status
-tail -f logs/system.log
-```
-
-## cassandra 数据库初始化
-
-```
-cqlsh -f scripts/create_chema.cql
-```
-
 ## 编译
 
 ** 默认编译类型为release **
@@ -110,10 +81,60 @@ kill $(cat xcomet_server.pid)
 ```
 
 ## 集群部署
+
 ```
 // TODO
 ```
 
+## cassandra
+
+cassandra是xcomet的一种持久化方式, 还有另一种叫InMemoryStorage, 可以参考配置文件中的说明
+用cassandra的好处是它自身的集群功能支持比较好, 需要扩容时只要部署一台新的机器, 然后简单的修改配置文件即可
+配置文件中关键的一点是```seed```字段
+```seed```是一个其他节点的ip列表, 这些节点可以理解为其他系统里的name server, 用来注册和管理集群中的节点信息
+
+### reference
+
+http://wiki.apache.org/cassandra/GettingStarted
+http://docs.datastax.com/en/cassandra/2.0/cassandra/architecture/architectureTOC.html
+
+### install
+
+```
+scp vendor/apache-cassandra-2.0.14-bin.tar.gz root@192.168.1.31:/data/prj
+cd /data/prj
+tar zxvf apache-cassandra-2.0.14-bin.tar.gz
+cd apache-cassandra-2.0.14
+
+// modify 'seed', 'listen_address' field
+vi conf/cassandra.yaml
+
+// modify log configure
+vi conf/log4j-server.properties
+
+// run
+bin/cassandra
+
+// verify
+netstat -nltp | grep 9160
+bin/nodetool status
+tail -f logs/system.log
+```
+
+### cassandra 数据库初始化
+
+```
+cqlsh -f scripts/create_chema.cql
+
+// if failed to connect, add 'host' option
+cqlsh <server_host> -f scripts/create_chema.cql
+```
+
+### cassandra 数据清理
+
+```
+cql -f scripts/clear_db.cql
+```
 
 ## 使用
 
