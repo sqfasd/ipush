@@ -52,7 +52,30 @@ apt-get install libuv-dev
 apt-get install automake autoconf
 ```
 
-## Cassandra 数据库初始化
+## install cassandra
+
+```
+scp vendor/apache-cassandra-2.0.14-bin.tar.gz root@192.168.1.31:/data/prj
+cd /data/prj
+tar zxvf apache-cassandra-2.0.14-bin.tar.gz
+cd apache-cassandra-2.0.14
+
+// modify 'seed', 'listen_address' field
+vi conf/cassandra.yaml
+
+// modify log configure
+vi conf/log4j-server.properties
+
+// run
+bin/cassandra
+
+// verify
+netstat -nltp | grep 9160
+bin/nodetool status
+tail -f logs/system.log
+```
+
+## cassandra 数据库初始化
 
 ```
 cqlsh -f scripts/create_chema.cql
