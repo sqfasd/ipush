@@ -14,6 +14,7 @@ ADD_LIBRARY(xcomet
   peer/peer.cc
   auth.cc
   mongo_client.cc
+  base64.cc
 )
 
 TARGET_LINK_LIBRARIES(xcomet

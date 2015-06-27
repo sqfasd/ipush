@@ -213,7 +213,7 @@ void SessionServer::Start() {
   SetupAdminHandler();
   SetupEventHandler();
   OnStart();
-	event_base_dispatch(p_->evbase);
+  event_base_dispatch(p_->evbase);
 }
 
 void SessionServer::Stop() {
@@ -253,7 +253,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
                                                             bool ok) {
     if (err != NO_ERROR || !ok) {
       stats_.OnAuthFailed();
-      ReplyError(req, HTTP_BADREQUEST, "authentication failed"); 
+      ReplyError(req, HTTP_BADREQUEST, "authentication failed");
       return;
     }
     UserPtr user(new User(uid, type, req, *this));
@@ -847,15 +847,15 @@ void SessionServer::SetupAdminHandler() {
 }
 
 void SessionServer::SetupEventHandler() {
-	p_->sigint_event = evsignal_new(p_->evbase, SIGINT, SignalHandler, this);
+  p_->sigint_event = evsignal_new(p_->evbase, SIGINT, SignalHandler, this);
   CHECK(p_->sigint_event && event_add(p_->sigint_event, NULL) == 0)
       << "set SIGINT handler failed";
 
-	p_->sigterm_event = evsignal_new(p_->evbase, SIGTERM, SignalHandler, this);
+  p_->sigterm_event = evsignal_new(p_->evbase, SIGTERM, SignalHandler, this);
   CHECK(p_->sigterm_event && event_add(p_->sigterm_event, NULL) == 0)
       << "set SIGTERM handler failed";
 
-	p_->timer_event = event_new(p_->evbase, -1, EV_PERSIST, TimerHandler, this);
+  p_->timer_event = event_new(p_->evbase, -1, EV_PERSIST, TimerHandler, this);
   struct timeval tv;
   tv.tv_sec = FLAGS_timer_interval_sec;
   tv.tv_usec = 0;
