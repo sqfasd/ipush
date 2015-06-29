@@ -2,6 +2,7 @@
 #define SRC_USER_H_
 
 #include "deps/base/dlist.h"
+#include "deps/base/scoped_ptr.h"
 #include "src/include_std.h"
 #include "src/session.h"
 #include "src/message.h"
@@ -23,7 +24,8 @@ class User {
      COMET_TYPE_POLLING,
    };
 
-  User(const string& uid, int type, struct evhttp_request* req, SessionServer& serv);
+  // take the ownership of session
+  User(const string& uid, int type, Session* session, SessionServer& serv);
   ~User();
   void SetType(int type) {type_ = type;}
   int GetType() const {return type_;}
@@ -35,13 +37,14 @@ class User {
 
  private:
   void OnSessionDisconnected();
-  Session session_;
+
   User* prev_;
   User* next_;
   int queue_index_;
   string uid_;
   int type_;
 
+  scoped_ptr<Session> session_;
   SessionServer& server_;
 
   friend class DLinkedList<User*>;

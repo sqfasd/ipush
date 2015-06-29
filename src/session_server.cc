@@ -7,9 +7,11 @@
 #include "src/loop_executor.h"
 #include "src/inmemory_storage.h"
 #include "src/cassandra_storage.h"
+#include "src/http_session.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9001, "");
+DEFINE_int32(websocket_port, 9002, "");
 DEFINE_int32(poll_timeout_sec, 1800, "");
 DEFINE_int32(timer_interval_sec, 1, "");
 DEFINE_bool(is_server_heartbeat, false, "");
@@ -70,6 +72,7 @@ static void ConnectHandler(struct evhttp_request* req, void* ctx) {
   SessionServer* server = static_cast<SessionServer*>(ctx);
   server->Connect(req);
 }
+
 
 static void DisconnectHandler(struct evhttp_request* req, void* ctx) {
   LOG(INFO) << "request: " << evhttp_request_get_uri(req);
@@ -256,7 +259,7 @@ void SessionServer::Connect(struct evhttp_request* req) {
       ReplyError(req, HTTP_BADREQUEST, "authentication failed");
       return;
     }
-    UserPtr user(new User(uid, type, req, *this));
+    UserPtr user(new User(uid, type, new HttpSession(req), *this));
     UserMap::iterator iter = users_.find(uid);
     if (iter == users_.end()) {
       stats_.OnUserConnect();

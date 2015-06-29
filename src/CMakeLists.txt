@@ -1,7 +1,7 @@
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 ADD_LIBRARY(xcomet
-  session.cc
+  http_session.cc
   user.cc
   event_msgqueue.c
   worker.cc

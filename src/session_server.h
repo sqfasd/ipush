@@ -80,6 +80,7 @@ class SessionServer {
   base::ConcurrentQueue<function<void ()> > task_queue_;
 
   scoped_ptr<SessionServerPrivate> p_;
+
   scoped_ptr<Storage> storage_;
 
   int peer_id_;

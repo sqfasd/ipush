@@ -1,4 +1,4 @@
-#include "src/session.h"
+#include "src/http_session.h"
 
 #include "deps/jsoncpp/include/json/json.h"
 #include "base/string_util.h"
@@ -6,21 +6,20 @@
 
 namespace xcomet {
 
-Session::Session(struct evhttp_request* req)
+HttpSession::HttpSession(struct evhttp_request* req)
     : req_(req),
       closed_(false),
-      disconnect_callback_(NULL),
       next_msg_max_len_(0) {
   SendHeader();
 }
 
-Session::~Session() {
+HttpSession::~HttpSession() {
   if (!closed_) {
     Close();
   }
 }
 
-void Session::Send(const Message& msg) {
+void HttpSession::Send(const Message& msg) {
   StringPtr data = Message::Serialize(msg);
   if (data->empty()) {
     LOG(ERROR) << "invalid msg: " << msg;
@@ -29,15 +28,15 @@ void Session::Send(const Message& msg) {
   }
 }
 
-void Session::Send(const std::string& packet_str) {
+void HttpSession::Send(const std::string& packet_str) {
   SendChunk(packet_str.c_str(), false);
 }
 
-void Session::SendHeartbeat() {
+void HttpSession::SendHeartbeat() {
   SendChunk("{\"type\":\"noop\"}");
 }
 
-void Session::SendChunk(const char* data, bool new_line) {
+void HttpSession::SendChunk(const char* data, bool new_line) {
   struct evbuffer* buf = evhttp_request_get_output_buffer(req_);
   if (new_line) {
     evbuffer_add_printf(buf, "%s\n", data);
@@ -47,24 +46,24 @@ void Session::SendChunk(const char* data, bool new_line) {
   evhttp_send_reply_chunk_bi(req_, buf);
 }
 
-void Session::Close() {
+void HttpSession::Close() {
   closed_ = true;
   CHECK(req_);
   if (req_->evcon) {
     evhttp_connection_set_closecb(req_->evcon, NULL, NULL);
   }
-	evhttp_send_reply_end(req_);
+  evhttp_send_reply_end(req_);
 }
 
-void Session::OnDisconnect(struct evhttp_connection* evconn, void* arg) {
-  Session* self = (Session*)arg;
+void HttpSession::OnDisconnect(struct evhttp_connection* evconn, void* arg) {
+  HttpSession* self = (HttpSession*)arg;
   self->Close();
   if (self->disconnect_callback_) {
-    self->disconnect_callback_->Run();
+    self->disconnect_callback_();
   }
 }
 
-struct bufferevent* Session::GetBufferEvent() {
+struct bufferevent* HttpSession::GetBufferEvent() {
   CHECK(req_ != NULL);
   CHECK(req_->evcon);
   CHECK(req_->output_headers);
@@ -73,12 +72,12 @@ struct bufferevent* Session::GetBufferEvent() {
   return bev;
 }
 
-void Session::OnReceive(void* arg) {
-  Session* self = (Session*)arg;
+void HttpSession::OnReceive(void* arg) {
+  HttpSession* self = (HttpSession*)arg;
   self->OnReceive();
 }
 
-void Session::OnReceive() {
+void HttpSession::OnReceive() {
   struct bufferevent* bev = GetBufferEvent();
   struct evbuffer* input = bufferevent_get_input(bev);
   while (true) {
@@ -119,7 +118,7 @@ void Session::OnReceive() {
   }
 }
 
-void Session::SendHeader() {
+void HttpSession::SendHeader() {
   evhttp_connection_set_closecb(req_->evcon, OnDisconnect, this);
 
   evhttp_add_header(req_->output_headers, "Connection", "keep-alive");
@@ -127,7 +126,7 @@ void Session::SendHeader() {
   evhttp_send_reply_start_bi(req_, HTTP_OK, "OK", OnReceive, this);
 }
 
-void Session::Reset(struct evhttp_request* req) {
+void HttpSession::Reset(struct evhttp_request* req) {
   closed_ = false;
   req_ = req;
   SendHeader();
