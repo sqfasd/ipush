@@ -417,7 +417,7 @@ evhttp_write_buffer_bi(struct evhttp_connection *evcon,
 	bufferevent_enable(evcon->bufev, EV_WRITE|EV_READ);
 
 	bufferevent_setcb(evcon->bufev,
-	    evhttp_myread_cb, 
+	    evhttp_myread_cb,
 	    evhttp_write_cb,
 	    evhttp_error_cb,
 	    evcon);
@@ -1988,7 +1988,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 				   now, just optimistically tell the client to
 				   send their message body. */
 				if (req->ntoread > 0) {
-					/* ntoread is ev_int64_t, max_body_size is ev_uint64_t */ 
+					/* ntoread is ev_int64_t, max_body_size is ev_uint64_t */
 					if ((req->evcon->max_body_size <= EV_INT64_MAX) && (ev_uint64_t)req->ntoread > req->evcon->max_body_size) {
 						evhttp_send_error(req, HTTP_ENTITYTOOLARGE, NULL);
 						return;
@@ -2523,6 +2523,17 @@ evhttp_send_reply_start_bi(struct evhttp_request *req, int code,
 }
 
 void
+evhttp_send_reply_start_ws(struct evhttp_request *req, int code,
+            const char *reason, void (*read_cb)(void *), void* ctx)
+{
+  evhttp_response_code(req, code, reason);
+  req->evcon->myreadcb = read_cb;
+  req->evcon->myreadcb_arg = ctx;
+  evhttp_make_header(req->evcon, req);
+  evhttp_write_buffer_bi(req->evcon, NULL, NULL);
+}
+
+void
 evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
 {
 	struct evhttp_connection *evcon = req->evcon;
@@ -2572,6 +2583,43 @@ evhttp_send_reply_chunk_bi(struct evhttp_request *req, struct evbuffer *databuf)
 		evbuffer_add(output, "\r\n", 2);
 	}
 	evhttp_write_buffer_bi(evcon, NULL, NULL);
+}
+
+void
+evhttp_send_ws(struct evhttp_request *req, struct evbuffer *databuf)
+{
+	struct evhttp_connection *evcon = req->evcon;
+	struct evbuffer *output;
+
+	if (evcon == NULL)
+		return;
+
+	output = bufferevent_get_output(evcon->bufev);
+
+	if (evbuffer_get_length(databuf) == 0)
+		return;
+	evbuffer_add_buffer(output, databuf);
+	evhttp_write_buffer_bi(evcon, NULL, NULL);
+}
+
+void
+evhttp_end_ws(struct evhttp_request *req, int16_t reason)
+{
+	struct evhttp_connection *evcon = req->evcon;
+	struct evbuffer *output = bufferevent_get_output(evcon->bufev);
+	uint16_t *u16;
+	uint8_t fr[4] = {0x8 | 0x80, 2, 0};
+
+	if (reason) {
+		u16 = (uint16_t *) &fr[2];
+		*u16 = htons((int16_t)reason);
+		evbuffer_add(output, fr, 4);
+		evhttp_write_buffer_bi(evcon, NULL, NULL);
+	}
+
+	TAILQ_REMOVE(&evcon->requests, req, next);
+	evhttp_request_free(req);
+	evhttp_connection_free(evcon);
 }
 
 void

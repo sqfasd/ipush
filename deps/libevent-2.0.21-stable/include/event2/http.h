@@ -352,6 +352,14 @@ evhttp_send_reply_start_bi(struct evhttp_request *req, int code,
 void evhttp_send_reply_chunk_bi(struct evhttp_request *req,
     struct evbuffer *databuf);
 
+void
+evhttp_send_reply_start_ws(struct evhttp_request *req, int code,
+    const char *reason, void (*read_cb)(void *), void* ctx);
+
+void evhttp_send_ws(struct evhttp_request *req, struct evbuffer *databuf);
+
+void evhttp_end_ws(struct evhttp_request *req, int16_t reason);
+
 /**
    Send another data chunk as part of an ongoing chunked reply.
 

@@ -65,6 +65,12 @@ inline void ReplyRedirect(struct evhttp_request* req,
   evhttp_send_reply_end(req);
 }
 
+inline bool IsWebSocketRequest(struct evhttp_request* req) {
+  struct evkeyvalq* headers = evhttp_request_get_input_headers(req);
+  const char* conn_field = evhttp_find_header(headers, "Connection");
+  return conn_field != NULL && !strcmp(conn_field, "Upgrade");
+}
+
 }  // namespace xcomet
 
 #endif  // SRC_EVHELPER_H_

@@ -8,6 +8,7 @@
 #include "src/inmemory_storage.h"
 #include "src/cassandra_storage.h"
 #include "src/http_session.h"
+#include "src/websocket/websocket_session.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9001, "");
@@ -217,10 +218,11 @@ void SessionServer::Start() {
   SetupEventHandler();
   OnStart();
   event_base_dispatch(p_->evbase);
+  OnStop();
 }
 
 void SessionServer::Stop() {
-  OnStop();
+  users_.clear();
   event_base_loopbreak(p_->evbase);
 }
 
@@ -232,6 +234,7 @@ void SessionServer::OnStart() {
 }
 
 void SessionServer::OnStop() {
+  VLOG(3) << "SessionServer::OnStop";
   xcomet::LoopExecutor::Destroy();
   cluster_->Stop();
 }
@@ -259,7 +262,13 @@ void SessionServer::Connect(struct evhttp_request* req) {
       ReplyError(req, HTTP_BADREQUEST, "authentication failed");
       return;
     }
-    UserPtr user(new User(uid, type, new HttpSession(req), *this));
+    Session* session;
+    if (IsWebSocketRequest(req)) {
+      session = new WebSocketSession(req);
+    } else {
+      session = new HttpSession(req);
+    }
+    UserPtr user(new User(uid, type, session, *this));
     UserMap::iterator iter = users_.find(uid);
     if (iter == users_.end()) {
       stats_.OnUserConnect();

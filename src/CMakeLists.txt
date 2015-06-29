@@ -1,5 +1,7 @@
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
+ADD_SUBDIRECTORY(websocket)
+
 ADD_LIBRARY(xcomet
   http_session.cc
   user.cc
@@ -36,4 +38,5 @@ ADD_EXECUTABLE(xcomet_server
 )
 TARGET_LINK_LIBRARIES(xcomet_server
   xcomet
+  websocket
 )
