@@ -27,7 +27,7 @@ WebSocketSession::WebSocketSession(struct evhttp_request* req)
 void WebSocketSession::Start() {
   string answer = ws_.answerHandshake();
   LOG(INFO) << "ws answer:\n" << answer;
-  evhttp_add_header(req_->output_headers, "Upgrade", "WebSocket");
+  evhttp_add_header(req_->output_headers, "Upgrade", "websocket");
   evhttp_add_header(req_->output_headers, "Connection", "Upgrade");
   evhttp_add_header(req_->output_headers,
                     "Sec-WebSocket-Accept",

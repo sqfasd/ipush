@@ -2606,11 +2606,17 @@ void
 evhttp_end_ws(struct evhttp_request *req, int16_t reason)
 {
 	struct evhttp_connection *evcon = req->evcon;
-	struct evbuffer *output = bufferevent_get_output(evcon->bufev);
+	struct evbuffer *output;
 	uint16_t *u16;
 	uint8_t fr[4] = {0x8 | 0x80, 2, 0};
 
+	if (evcon == NULL) {
+		evhttp_request_free(req);
+		return;
+	}
+
 	if (reason) {
+    output = bufferevent_get_output(evcon->bufev);
 		u16 = (uint16_t *) &fr[2];
 		*u16 = htons((int16_t)reason);
 		evbuffer_add(output, fr, 4);
