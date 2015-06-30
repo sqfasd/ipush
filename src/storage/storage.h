@@ -1,5 +1,5 @@
-#ifndef SRC_STORAGE_H_
-#define SRC_STORAGE_H_
+#ifndef SRC_STORAGE_STORAGE_H_
+#define SRC_STORAGE_STORAGE_H_
 
 #include <inttypes.h>
 #include "src/include_std.h"
@@ -46,4 +46,4 @@ class Storage {
                                GetChannelUsersCallback cb) = 0;
 };
 }  // namespace xcomet
-#endif  // SRC_STORAGE_H_
+#endif  // SRC_STORAGE_STORAGE_H_

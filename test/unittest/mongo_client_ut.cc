@@ -2,7 +2,7 @@
 
 #include "deps/base/logging.h"
 #include "src/include_std.h"
-#include "src/mongo_client.h"
+#include "src/auth/mongo_client.h"
 
 namespace xcomet {
 

@@ -1,4 +1,4 @@
-#include "src/mongo_client.h"
+#include "src/auth/mongo_client.h"
 
 #include <mongoc.h>
 #include "deps/jsoncpp/include/json/json.h"

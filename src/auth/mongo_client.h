@@ -1,5 +1,5 @@
-#ifndef SRC_MONGO_CLIENT_H_
-#define SRC_MONGO_CLIENT_H_
+#ifndef SRC_AUTH_MONGO_CLIENT_H_
+#define SRC_AUTH_MONGO_CLIENT_H_
 
 #include "deps/base/scoped_ptr.h"
 #include "src/include_std.h"
@@ -21,4 +21,4 @@ class MongoClient {
 };
 
 }  // namespace xcomet
-#endif  // SRC_MONGO_CLIENT_H_
+#endif  // SRC_AUTH_MONGO_CLIENT_H_

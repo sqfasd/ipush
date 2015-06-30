@@ -14,7 +14,10 @@ ADD_EXECUTABLE(unittest
 )
 
 TARGET_LINK_LIBRARIES(unittest
-  event
   gtest
-  xcomet
+  xcomet_auth
+  xcomet_storage
+  xcomet_peer
+  xcomet_websocket
+  xcomet_core
 )

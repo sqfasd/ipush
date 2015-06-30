@@ -1,4 +1,4 @@
-#include "src/auth.h"
+#include "src/auth/auth.h"
 
 #include <string.h>
 #include <openssl/evp.h>
@@ -15,10 +15,10 @@
 #include "deps/base/file.h"
 #include "deps/base/md5.h"
 #include "deps/base/string_util.h"
-#include "src/mongo_client.h"
+#include "src/auth/mongo_client.h"
 #include "src/loop_executor.h"
 #include "src/utils.h"
-#include "src/base64.h"
+#include "src/crypto/base64.h"
 
 using base::LRUCache;
 
@@ -114,8 +114,7 @@ void Auth::Authenticate(const string& user,
     return;
   }
   VLOG(4) << "input password: " << password;
-  string encryped_key;
-  Base64Decode(password.c_str(), password.length(), encryped_key);
+  string encryped_key = Base64Decode(password);
   VLOG(4) << "decode base64: " << encryped_key;
   string deviceid;
   if (!RSAPrivateDecode(encryped_key, deviceid)) {

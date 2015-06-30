@@ -14,7 +14,7 @@
 #include "src/message.h"
 #include "src/peer/peer.h"
 #include "src/sharding.h"
-#include "src/auth.h"
+#include "src/auth/auth.h"
 
 namespace xcomet {
 

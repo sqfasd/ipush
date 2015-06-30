@@ -5,8 +5,8 @@
 #include "deps/base/flags.h"
 #include "deps/base/string_util.h"
 #include "src/loop_executor.h"
-#include "src/inmemory_storage.h"
-#include "src/cassandra_storage.h"
+#include "src/storage/inmemory_storage.h"
+#include "src/storage/cassandra_storage.h"
 #include "src/http_session.h"
 #include "src/websocket/websocket_session.h"
 

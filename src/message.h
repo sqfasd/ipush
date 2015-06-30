@@ -21,6 +21,7 @@ const int64 NO_EXPIRE = 0;
 #define K_USER            'u'
 #define K_CHANNEL         'c'
 #define K_BODY            'b'
+#define K_ROOM            'r'
 
 // only used for peer conmunication, remove before save or send to user
 #define K_TTL             'l'
@@ -58,6 +59,11 @@ class Message {
     T_MESSAGE,
     T_CHANNEL_MESSAGE,
     T_ACK,
+    T_ROOM_JOIN,
+    T_ROOM_LEAVE,
+    T_ROOM_KICK,
+    T_ROOM_MESSAGE,
+    T_ROOM_BROADCAST,
     T_COUNT,
   };
 
@@ -70,6 +76,11 @@ class Message {
       "msg",
       "cmsg",
       "ack",
+      "rj",
+      "rl",
+      "rk",
+      "rm",
+      "rb",
     };
     return MTYPE_STRINGS[type];
   }

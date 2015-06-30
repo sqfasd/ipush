@@ -1,4 +1,4 @@
-#include "cassandra_storage.h"
+#include "src/storage/cassandra_storage.h"
 
 #include <algorithm>
 #include "src/loop_executor.h"

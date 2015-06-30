@@ -1,5 +1,5 @@
-#ifndef SRC_AUTH_H_
-#define SRC_AUTH_H_
+#ifndef SRC_AUTH_AUTH_H_
+#define SRC_AUTH_AUTH_H_
 
 #include "deps/base/threadsafe_lru_cache-inl.h"
 #include "deps/base/scoped_ptr.h"
@@ -34,4 +34,4 @@ class Auth {
 
 }  // namespace xcomet
 
-#endif  // SRC_AUTH_H_
+#endif  // SRC_AUTH_AUTH_H_

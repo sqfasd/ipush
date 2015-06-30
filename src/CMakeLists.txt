@@ -1,8 +1,12 @@
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
+ADD_SUBDIRECTORY(auth)
+ADD_SUBDIRECTORY(storage)
+ADD_SUBDIRECTORY(peer)
 ADD_SUBDIRECTORY(websocket)
+ADD_SUBDIRECTORY(crypto)
 
-ADD_LIBRARY(xcomet
+ADD_LIBRARY(xcomet_core
   http_session.cc
   user.cc
   event_msgqueue.c
@@ -10,26 +14,12 @@ ADD_LIBRARY(xcomet
   utils.cc
   stats_manager.cc
   loop_executor.cc
-  storage.cc
-  inmemory_storage.cc
-  cassandra_storage.cc
-  peer/peer.cc
-  auth.cc
-  mongo_client.cc
-  base64.cc
 )
 
-TARGET_LINK_LIBRARIES(xcomet
+TARGET_LINK_LIBRARIES(xcomet_core
   base
-  pthread
   event
   jsoncpp
-  zmq
-  crypto
-  cassandra_static
-  uv
-  mongoc-1.0
-  bson
 )
 
 ADD_EXECUTABLE(xcomet_server
@@ -37,6 +27,9 @@ ADD_EXECUTABLE(xcomet_server
   main.cc
 )
 TARGET_LINK_LIBRARIES(xcomet_server
-  xcomet
-  websocket
+  xcomet_auth
+  xcomet_storage
+  xcomet_peer
+  xcomet_websocket
+  xcomet_core
 )

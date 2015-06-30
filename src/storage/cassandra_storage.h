@@ -1,8 +1,8 @@
-#ifndef SRC_CASSANDRASTORAGE_H_
-#define SRC_CASSANDRASTORAGE_H_
+#ifndef SRC_STORAGE_CASSANDRA_STORAGE_H_
+#define SRC_STORAGE_CASSANDRA_STORAGE_H_
 
 #include "deps/cassandra/cpp-driver/include/cassandra.h"
-#include "src/storage.h"
+#include "src/storage/storage.h"
 
 namespace xcomet {
 
@@ -38,4 +38,4 @@ class CassandraStorage : public Storage {
 };
 
 }
-#endif  // SRC_CASSANDRASTORAGE_H_
+#endif  // SRC_STORAGE_CASSANDRA_STORAGE_H_

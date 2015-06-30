@@ -1,4 +1,4 @@
-#include "src/inmemory_storage.h"
+#include "src/storage/inmemory_storage.h"
 
 #include "deps/base/time.h"
 #include "deps/base/file.h"

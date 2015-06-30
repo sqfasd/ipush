@@ -1,8 +1,8 @@
-#ifndef SRC_INMEMORY_STORAGE_H_
-#define SRC_INMEMORY_STORAGE_H_
+#ifndef SRC_STORAGE_INMEMORY_STORAGE_H_
+#define SRC_STORAGE_INMEMORY_STORAGE_H_
 
 #include "deps/jsoncpp/include/json/value.h"
-#include "src/storage.h"
+#include "src/storage/storage.h"
 
 namespace xcomet {
 
@@ -63,4 +63,4 @@ class InMemoryStorage : public Storage {
 
 }  // namespace xcomet
 
-#endif  // SRC_INMEMORY_STORAGE_H_
+#endif  // SRC_STORAGE_INMEMORY_STORAGE_H_

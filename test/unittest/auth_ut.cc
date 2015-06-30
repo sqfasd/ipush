@@ -4,7 +4,7 @@
 #include "deps/base/logging.h"
 #include "deps/base/flags.h"
 #include "src/include_std.h"
-#include "src/auth.h"
+#include "src/auth/auth.h"
 #include "test/unittest/event_loop_setup.h"
 
 DECLARE_string(auth_type);

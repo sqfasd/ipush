@@ -1,11 +1,5 @@
-// WebSocket, v1.00 2012-09-13
-//
-// Description: WebSocket FRC6544 codec, written in C++.
-// Homepage: http://katzarsky.github.com/WebSocket
-// Author: katzarsky@gmail.com
-
-#ifndef WEBSOCKET_H
-#define	WEBSOCKET_H
+#ifndef SRC_WEBSOCKET_WEBSOCKET_H_
+#define SRC_WEBSOCKET_WEBSOCKET_H_
 
 #include <assert.h>
 #include <stdint.h> /* uint8_t */
@@ -13,56 +7,61 @@
 #include <ctype.h> /* isdigit */
 #include <stddef.h> /* int */
 
-// std c++
 #include <vector> 
 #include <string> 
 
-using namespace std;
-
 enum WebSocketFrameType {
-	ERROR_FRAME=0xFF00,
-	INCOMPLETE_FRAME=0xFE00,
+  ERROR_FRAME=0xFF00,
+  INCOMPLETE_FRAME=0xFE00,
 
-	OPENING_FRAME=0x3300,
-	CLOSING_FRAME=0x3400,
+  OPENING_FRAME=0x3300,
+  CLOSING_FRAME=0x3400,
 
-	INCOMPLETE_TEXT_FRAME=0x01,
-	INCOMPLETE_BINARY_FRAME=0x02,
+  INCOMPLETE_TEXT_FRAME=0x01,
+  INCOMPLETE_BINARY_FRAME=0x02,
 
-	TEXT_FRAME=0x81,
-	BINARY_FRAME=0x82,
+  TEXT_FRAME=0x81,
+  BINARY_FRAME=0x82,
 
-	PING_FRAME=0x19,
-	PONG_FRAME=0x1A
+  PING_FRAME=0x19,
+  PONG_FRAME=0x1A
 };
 
-class WebSocket
-{
-	public:
+class WebSocket {
+ public:
+  std::string resource;
+  std::string host;
+  std::string origin;
+  std::string protocol;
+  std::string key;
 
-	string resource;
-	string host;
-	string origin;
-	string protocol;
-	string key;
+  WebSocket();
 
-	WebSocket();
+  /**
+   * @param input_frame .in. pointer to input frame
+   * @param input_len .in. length of input frame
+   * @return [WS_INCOMPLETE_FRAME, WS_ERROR_FRAME, WS_OPENING_FRAME]
+   */
+  WebSocketFrameType parseHandshake(unsigned char* input_frame, int input_len);
+  std::string answerHandshake();
+  std::string getAcceptKey();
+  std::string getProtocol();
 
-	/**
-	 * @param input_frame .in. pointer to input frame
-	 * @param input_len .in. length of input frame
-	 * @return [WS_INCOMPLETE_FRAME, WS_ERROR_FRAME, WS_OPENING_FRAME]
-	 */
-	WebSocketFrameType parseHandshake(unsigned char* input_frame, int input_len);
-	string answerHandshake();
-  string getAcceptKey();
-  string getProtocol();
+  int makeFrame(WebSocketFrameType frame_type,
+                unsigned char* msg,
+                int msg_len,
+                unsigned char* buffer,
+                int buffer_len);
+  WebSocketFrameType getFrame(unsigned char* in_buffer,
+                              int in_length,
+                              unsigned char* out_buffer,
+                              int out_size,
+                              int* out_length);
 
-	int makeFrame(WebSocketFrameType frame_type, unsigned char* msg, int msg_len, unsigned char* buffer, int buffer_len);
-	WebSocketFrameType getFrame(unsigned char* in_buffer, int in_length, unsigned char* out_buffer, int out_size, int* out_length);
-
-	string trim(string str);
-	vector<string> explode(string theString, string theDelimiter, bool theIncludeEmptyStrings = false );
+  std::string trim(std::string str);
+  std::vector<std::string> explode(std::string theString,
+                                   std::string theDelimiter,
+                                   bool theIncludeEmptyStrings = false );
 };
 
-#endif	/* WEBSOCKET_H */
+#endif  /* WEBSOCKET_H */

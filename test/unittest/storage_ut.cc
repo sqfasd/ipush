@@ -4,8 +4,8 @@
 #include "deps/base/file.h"
 #include "deps/base/flags.h"
 #include "src/include_std.h"
-#include "src/inmemory_storage.h"
-#include "src/cassandra_storage.h"
+#include "src/storage/inmemory_storage.h"
+#include "src/storage/cassandra_storage.h"
 #include "test/unittest/event_loop_setup.h"
 
 DECLARE_string(inmemory_data_dir);

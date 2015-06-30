@@ -1,7 +1,8 @@
-ADD_LIBRARY(websocket
-  base64/base64.cc
-  md5/md5.c
-  sha1/sha1.cc
+ADD_LIBRARY(xcomet_websocket
   websocket.cc
   websocket_session.cc
+)
+
+TARGET_LINK_LIBRARIES(xcomet_websocket
+  xcomet_crypto
 )
