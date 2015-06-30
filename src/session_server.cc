@@ -734,6 +734,22 @@ void SessionServer::HandleMessage(const string& from, Message& msg) {
       Unsubscribe(msg.User(), msg.Channel());
       break;
     case Message::T_HEARTBEAT:
+      // Deprecated
+      break;
+    case Message::T_ROOM_JOIN:
+      room_.AddMember(msg.Room(), GetUser(msg.User()));
+      break;
+    case Message::T_ROOM_LEAVE:
+      room_.RemoveMember(msg.Room(), msg.User());
+      break;
+    case Message::T_ROOM_KICK:
+      // TODO(qingfeng) kick is room event which is differenct from leave
+      break;
+    case Message::T_ROOM_MESSAGE:
+      room_.RoomSend(msg.Room(), msg.To(), msg.Body());
+      break;
+    case Message::T_ROOM_BROADCAST:
+      room_.RoomBroadcast(msg.Room(), msg.Body());
       break;
     default:
       stats_.OnError();
@@ -873,6 +889,11 @@ void SessionServer::SetupEventHandler() {
   tv.tv_usec = 0;
   CHECK(p_->timer_event&& event_add(p_->timer_event, &tv) == 0)
       << "set timer handler failed";
+}
+
+User* SessionServer::GetUser(const string& uid) {
+  auto iter = users_.find(uid);
+  return iter == users_.end() ? NULL : iter->second.get();
 }
 
 }  // namespace xcomet

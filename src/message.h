@@ -35,6 +35,7 @@ struct MessagePrivate {
   string user;
   string channel;
   string body;
+  string room;
 
   MessagePrivate() : type(-1), seq(-1), ttl(-1) {
   }
@@ -170,6 +171,13 @@ class Message {
   }
   bool HasTo() const {
     return !p_->to.empty();
+  }
+
+  void SetRoom(const string& room) {
+    p_->room = room;
+  }
+  const string& Room() const {
+    return p_->room;
   }
 
   static Message Unserialize(const StringPtr& data) {
@@ -360,6 +368,9 @@ class Message {
     }
     if (!msg.p_->channel.empty()) {
       stream << ",\"" << K_CHANNEL << "\":\"" << msg.p_->channel << '"';
+    }
+    if (!msg.p_->room.empty()) {
+      stream << ",\"" << K_ROOM << "\":\"" << msg.p_->room << '"';
     }
     if (!msg.p_->body.empty()) {
       stream << ",\"" << K_BODY << "\":\"";

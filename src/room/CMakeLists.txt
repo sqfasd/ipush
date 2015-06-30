@@ -1,4 +1,4 @@
-ADD_LIBRARY(xcomet_auth
-  auth.cc
-  mongo_client.cc
+ADD_LIBRARY(xcomet_room
+  room.cc
+  room_manager.cc
 )

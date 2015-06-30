@@ -15,6 +15,7 @@
 #include "src/peer/peer.h"
 #include "src/sharding.h"
 #include "src/auth/auth.h"
+#include "src/room/room_manager.h"
 
 namespace xcomet {
 
@@ -69,6 +70,9 @@ class SessionServer {
   bool IsUserOnline(const string& user);
   bool IsHeartbeatMessage(const string& msg);
 
+  // NULL if not found
+  User* GetUser(const string& uid);
+
   const int client_listen_port_;
   const int admin_listen_port_;
   const int timeout_counter_;
@@ -89,6 +93,7 @@ class SessionServer {
   scoped_ptr<Sharding<PeerInfo> > sharding_;
 
   scoped_ptr<Auth> auth_;
+  RoomManager room_;
 };
 
 }  // namespace xcomet
