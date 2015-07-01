@@ -5,7 +5,7 @@ var Sharding = require('sharding').Sharding;
 
 module.exports = {
   NodeInfo: NodeInfo,
-  XCometClient: XCometClient,
+  XCometAdmin: XCometAdmin,
 }
 
 function NodeInfo(public_host,
@@ -40,7 +40,7 @@ NodeInfo.prototype.notLocal = function() {
   return this._not_local;
 }
 
-function XCometClient(nodes, option) {
+function XCometAdmin(nodes, option) {
   this._sharding = new Sharding(nodes, option);
 
   // nodes has been Array and legnth greater than 0
@@ -51,11 +51,11 @@ function XCometClient(nodes, option) {
   }
 }
 
-XCometClient.prototype.shard = function(user) {
+XCometAdmin.prototype.shard = function(user) {
   return this._sharding.shard(user);
 }
 
-XCometClient.prototype.pub = function(option, callback) {
+XCometAdmin.prototype.pub = function(option, callback) {
   if (!(option && option.to && option.from && option.msg)) {
     throw new Error('invalid parameters');
   }

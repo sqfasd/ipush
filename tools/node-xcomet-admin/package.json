@@ -1,5 +1,5 @@
 {
-  "name": "xcomet-client",
+  "name": "xcomet-admin",
   "version": "0.1.4",
   "description": "",
   "main": "index.js",
@@ -8,7 +8,7 @@
   },
   "keywords": [
     "xcomet",
-    "client"
+    "admin"
   ],
   "author": "qingfeng",
   "license": "ISC",
