@@ -34,6 +34,9 @@ class User {
   void Send(const string& packet_str);
   void Close();
   void SendHeartbeat();
+  const set<string>& JoinedRooms() const {return joined_rooms_;}
+  void JoinRoom(const string& room_id) {joined_rooms_.insert(room_id);}
+  void LeaveRoom(const string& room_id) {joined_rooms_.erase(room_id);}
 
  private:
   void OnSessionDisconnected();
@@ -46,6 +49,7 @@ class User {
 
   scoped_ptr<Session> session_;
   SessionServer& server_;
+  set<string> joined_rooms_;
 
   friend class DLinkedList<User*>;
   friend class UserCircleQueue;

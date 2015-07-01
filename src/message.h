@@ -55,17 +55,17 @@ class Message {
  public:
   enum MType {
     T_HEARTBEAT,  // Deprecated
-    T_SUBSCRIBE,
-    T_UNSUBSCRIBE,
-    T_MESSAGE,
-    T_CHANNEL_MESSAGE,
-    T_ACK,
-    T_ROOM_JOIN,
-    T_ROOM_LEAVE,
-    T_ROOM_KICK,
-    T_ROOM_SEND,
-    T_ROOM_BROADCAST,
-    T_COUNT,
+    T_SUBSCRIBE, // 1
+    T_UNSUBSCRIBE, // 2
+    T_MESSAGE, // 3
+    T_CHANNEL_MESSAGE, // 4
+    T_ACK, // 5
+    T_ROOM_JOIN, // 6
+    T_ROOM_LEAVE, // 7
+    T_ROOM_KICK, // 8
+    T_ROOM_SEND, // 9
+    T_ROOM_BROADCAST, // 10
+    T_COUNT, // 11
   };
 
   // type string only for stats use
@@ -211,6 +211,9 @@ class Message {
         break;
       case K_TTL:
         m.SetTTL(std::stoll(v));
+        break;
+      case K_ROOM:
+        m.SetRoom(v);
         break;
       default:
         LOG(ERROR) << "invalid message field: " << f;

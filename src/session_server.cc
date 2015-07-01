@@ -737,13 +737,13 @@ void SessionServer::HandleMessage(const string& from, Message& msg) {
       // Deprecated
       break;
     case Message::T_ROOM_JOIN:
-      room_.AddMember(msg.Room(), GetUser(msg.User()));
+      room_.AddMember(msg.Room(), GetUser(from));
       break;
     case Message::T_ROOM_LEAVE:
-      room_.RemoveMember(msg.Room(), msg.User());
+      room_.RemoveMember(msg.Room(), from);
       break;
     case Message::T_ROOM_KICK:
-      // TODO(qingfeng) kick is room event which is differenct from leave
+      room_.KickMember(msg.Room(), msg.User());
       break;
     case Message::T_ROOM_SEND:
       room_.RoomSend(msg.Room(), msg.To(), msg.Body());
@@ -822,6 +822,12 @@ void SessionServer::OnUserDisconnect(User* user) {
   const string& uid = user->GetId();
   LOG(INFO) << "OnUserDisconnect: " << uid;
   timeout_queue_.RemoveUser(user);
+
+  auto joined_rooms = user->JoinedRooms();
+  for (auto& room_id : joined_rooms) {
+    room_.RemoveMember(room_id, user->GetId());
+  }
+
   users_.erase(uid);
 }
 

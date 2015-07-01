@@ -32,6 +32,10 @@ void RoomManager::RemoveMember(const string& room_id, const string& member_id) {
   iter->second.RemoveMember(member_id);
 }
 
+void RoomManager::KickMember(const string& room_id, const string& member_id) {
+  RemoveMember(room_id, member_id);
+}
+
 void RoomManager::RoomBroadcast(const string& room_id, const string& body) {
   auto iter = rooms_.find(room_id);
   if (iter == rooms_.end()) {
