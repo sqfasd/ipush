@@ -9,18 +9,26 @@ const int16 WS_CR_DATA_TOO_BIG = 1009;
 
 const int WS_RECV_BUFFER_SIZE = 4096;
 
+static void GetHeader(struct evkeyvalq* headers, const char* k, string& v) {
+  const char* ret = evhttp_find_header(headers, k);
+  if (ret != NULL) {
+    v.assign(ret);
+  }
+}
+
 WebSocketSession::WebSocketSession(struct evhttp_request* req)
     : req_(req),
       closed_(false) {
   VLOG(3) << "WebSocketSession construct";
   struct evkeyvalq* headers = evhttp_request_get_input_headers(req);
-  ws_.host = evhttp_find_header(headers, "Host");
-  ws_.origin = evhttp_find_header(headers, "Origin");
-  ws_.key = evhttp_find_header(headers, "Sec-WebSocket-Key");
-  const char* protocol = evhttp_find_header(headers, "Sec-WebSocket-Protocol");
-  if (protocol != NULL) {
-    ws_.protocol = protocol;
-  }
+  GetHeader(headers, "Host", ws_.host);
+  GetHeader(headers, "Origin", ws_.origin);
+  GetHeader(headers, "Sec-WebSocket-Key", ws_.key);
+  GetHeader(headers, "Sec-WebSocket-Protocol", ws_.protocol);
+  VLOG(3) << "\nHost: " << ws_.host
+          << "\nOrigin: " << ws_.origin
+          << "\nSec-WebSocket-Key: " << ws_.key
+          << "\nSec-WebSocket-Protocol: " << ws_.protocol;
   Start();
 }
 

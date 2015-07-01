@@ -683,7 +683,7 @@ bool SessionServer::IsHeartbeatMessage(const string& msg) {
 }
 
 void SessionServer::OnUserMessage(const string& from, StringPtr data) {
-  VLOG(4) << "OnUserMessage: " << from << ": " << *data;
+  VLOG(4) << "OnUserMessage: " << from << ": " << *data << "\n";
 
   if (!IsHeartbeatMessage(*data)) {
     try {
