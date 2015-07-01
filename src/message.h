@@ -54,7 +54,7 @@ struct MessagePrivate {
 class Message {
  public:
   enum MType {
-    T_HEARTBEAT,
+    T_HEARTBEAT,  // Deprecated
     T_SUBSCRIBE,
     T_UNSUBSCRIBE,
     T_MESSAGE,
@@ -63,25 +63,26 @@ class Message {
     T_ROOM_JOIN,
     T_ROOM_LEAVE,
     T_ROOM_KICK,
-    T_ROOM_MESSAGE,
+    T_ROOM_SEND,
     T_ROOM_BROADCAST,
     T_COUNT,
   };
 
+  // type string only for stats use
   static const char* EnumTypeToString(MType type) {
     CHECK(type >= 0 && type < T_COUNT);
     static const char* const MTYPE_STRINGS[] = {
-      "hb",
+      "hb",  // Deprecated
       "sub",
       "unsub",
       "msg",
       "cmsg",
       "ack",
-      "rj",
-      "rl",
-      "rk",
-      "rm",
-      "rb",
+      "room_join",
+      "room_leave",
+      "room_kick",
+      "room_msg",
+      "room_broadcast",
     };
     return MTYPE_STRINGS[type];
   }

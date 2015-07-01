@@ -50,7 +50,7 @@ void Room::Send(const string& member_id, const string& body) {
     return;
   }
   Message msg;
-  msg.SetType(Message::T_ROOM_MESSAGE);
+  msg.SetType(Message::T_ROOM_SEND);
   msg.SetBody(body);
   iter->second->Send(msg);
 }

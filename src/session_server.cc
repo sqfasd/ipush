@@ -745,7 +745,7 @@ void SessionServer::HandleMessage(const string& from, Message& msg) {
     case Message::T_ROOM_KICK:
       // TODO(qingfeng) kick is room event which is differenct from leave
       break;
-    case Message::T_ROOM_MESSAGE:
+    case Message::T_ROOM_SEND:
       room_.RoomSend(msg.Room(), msg.To(), msg.Body());
       break;
     case Message::T_ROOM_BROADCAST:
