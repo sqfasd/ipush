@@ -135,7 +135,8 @@ void WebSocketSession::OnReceive(void* ctx) {
       sizeof(msg_buf),
       &len);
   VLOG(5) << "getFrame type: " << type;
-  VLOG(6) << "getFrame: " << msg_buf;
+  VLOG(5) << "getFrame len: " << len;
+  VLOG(6) << "getFrame: [" << msg_buf << "]";
 
   // TODO(qingfeng) support other frame type
   // TODO(qingfeng) support multi frame data

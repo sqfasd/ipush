@@ -683,24 +683,25 @@ bool SessionServer::IsHeartbeatMessage(const string& msg) {
 }
 
 void SessionServer::OnUserMessage(const string& from, StringPtr data) {
-  VLOG(4) << "OnUserMessage: " << from << ": " << *data;
+  VLOG(4) << "OnUserMessage: " << from << ", [" << data->c_str() << "]";
 
   if (!IsHeartbeatMessage(*data)) {
     try {
       Message msg = Message::Unserialize(data);
       if (!msg.HasType()) {
         stats_.OnError();
-        LOG(ERROR) << "invalid message without type: " << msg;
+        LOG(ERROR) << "invalid message without type: " << data->c_str();
         return;
       }
       stats_.OnReceive(*data, msg);
       HandleMessage(from, msg);
     } catch (std::exception& e) {
       stats_.OnError();
-      LOG(ERROR) << "json exception: " << e.what() << ", msg = " << *data;
+      LOG(ERROR) << "json exception: " << e.what()
+                 << ", msg[" << data->c_str() << "]";
     } catch (...) {
       stats_.OnError();
-      LOG(ERROR) << "unknow exception for user msg: " << *data;
+      LOG(ERROR) << "unknow exception for user msg[" << data->c_str() << "]";
     }
   } else {
     VLOG(4) << "receive heartbeat message";

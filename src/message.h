@@ -344,7 +344,7 @@ class Message {
     }
     __loop_end:
     if (status != PS_OBJ_END) {
-      LOG(ERROR) << "invalid message: " << data << "\n";
+      LOG(ERROR) << "invalid message: " << data;
     }
     return msg;
   }
