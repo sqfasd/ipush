@@ -1,9 +1,10 @@
 #include "src/room/room.h"
 #include "src/message.h"
+#include "src/session_server.h"
 
 namespace xcomet {
 
-Room::Room(const string& id) : id_(id) {
+Room::Room(const string& id, SessionServer& server) : id_(id), server_(server) {
   VLOG(3) << "Room construct";
 }
 
@@ -15,9 +16,18 @@ void Room::AddMember(User* member) {
   msg.SetType(Message::T_ROOM_JOIN);
   msg.SetRoom(id_);
   msg.SetUser(member->GetId());
-  for (auto& i : members_) {
-    i.second->Send(msg);
-  }
+  NotifyAll(msg);
+}
+
+void Room::AddMember(const string& member_id, const int member_shard_id) {
+  VLOG(3) << "Room AddMember: " << member_id
+          << ", from shard: " << member_shard_id;
+  shard_members_[member_id] = member_shard_id;
+  Message msg;
+  msg.SetType(Message::T_ROOM_JOIN);
+  msg.SetRoom(id_);
+  msg.SetUser(member_id);
+  NotifyAll(msg);
 }
 
 void Room::RemoveMember(const string& member_id) {
@@ -27,15 +37,12 @@ void Room::RemoveMember(const string& member_id) {
     VLOG(3) << "member not found: " << member_id << ", in the room: " << id_;
     return;
   }
-  iter->second->LeaveRoom(id_);
   members_.erase(iter);
   Message msg;
   msg.SetType(Message::T_ROOM_LEAVE);
   msg.SetRoom(id_);
   msg.SetUser(member_id);
-  for (auto& i : members_) {
-    i.second->Send(msg);
-  }
+  NotifyAll(msg);
 }
 
 void Room::Broadcast(const string& body) {
@@ -43,9 +50,7 @@ void Room::Broadcast(const string& body) {
   Message msg;
   msg.SetType(Message::T_ROOM_BROADCAST);
   msg.SetBody(body);
-  for (auto& i : members_) {
-    i.second->Send(msg);
-  }
+  NotifyAll(msg);
 }
 
 void Room::Send(const string& member_id, const string& body) {
@@ -59,6 +64,27 @@ void Room::Send(const string& member_id, const string& body) {
   msg.SetType(Message::T_ROOM_SEND);
   msg.SetBody(body);
   iter->second->Send(msg);
+}
+
+void Room::Set(const string& key, const string& value) {
+  VLOG(3) << "Room Set: " << key << ", " << value;
+  attrs_[key] = value;
+  Message msg;
+  msg.SetType(Message::T_ROOM_SET);
+  msg.SetKey(key);
+  msg.SetValue(value);
+  NotifyAll(msg);
+}
+
+void Room::NotifyAll(const Message& msg) {
+  for (auto& i : members_) {
+    i.second->Send(msg);
+  }
+  for (auto& i : shard_members_) {
+    const string& member_id = i.first;
+    int shard_id = i.second;
+    server_.RedirectUserMessage(shard_id, member_id, msg);
+  }
 }
 
 }  // namespace xcomet

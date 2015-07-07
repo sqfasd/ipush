@@ -21,9 +21,10 @@ Peer* CreatePeer(int peer_num, int id) {
   return new Peer(id, peer_infos);
 }
 
+const char* FROM_USER = "test";
 const char* MSG_2_0 = "message from peer2 to peer0";
-const char* MSG_0_1 = "message from peer0 to peer1";
-const char* MSG_1_2 = "message from peer1 to peer2";
+const char* MSG_0_1 = "message from peer0 to peer1\n";
+const char* MSG_1_2 = "message from peer1 \tto \npeer2";
 const char* MSG_BROADCAST = "broadcast by peer0";
 static std::atomic<int> global_msg_count;
 const int PEER_NUM = 3;
@@ -37,6 +38,8 @@ void NormalTest() {
     LOG(INFO) << *msg;
     CHECK(msg->source == 2);
     CHECK(msg->target == 0);
+    CHECK(msg->type == PMT_REDIRECT_TO_SERVER);
+    CHECK(msg->user == FROM_USER);
     CHECK(msg->content == MSG_2_0);
     ++global_msg_count;
   });
@@ -45,6 +48,8 @@ void NormalTest() {
     LOG(INFO) << *msg;
     CHECK(msg->source == 0);
     CHECK(msg->target == 1);
+    CHECK(msg->type == PMT_REDIRECT_TO_SERVER);
+    CHECK(msg->user == FROM_USER);
     CHECK(msg->content == MSG_0_1);
     ++global_msg_count;
   });
@@ -53,6 +58,8 @@ void NormalTest() {
     LOG(INFO) << *msg;
     CHECK(msg->source == 1);
     CHECK(msg->target == 2);
+    CHECK(msg->type == PMT_REDIRECT_TO_SERVER);
+    CHECK(msg->user == FROM_USER);
     CHECK(msg->content == MSG_1_2);
     ++global_msg_count;
   });
@@ -61,9 +68,9 @@ void NormalTest() {
   ::sleep(2);
   LOG(INFO) << "before send to peers";
 
-  peer0->Send(1, MSG_0_1);
-  peer1->Send(2, MSG_1_2);
-  peer2->Send(0, MSG_2_0);
+  peer0->Send(1, PMT_REDIRECT_TO_SERVER, FROM_USER, MSG_0_1);
+  peer1->Send(2, PMT_REDIRECT_TO_SERVER, FROM_USER, MSG_1_2);
+  peer2->Send(0, PMT_REDIRECT_TO_SERVER, FROM_USER, MSG_2_0);
 
   while (global_msg_count < 3) {
     LOG(INFO) << "waiting for msg callback";
@@ -75,6 +82,8 @@ void NormalTest() {
     LOG(INFO) << *msg;
     CHECK(msg->source == 0);
     CHECK(msg->target == 1);
+    CHECK(msg->type == PMT_REDIRECT_TO_SERVER);
+    CHECK(msg->user == FROM_USER);
     CHECK(msg->content == MSG_BROADCAST);
     ++global_msg_count;
   });
@@ -83,13 +92,15 @@ void NormalTest() {
     LOG(INFO) << *msg;
     CHECK(msg->source == 0);
     CHECK(msg->target == 2);
+    CHECK(msg->type == PMT_REDIRECT_TO_SERVER);
+    CHECK(msg->user == FROM_USER);
     CHECK(msg->content == MSG_BROADCAST);
     ++global_msg_count;
   });
 
   LOG(INFO) << "broadcast ...";
 
-  peer0->Broadcast(MSG_BROADCAST);
+  peer0->Broadcast(PMT_REDIRECT_TO_SERVER, FROM_USER, MSG_BROADCAST);
 
   while (global_msg_count < 5) {
     LOG(INFO) << "waiting for msg callback";

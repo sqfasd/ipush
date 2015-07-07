@@ -29,6 +29,8 @@ class SessionServer {
   void Stop();
 
   void Connect(struct evhttp_request* req);
+  void RoomState(struct evhttp_request* req);
+
   void Pub(struct evhttp_request* req);
   void Disconnect(struct evhttp_request* req);
   void Broadcast(struct evhttp_request* req);
@@ -39,9 +41,11 @@ class SessionServer {
   void Shard(struct evhttp_request* req);
 
   void OnTimer();
-  void OnUserMessage(const string& uid, shared_ptr<string> message);
+  void OnUserMessage(const string& uid, User* user, shared_ptr<string> message);
   void OnPeerMessage(PeerMessagePtr message);
   void OnUserDisconnect(User* user);
+
+  void RedirectUserMessage(int shard_id, const string& uid, const Message& msg);
 
   void RunInNextTick(function<void ()> fn);
 
@@ -58,6 +62,8 @@ class SessionServer {
   bool CheckShard(const string& user);
   int  GetShardId(const string& user);
   void HandleMessage(const string& from, Message& msg);
+  void HandleRoomMessage(const string& from, Message& msg, int shard_id);
+  void HandlePeerMessage(PeerMessagePtr message);
   void SendUserMsg(Message& msg, int64 ttl, bool check_shard = true);
   void SendChannelMsg(Message& msg, int64 ttl);
 

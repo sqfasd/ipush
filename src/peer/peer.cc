@@ -65,24 +65,34 @@ void Peer::StartReceive() {
   }
 }
 
-void Peer::Broadcast(string& content) {
-  Send(ALL_PEERS, content);
+void Peer::Broadcast(const int type, const string& user, string& content) {
+  Send(ALL_PEERS, type, user, content);
 }
 
-void Peer::Broadcast(const char* content) {
-  Send(ALL_PEERS, content);
+void Peer::Broadcast(const int type,
+                     const string& user,
+                     const char* content) {
+  Send(ALL_PEERS, type, user, content);
 }
 
-void Peer::Send(const int target, string& content) {
+void Peer::Send(const int target,
+                const int type,
+                const string& user,
+                string& content) {
   PeerMessagePtr msg(new PeerMessage());
   msg->target = target;
+  msg->type = type;
+  msg->user = user;
   msg->content.swap(content);
   outbox_.Push(msg);
 }
 
-void Peer::Send(const int target, const char* content) {
+void Peer::Send(const int target,
+                const int type,
+                const string& user,
+                const char* content) {
   string str(content);
-  Send(target, str);
+  Send(target, type, user, str);
 }
 
 void Peer::StopSend() {
@@ -140,12 +150,25 @@ void Peer::RestartSend() {
   th.join();
 }
 
+
+static void DoSend(zmq::socket_t& publisher,
+                   int target,
+                   const PeerMessage& msg) {
+  // send message address
+  s_sendmore(publisher, std::to_string(target));
+
+  // send message data
+  s_sendmore(publisher, std::to_string(msg.type));
+  s_sendmore(publisher, msg.user);
+  s_send(publisher, msg.content);
+}
+
 void Peer::Sending() {
   zmq::context_t context(IO_THREAD_NUM);
   zmq::socket_t publisher(context, ZMQ_PUB);
   string address = "tcp://*:" + std::to_string(FLAGS_peer_start_port + id_);
   publisher.bind(address.c_str());
-  
+
   LOG(INFO) << "ready to publish: " << id_;
   s_started_ = true;
 
@@ -157,12 +180,10 @@ void Peer::Sending() {
       if (msg.get()) {
         if (msg->target == ALL_PEERS) {
           for (int i = 0; i < peers_.size(); ++i) {
-            s_sendmore (publisher, std::to_string(peers_[i].id));
-            s_send (publisher, msg->content);
+            DoSend(publisher, peers_[i].id, *msg);
           }
         } else {
-          s_sendmore (publisher, std::to_string(msg->target));
-          s_send (publisher, msg->content);
+          DoSend(publisher, msg->target, *msg);
         }
       }
     } catch (std::exception& e) {
@@ -201,9 +222,11 @@ void Peer::Receiving() {
         if (poll_items[i].revents & ZMQ_POLLIN) {
           PeerMessagePtr pmsg(new PeerMessage());
           pmsg->target = std::stoi(s_recv(*sockets[i]));
+          pmsg->type = std::stoi(s_recv(*sockets[i]));
+          pmsg->user = s_recv(*sockets[i]);
           pmsg->content = s_recv(*sockets[i]);
           pmsg->source = peers_[i].id;
-          VLOG(4) << "from peer [" << peers_[i].id << "] " << pmsg->content;
+          VLOG(4) << "receive peer msg: " << *pmsg;
           if (msg_cb_) {
             msg_cb_(pmsg);
           }

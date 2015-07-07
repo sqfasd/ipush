@@ -18,7 +18,7 @@ User::User(const string& uid,
   VLOG(3) << "User construct";
   session_->SetDisconnectCallback(bind(&User::OnSessionDisconnected, this));
   session_->SetMessageCallback(bind(&SessionServer::OnUserMessage,
-                               &server_, uid_, _1));
+                               &server_, uid_, this, _1));
 }
 
 User::~User() {
