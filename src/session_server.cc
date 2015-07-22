@@ -462,6 +462,10 @@ void SessionServer::Pub(struct evhttp_request* req) {
     msg.SetTo(to);
     msg.SetBody(bufferstr, len);
     SendUserMsg(msg, ttl, CHECK_SHARD);
+    if (!IsUserOnline(to)) {
+      ReplyOK(req, "{\"result\":\"ok\",\"user_offline\":1}\n");
+      return;
+    }
   } else {
     CHECK(channel != NULL);
     msg.SetType(Message::T_CHANNEL_MESSAGE);
@@ -475,11 +479,7 @@ void SessionServer::Pub(struct evhttp_request* req) {
     msg.RemoveTTL();
     SendChannelMsg(msg, ttl);
   }
-  if (IsUserOnline(to)) {
-    ReplyOK(req);
-  } else {
-    ReplyOK(req, "{\"result\":\"ok\",\"user_offline\":1}\n");
-  }
+  ReplyOK(req);
 }
 
 bool SessionServer::IsUserOnline(const string& user) {
