@@ -15,7 +15,6 @@
 #include "src/peer/peer.h"
 #include "src/sharding.h"
 #include "src/auth/auth.h"
-#include "src/room/room_manager.h"
 
 namespace xcomet {
 
@@ -29,7 +28,6 @@ class SessionServer {
   void Stop();
 
   void Connect(struct evhttp_request* req);
-  void RoomState(struct evhttp_request* req);
 
   void Pub(struct evhttp_request* req);
   void Disconnect(struct evhttp_request* req);
@@ -62,7 +60,6 @@ class SessionServer {
   bool CheckShard(const string& user);
   int  GetShardId(const string& user);
   void HandleMessage(const string& from, Message& msg);
-  void HandleRoomMessage(const string& from, Message& msg, int shard_id);
   void HandlePeerMessage(PeerMessagePtr message);
   void SendUserMsg(Message& msg, int64 ttl, bool check_shard = true);
   void SendChannelMsg(Message& msg, int64 ttl);
@@ -99,7 +96,6 @@ class SessionServer {
   scoped_ptr<Sharding<PeerInfo> > sharding_;
 
   scoped_ptr<Auth> auth_;
-  RoomManager room_;
 };
 
 }  // namespace xcomet

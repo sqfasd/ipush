@@ -21,10 +21,6 @@ const int64 NO_EXPIRE = 0;
 #define K_USER            'u'
 #define K_CHANNEL         'c'
 #define K_BODY            'b'
-#define K_ROOM            'r'
-#define K_KEY             'k'
-#define K_VALUE           'v'
-#define K_ID              'i'
 
 // only used for peer conmunication, remove before save or send to user
 #define K_TTL             'l'
@@ -38,10 +34,6 @@ struct MessagePrivate {
   string user;
   string channel;
   string body;
-  string room;
-  string key;
-  string value;
-  string id;
 
   MessagePrivate() : type(-1), seq(-1), ttl(-1) {
   }
@@ -53,11 +45,7 @@ struct MessagePrivate {
            ttl == other.ttl &&
            user == other.user &&
            channel == other.channel &&
-           body == other.body &&
-           room == other.room &&
-           key == other.key &&
-           value == other.value &&
-           id == other.id;
+           body == other.body;
   }
 };
 
@@ -70,12 +58,6 @@ class Message {
     T_MESSAGE, // 3
     T_CHANNEL_MESSAGE, // 4
     T_ACK, // 5
-    T_ROOM_JOIN, // 6
-    T_ROOM_LEAVE, // 7
-    T_ROOM_KICK, // 8
-    T_ROOM_SEND, // 9
-    T_ROOM_BROADCAST, // 10
-    T_ROOM_SET, // 11
     T_COUNT,
   };
 
@@ -89,13 +71,6 @@ class Message {
       "msg",
       "cmsg",
       "ack",
-      "resp",
-      "room_join",
-      "room_leave",
-      "room_kick",
-      "room_msg",
-      "room_broadcast",
-      "room_set",
     };
     return MTYPE_STRINGS[type];
   }
@@ -187,34 +162,6 @@ class Message {
     return !p_->to.empty();
   }
 
-  void SetRoom(const string& room) {
-    p_->room = room;
-  }
-  const string& Room() const {
-    return p_->room;
-  }
-
-  void SetKey(const string& key) {
-    p_->key = key;
-  }
-  const string& Key() const {
-    return p_->key;
-  }
-
-  void SetValue(const string& value) {
-    p_->value = value;
-  }
-  const string& Value() const {
-    return p_->value;
-  }
-
-  void SetId(const string& id) {
-    p_->id = id;
-  }
-  const string& Id() const {
-    return p_->id;
-  }
-
   static Message Unserialize(const StringPtr& data) {
     return UnserializeString(*data);
   }
@@ -246,18 +193,6 @@ class Message {
       case K_TTL:
         m.SetTTL(std::stoll(v));
         break;
-      case K_ROOM:
-        m.SetRoom(v);
-        break;
-      case K_KEY:
-        m.SetKey(v);
-        break;
-      case K_VALUE:
-        m.SetValue(v);
-        break;
-      case K_ID:
-        m.SetId(v);
-        break;
       default:
         LOG(ERROR) << "invalid message field: " << f;
         return false;
@@ -288,7 +223,7 @@ class Message {
       char c = data[i];
       if (c == ' ') {
         if (status == PS_VALUE_STRING) {
-          stream << c; 
+          stream << c;
         }
         continue;
       }
@@ -415,18 +350,6 @@ class Message {
     }
     if (!msg.p_->channel.empty()) {
       stream << ",\"" << K_CHANNEL << "\":\"" << msg.p_->channel << '"';
-    }
-    if (!msg.p_->room.empty()) {
-      stream << ",\"" << K_ROOM << "\":\"" << msg.p_->room << '"';
-    }
-    if (!msg.p_->key.empty()) {
-      stream << ",\"" << K_KEY << "\":\"" << msg.p_->key << '"';
-    }
-    if (!msg.p_->value.empty()) {
-      stream << ",\"" << K_VALUE << "\":\"" << msg.p_->value << '"';
-    }
-    if (!msg.p_->id.empty()) {
-      stream << ",\"" << K_ID << "\":\"" << msg.p_->id << '"';
     }
     if (!msg.p_->body.empty()) {
       stream << ",\"" << K_BODY << "\":\"";

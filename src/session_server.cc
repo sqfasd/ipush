@@ -76,12 +76,6 @@ static void ConnectHandler(struct evhttp_request* req, void* ctx) {
   server->Connect(req);
 }
 
-static void RoomStateHandler(struct evhttp_request* req, void* ctx) {
-  LOG(INFO) << "request: " << evhttp_request_get_uri(req);
-  SessionServer* server = static_cast<SessionServer*>(ctx);
-  server->RoomState(req);
-}
-
 static void DisconnectHandler(struct evhttp_request* req, void* ctx) {
   LOG(INFO) << "request: " << evhttp_request_get_uri(req);
   SessionServer* server = static_cast<SessionServer*>(ctx);
@@ -192,8 +186,7 @@ SessionServer::SessionServer()
       p_(new SessionServerPrivate()),
       storage_(CreateStorage()),
       peer_id_(FLAGS_peer_id),
-      auth_(new Auth()),
-      room_(*this) {
+      auth_(new Auth()) {
   vector<string> peers_ip;
   SplitString(FLAGS_peers_ip, ',', &peers_ip);
   vector<string> peers_address;
@@ -319,24 +312,6 @@ void SessionServer::Connect(struct evhttp_request* req) {
       }
     });
   });
-}
-
-void SessionServer::RoomState(struct evhttp_request* req) {
-  stats_.OnRequest("RoomState");
-  HttpQuery query(req);
-  string room = query.GetStr("room", "");
-  if (room.empty()) {
-    stats_.OnBadRequest();
-    ReplyError(req, HTTP_BADREQUEST, "room should not empty");
-    return;
-  }
-
-  CHECK_REDIRECT_CLIENT(room);
-
-  Json::Value response;
-  Json::Value& result = response["result"];
-  room_.GetRoomState(room, result);
-  ReplyOK(req, response.toStyledString());
 }
 
 void SessionServer::SendUserMsg(Message& msg, int64 ttl, bool check_shard) {
@@ -710,10 +685,6 @@ bool SessionServer::IsHeartbeatMessage(const string& msg) {
   return msg.length() == 1 && msg[0] == ' ';
 }
 
-static bool IsRoomMessage(Message::MType type) {
-  return type >= Message::T_ROOM_JOIN && type <= Message::T_ROOM_SET;
-}
-
 void SessionServer::OnUserMessage(const string& from,
                                   User* user,
                                   StringPtr data) {
@@ -736,28 +707,7 @@ void SessionServer::OnUserMessage(const string& from,
         return;
       }
       stats_.OnReceive(*data, msg);
-      if (IsRoomMessage(msg.Type())) {
-        string room = msg.Room();
-        if (room.empty()) {
-          LOG(WARNING) << "room id is empty";
-          return;
-        }
-
-        if (msg.Type() == Message::T_ROOM_JOIN) {
-          user->JoinRoom(msg.Room());
-        } else if (msg.Type() == Message::T_ROOM_LEAVE) {
-          user->LeaveRoom(msg.Room());
-        }
-
-        int room_shard = GetShardId(room);
-        if (room_shard == peer_id_) {
-          HandleRoomMessage(from, msg, GetShardId(from));
-        } else {
-          cluster_->Send(room_shard, PMT_REDIRECT_TO_SERVER, from, *data);
-        }
-      } else {
-        HandleMessage(from, msg);
-      }
+      HandleMessage(from, msg);
     } catch (std::exception& e) {
       stats_.OnError();
       LOG(ERROR) << "json exception: " << e.what()
@@ -802,39 +752,6 @@ void SessionServer::HandleMessage(const string& from, Message& msg) {
   }
 }
 
-void SessionServer::HandleRoomMessage(const string& from,
-                                      Message& msg,
-                                      int user_shard_id) {
-  VLOG(4) << "HandleRoomMessage";
-  switch (msg.Type()) {
-    case Message::T_ROOM_JOIN:
-      if (user_shard_id == peer_id_) {
-        room_.AddMember(msg.Room(), GetUser(from));
-      } else {
-        room_.AddMember(msg.Room(), from, user_shard_id);
-      }
-      break;
-    case Message::T_ROOM_LEAVE:
-      room_.RemoveMember(msg.Room(), from);
-      break;
-    case Message::T_ROOM_KICK:
-      room_.KickMember(msg.Room(), msg.User());
-      break;
-    case Message::T_ROOM_SEND:
-      room_.RoomSend(msg.Room(), msg.To(), msg.Body());
-      break;
-    case Message::T_ROOM_BROADCAST:
-      room_.RoomBroadcast(msg.Room(), msg.Body());
-      break;
-    case Message::T_ROOM_SET:
-      room_.RoomSet(msg.Room(), msg.Key(), msg.Value());
-      break;
-    default:
-      CHECK(false) << "unexpected room message type: " << msg;
-      break;
-  }
-}
-
 void SessionServer::OnPeerMessage(PeerMessagePtr pmsg) {
   LoopExecutor::RunInMainLoop(
       bind(&SessionServer::HandlePeerMessage, this, pmsg));
@@ -845,58 +762,39 @@ void SessionServer::HandlePeerMessage(PeerMessagePtr pmsg) {
   try {
     Message msg = Message::UnserializeString(pmsg->content);
 
-    // process room message redirected from other peer
-    if (IsRoomMessage(msg.Type())) {
-      if (pmsg->type == PMT_REDIRECT_TO_SERVER) {
-        if (!CheckShard(msg.Room())) {
-          stats_.OnError();
-          LOG(ERROR) << "wrong shard, room: " << msg.Room()
-                     << ", pmsg: " << *pmsg;
+    int64 ttl = msg.TTL();
+    switch (msg.Type()) {
+      case Message::T_MESSAGE: {
+        const string& user = msg.To();
+        if (CheckShard(user)) {
+          SendUserMsg(msg, ttl, NO_CHECK_SHARD);
         } else {
-          HandleRoomMessage(pmsg->user, msg, GetShardId(pmsg->user));
-        }
-      } else if (pmsg->type == PMT_NOTIFY_TO_USER) {
-        User* user = GetUser(msg.To());
-        if (user != NULL) {
-          user->Send(pmsg->content);
-        }
-      } else {
-        CHECK(false) << "unexpect peer message type: " << *pmsg;
-      }
-    } else {
-      int64 ttl = msg.TTL();
-      switch (msg.Type()) {
-        case Message::T_MESSAGE: {
-          const string& user = msg.To();
-          if (CheckShard(user)) {
-            SendUserMsg(msg, ttl, NO_CHECK_SHARD);
-          } else {
-            stats_.OnError();
-            LOG(ERROR) << "wrong shard, user: " << user
-                       << ", pmsg: " << *pmsg;
-          }
-          break;
-        }
-        case Message::T_CHANNEL_MESSAGE: {
-          SendChannelMsg(msg, ttl);
-          break;
-        }
-        case Message::T_SUBSCRIBE: {
-          string uid = msg.User();
-          string cid = msg.Channel();
-          Subscribe(uid, cid);
-          break;
-        }
-        case Message::T_UNSUBSCRIBE: {
-          string uid = msg.User();
-          string cid = msg.Channel();
-          Unsubscribe(uid, cid);
-          break;
-        }
-        default:
           stats_.OnError();
-          LOG(ERROR) << "unexpected peer message type: " << *pmsg;
-          break;
+          LOG(ERROR) << "wrong shard, user: " << user
+                     << ", pmsg: " << *pmsg;
+        }
+        break;
+      }
+      case Message::T_CHANNEL_MESSAGE: {
+        SendChannelMsg(msg, ttl);
+        break;
+      }
+      case Message::T_SUBSCRIBE: {
+        string uid = msg.User();
+        string cid = msg.Channel();
+        Subscribe(uid, cid);
+        break;
+      }
+      case Message::T_UNSUBSCRIBE: {
+        string uid = msg.User();
+        string cid = msg.Channel();
+        Unsubscribe(uid, cid);
+        break;
+      }
+      default: {
+        stats_.OnError();
+        LOG(ERROR) << "unexpected peer message type: " << *pmsg;
+        break;
       }
     }
   } catch (std::exception& e) {
@@ -931,23 +829,6 @@ void SessionServer::OnUserDisconnect(User* user) {
   const string& uid = user->GetId();
   LOG(INFO) << "OnUserDisconnect: " << uid;
   timeout_queue_.RemoveUser(user);
-
-  auto& joined_rooms = user->JoinedRooms();
-  for (auto& room_id : joined_rooms) {
-    int room_shard = GetShardId(room_id);
-    if (room_shard == peer_id_) {
-      room_.RemoveMember(room_id, user->GetId());
-    } else {
-      Message msg;
-      msg.SetType(Message::T_ROOM_LEAVE);
-      msg.SetRoom(room_id);
-      cluster_->Send(room_shard,
-                     PMT_REDIRECT_TO_SERVER,
-                     user->GetId(),
-                     *Message::Serialize(msg));
-    }
-  }
-
   users_.erase(uid);
 }
 
@@ -963,7 +844,6 @@ void SessionServer::SetupClientHandler() {
   p_->client_http = evhttp_new(p_->evbase);
   CHECK(p_->client_http) << "create client http handle failed";
   evhttp_set_cb(p_->client_http, "/connect", ConnectHandler, this);
-  evhttp_set_cb(p_->client_http, "/room/state", RoomStateHandler, this);
 
   struct evhttp_bound_socket* sock = NULL;
   sock = evhttp_bind_socket_with_handle(p_->client_http,

@@ -5,7 +5,6 @@ ADD_SUBDIRECTORY(storage)
 ADD_SUBDIRECTORY(peer)
 ADD_SUBDIRECTORY(websocket)
 ADD_SUBDIRECTORY(crypto)
-ADD_SUBDIRECTORY(room)
 
 ADD_LIBRARY(xcomet_core
   http_session.cc
@@ -33,5 +32,4 @@ TARGET_LINK_LIBRARIES(xcomet_server
   xcomet_peer
   xcomet_websocket
   xcomet_core
-  xcomet_room
 )
