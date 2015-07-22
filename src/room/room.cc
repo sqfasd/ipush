@@ -55,15 +55,20 @@ void Room::Broadcast(const string& body) {
 
 void Room::Send(const string& member_id, const string& body) {
   VLOG(3) << "Room Send: " << member_id << ", " << body;
-  auto iter = members_.find(member_id);
-  if (iter == members_.end()) {
-    VLOG(3) << "member not found: " << member_id;
-    return;
-  }
   Message msg;
   msg.SetType(Message::T_ROOM_SEND);
   msg.SetBody(body);
-  iter->second->Send(msg);
+  auto iter = members_.find(member_id);
+  if (iter != members_.end()) {
+    iter->second->Send(msg);
+  } else {
+    auto iter_shard_member = shard_members_.find(member_id);
+    if (iter_shard_member != shard_members_.end()) {
+      server_.RedirectUserMessage(iter_shard_member->second, member_id, msg);
+    } else {
+      VLOG(3) << "target user not found: " << member_id;
+    }
+  }
 }
 
 void Room::Set(const string& key, const string& value) {
