@@ -725,9 +725,15 @@ void SessionServer::HandleMessage(const string& from, Message& msg) {
   VLOG(4) << "HandleMessage";
   switch (msg.Type()) {
     case Message::T_MESSAGE:
+      if (msg.From().empty()) {
+        msg.SetFrom(from);
+      }
       SendUserMsg(msg, NO_EXPIRE, CHECK_SHARD);
       break;
     case Message::T_CHANNEL_MESSAGE:
+      if (msg.From().empty()) {
+        msg.SetFrom(from);
+      }
       SendChannelMsg(msg, NO_EXPIRE);
       cluster_->Broadcast(PMT_NOTIFY_TO_USER,
                           SYSTEM_USER,
