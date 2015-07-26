@@ -29,6 +29,8 @@ WebSocketSession::WebSocketSession(struct evhttp_request* req)
           << "\nOrigin: " << ws_.origin
           << "\nSec-WebSocket-Key: " << ws_.key
           << "\nSec-WebSocket-Protocol: " << ws_.protocol;
+  VLOG(3) << "remote host: " << req->remote_host
+          << ", remote port: " << req->remote_port;
   Start();
 }
 
