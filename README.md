@@ -233,19 +233,19 @@ a\r\n
 
 ```
 // 订阅
-{“y”: 1, "f": "user001", "c": "channel001"}
+{"y": 1, "f": "user001", "c": "channel001"}
 
 // 取消订阅
-{“y”: 2, "f": "user001", "c": "channel001"}
+{"y": 2, "f": "user001", "c": "channel001"}
 
 // 发送到单人
-{“y”: 3, "f": "user001", "t": "user002", "b": "this is a message body"}
+{"y": 3, "f": "user001", "t": "user002", "b": "this is a message body"}
 
 // 发布到频道
-{“y”: 4, "f": "user001", "c": "channel1", "b": "this is a message body"}
+{"y": 4, "f": "user001", "c": "channel1", "b": "this is a message body"}
 
 // 确认
-{“y”: 5, "f": "user001", "s": 1}
+{"y": 5, "f": "user001", "s": 1}
 
 // 心跳
 {"y":0}
@@ -255,10 +255,10 @@ a\r\n
 
 ```
 // 这是一个单人到单人的消息
-{“y”: 3, "f": "user002", "t": "user001", "b": "this is a message body"， "s": 123}
+{"y": 3, "f": "user002", "t": "user001", "b": "this is a message body"， "s": 123}
 
 // 这是一个频道消息
-{“y”: 4, "f": "user002", "t": "user001", "c": "channel1", b": "this is a message body"， "s": 123}
+{"y": 4, "f": "user002", "t": "user001", "c": "channel1", b": "this is a message body"， "s": 123}
 ```
 
 ### 管理员或后端服务
