@@ -22,9 +22,9 @@ install gcc4.7 on centos6.5
 
 ```
 cd /etc/yum.repos.d
-wget http://people.centos.org/tru/devtools-1.1/devtools-1.1.repo 
+wget http://people.centos.org/tru/devtools-1.1/devtools-1.1.repo
 yum --enablerepo=testing-1.1-devtools-6 install devtoolset-1.1-gcc devtoolset-1.1-gcc-c++
-export CC=/opt/centos/devtoolset-1.1/root/usr/bin/gcc  
+export CC=/opt/centos/devtoolset-1.1/root/usr/bin/gcc
 export CPP=/opt/centos/devtoolset-1.1/root/usr/bin/cpp
 export CXX=/opt/centos/devtoolset-1.1/root/usr/bin/c++
 ```

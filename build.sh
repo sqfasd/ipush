@@ -7,6 +7,12 @@ BUILD_DIR=${BUILD_DIR:-build}
 BUILD_TYPE=${BUILD_TYPE:-release}
 DIR=$BUILD_DIR/$BUILD_TYPE
 
+if grep -q CentOS /etc/issue; then
+  export CC=/opt/centos/devtoolset-1.1/root/usr/bin/gcc
+  export CPP=/opt/centos/devtoolset-1.1/root/usr/bin/cpp
+  export CXX=/opt/centos/devtoolset-1.1/root/usr/bin/c++
+fi
+
 cd $SOURCE_DIR/deps/libevent
 test -f Makefile || ./configure
 make
@@ -28,7 +34,7 @@ test -f Makefile || \
 make
 
 cd $SOURCE_DIR
-test -d $DIR || mkdir -p $DIR 
+test -d $DIR || mkdir -p $DIR
 cd $DIR \
   && cmake \
       -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
