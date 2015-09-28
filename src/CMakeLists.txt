@@ -14,6 +14,7 @@ ADD_LIBRARY(xcomet_core
   utils.cc
   stats_manager.cc
   loop_executor.cc
+  http_client.cc
 )
 
 TARGET_LINK_LIBRARIES(xcomet_core

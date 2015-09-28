@@ -57,6 +57,11 @@ class SessionServer {
   void OnStart();
   void OnStop();
 
+  void Relay(int shard_id,
+             struct evhttp_request* req,
+             const char* data,
+             int data_len);
+
   bool CheckShard(const string& user);
   int  GetShardId(const string& user);
   void HandleMessage(const string& from, Message& msg);

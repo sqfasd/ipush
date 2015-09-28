@@ -43,13 +43,21 @@ inline void ReplyError(struct evhttp_request* req,
       error_header = "Unknwo Error";
       break;
   }
-  LOG(ERROR) << error_header << ": " << (reason ? reason : "");
+  LOG(ERROR) << error_header << ": " << (reason ? reason : "--")
+             << ", url: " << evhttp_request_get_uri(req);
   evhttp_add_header(req->output_headers,
                     "Content-Type",
                     "text/json; charset=utf-8");
   struct evbuffer * output_buffer = evhttp_request_get_output_buffer(req);
-  const char* eptr = (reason == NULL ? error_header : reason);
-  evbuffer_add_printf(output_buffer, "{\"error\":\"%s\"}\n", eptr);
+  if (reason != NULL) {
+    if (reason[0] == '{') {
+      evbuffer_add_printf(output_buffer, "%s", reason);
+    } else {
+      evbuffer_add_printf(output_buffer, "{\"error\":\"%s\"}\n", reason);
+    }
+  } else {
+    evbuffer_add_printf(output_buffer, "{\"error\":\"%s\"}\n", error_header);
+  }
   evhttp_send_reply(req, code, error_header, output_buffer);
 }
 

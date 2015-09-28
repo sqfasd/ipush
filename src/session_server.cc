@@ -9,6 +9,8 @@
 #include "src/storage/cassandra_storage.h"
 #include "src/http_session.h"
 #include "src/websocket/websocket_session.h"
+#include "src/http_client.h"
+#include "src/utils.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9001, "");
@@ -336,6 +338,18 @@ void SessionServer::SendUserMsg(Message& msg, int64 ttl, bool check_shard) {
 }
 
 void SessionServer::SendSave(const string& uid, Message& msg, int64 ttl) {
+  if (ttl == NO_EXPIRE) {
+    StringPtr data = Message::Serialize(msg);
+    msg.SetSeq(-1);
+    auto user_it = users_.find(msg.To());
+    if (user_it != users_.end()) {
+      stats_.OnSend(*data);
+      user_it->second->Send(*data);
+    } else {
+      VLOG(5) << "user not online and the message dropped: " << msg;
+    }
+    return;
+  }
   auto info_it = user_infos_.find(uid);
   if (info_it == user_infos_.end()) {
     info_it = user_infos_.insert(make_pair(uid, UserInfo(uid))).first;
@@ -447,7 +461,7 @@ void SessionServer::Pub(struct evhttp_request* req) {
 
   struct evbuffer* input_buffer = evhttp_request_get_input_buffer(req);
   int len = evbuffer_get_length(input_buffer);
-  VLOG(5) << "data length:" << len;
+  VLOG(5) << "pub data length:" << len;
   const char * bufferstr = (const char*)evbuffer_pullup(input_buffer, len);
   if(bufferstr == NULL) {
     stats_.OnBadRequest();
@@ -457,14 +471,21 @@ void SessionServer::Pub(struct evhttp_request* req) {
 
   Message msg;
   if (to != NULL) {
-    msg.SetType(Message::T_MESSAGE);
-    msg.SetFrom(from);
-    msg.SetTo(to);
-    msg.SetBody(bufferstr, len);
-    SendUserMsg(msg, ttl, CHECK_SHARD);
-    if (!IsUserOnline(to)) {
-      ReplyOK(req, "{\"result\":\"ok\",\"user_offline\":1}\n");
-      return;
+    int shard_id = GetShardId(to);
+    if (shard_id == peer_id_) {
+      msg.SetType(Message::T_MESSAGE);
+      msg.SetFrom(from);
+      msg.SetTo(to);
+      msg.SetBody(bufferstr, len);
+      SendUserMsg(msg, ttl, CHECK_SHARD);
+      if (!IsUserOnline(to)) {
+        ReplyOK(req, "{\"result\":\"ok\",\"user_offline\":1}\n");
+        return;
+      } else {
+        ReplyOK(req);
+      }
+    } else {
+      Relay(shard_id, req, bufferstr, len);
     }
   } else {
     CHECK(channel != NULL);
@@ -478,8 +499,42 @@ void SessionServer::Pub(struct evhttp_request* req) {
                         *(Message::Serialize(msg)));
     msg.RemoveTTL();
     SendChannelMsg(msg, ttl);
+    ReplyOK(req);
   }
-  ReplyOK(req);
+}
+
+void SessionServer::Relay(int shard_id,
+                          struct evhttp_request* req,
+                          const char* data,
+                          int data_len) {
+  CHECK(shard_id < peers_.size());
+  const string& relay_addr = peers_[shard_id].admin_addr;
+  string ip;
+  int port;
+  ParseIpPort(relay_addr, ip, port);
+  const char* uri = evhttp_request_get_uri(req);
+  HttpRequestOption option = {
+    ip.c_str(),
+    port,
+    "post",
+    uri,
+    data,
+    data_len
+  };
+  HttpClient* client = new HttpClient(p_->evbase, option);
+  client->SetRequestDoneCallback([req, uri, client, this]
+                                (Error error, StringPtr result) {
+    if (error != NO_ERROR) {
+      stats_.OnError();
+      LOG(ERROR) << "relay error: " << error << ", uri: " << uri;
+      ReplyError(req, HTTP_INTERNAL, error);
+    } else {
+      VLOG(5) << "relay result: " << *result;
+      ReplyOK(req, result->c_str());
+    }
+    delete client;
+  });
+  client->StartRequest();
 }
 
 bool SessionServer::IsUserOnline(const string& user) {
