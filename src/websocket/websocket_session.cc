@@ -72,7 +72,7 @@ void WebSocketSession::Send(const string& packet_str) {
                           packet_str.length(),
                           frame,
                           sizeof(frame));
-  VLOG(5) << "WebSocketSession send buffer len: " << len;
+  VLOG(6) << "WebSocketSession send buffer len: " << len;
   VLOG(6) << "WebSocketSession send buffer: " << packet_str;
   if (len <= 0) {
     LOG(WARNING) << "make websocket frame failed";
@@ -105,12 +105,12 @@ void WebSocketSession::Close(int16 reason) {
 }
 
 void WebSocketSession::OnReceive(void* ctx) {
-  VLOG(5) << "WebSocketSession OnReceive";
+  VLOG(6) << "WebSocketSession OnReceive";
   WebSocketSession* self = static_cast<WebSocketSession*>(ctx);
   struct bufferevent* bev = evhttp_connection_get_bufferevent(self->req_->evcon);
   struct evbuffer* input = bufferevent_get_input(bev);
   int len = evbuffer_get_length(input);
-  VLOG(5) << "receive len: " << len;
+  VLOG(6) << "receive len: " << len;
   string raw;
   raw.resize(len);
   evbuffer_remove(input, (char*)raw.c_str(), len);
@@ -121,7 +121,7 @@ void WebSocketSession::OnReceive(void* ctx) {
     self->recv_buffer_.swap(raw);
   }
 
-  VLOG(5) << "recv_buffer_ size:" << self->recv_buffer_.size();
+  VLOG(6) << "recv_buffer_ size:" << self->recv_buffer_.size();
 
   if (self->recv_buffer_.length() > WS_RECV_BUFFER_SIZE) {
     LOG(WARNING) << "exceed the max recv buffer size: "
@@ -136,8 +136,8 @@ void WebSocketSession::OnReceive(void* ctx) {
       msg_buf,
       sizeof(msg_buf),
       &len);
-  VLOG(5) << "getFrame type: " << type;
-  VLOG(5) << "getFrame len: " << len;
+  VLOG(6) << "getFrame type: " << type;
+  VLOG(6) << "getFrame len: " << len;
   VLOG(6) << "getFrame: [" << msg_buf << "]";
 
   // TODO(qingfeng) support other frame type
@@ -158,9 +158,9 @@ void WebSocketSession::OnReceive(void* ctx) {
              type == ERROR_FRAME) {
     OnDisconnect(self);
   } else if (type == PING_FRAME) {
-    VLOG(5) << "ping frame";
+    VLOG(6) << "ping frame";
   } else if (type == PONG_FRAME) {
-    VLOG(5) << "PONG frame";
+    VLOG(6) << "PONG frame";
   } else {
     LOG(WARNING) << "unexpected frame type: " << type;
     OnDisconnect(self);
@@ -168,7 +168,7 @@ void WebSocketSession::OnReceive(void* ctx) {
 }
 
 void WebSocketSession::OnDisconnect(void* ctx) {
-  VLOG(5) << "WebSocketSession OnDisconnect";
+  VLOG(3) << "WebSocketSession OnDisconnect";
   WebSocketSession* self = static_cast<WebSocketSession*>(ctx);
   self->Close(WS_CR_NONE);
   if (self->disconnect_callback_) {
