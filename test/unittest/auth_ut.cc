@@ -4,7 +4,7 @@
 #include "deps/base/logging.h"
 #include "deps/base/flags.h"
 #include "src/include_std.h"
-#include "src/auth/auth.h"
+#include "src/auth/auth_db.h"
 #include "test/unittest/event_loop_setup.h"
 
 DECLARE_string(auth_type);
@@ -42,7 +42,7 @@ class AuthUnittest : public testing::Test {
 
 TEST_F(AuthUnittest, NoneAuth) {
   FLAGS_auth_type = "None";
-  Auth auth;
+  AuthDB auth;
   auth.Authenticate(TEST_USER0, TEST_PWD0, [](Error err, bool ok) {
     CHECK(err == NO_ERROR);
     CHECK(ok);
@@ -72,7 +72,7 @@ TEST_F(AuthUnittest, NoneAuth) {
 
 TEST_F(AuthUnittest, FastAuth) {
   FLAGS_auth_type = "Fast";
-  Auth auth;
+  AuthDB auth;
   auth.Authenticate(TEST_USER0, TEST_PWD0, [](Error err, bool ok) {
     CHECK(err != NO_ERROR);
     CHECK(!ok);
@@ -102,7 +102,7 @@ TEST_F(AuthUnittest, FastAuth) {
 
 TEST_F(AuthUnittest, FullAuth) {
   FLAGS_auth_type = "Full";
-  Auth auth;
+  AuthDB auth;
   auth.Authenticate(TEST_USER0, TEST_PWD0, [](Error err, bool ok) {
     CHECK(err != NO_ERROR);
     CHECK(!ok);

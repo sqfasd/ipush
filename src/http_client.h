@@ -21,6 +21,16 @@ struct HttpRequestOption {
   int data_len;
 };
 
+inline ostream& operator<<(ostream& os, struct HttpRequestOption& option) {
+  os << "(" << option.host << ","
+     << option.port << ","
+     << option.method << ","
+     << option.path << ","
+     << option.data << ","
+     << option.data_len << ")";
+  return os;
+}
+
 class HttpClient;
 typedef std::function<void (Error error, StringPtr result)> RequestDoneCallback;
 typedef std::function<void (const HttpClient*, StringPtr data)> ChunkCallback;

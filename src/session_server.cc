@@ -11,6 +11,8 @@
 #include "src/websocket/websocket_session.h"
 #include "src/http_client.h"
 #include "src/utils.h"
+#include "src/auth/auth_db.h"
+#include "src/auth/auth_proxy.h"
 
 DEFINE_int32(client_listen_port, 9000, "");
 DEFINE_int32(admin_listen_port, 9001, "");
@@ -24,6 +26,7 @@ DEFINE_string(peers_address, "127.0.0.1:9000", "public client address");
 DEFINE_string(peers_admin_address, "127.0.0.1:9001", "admin peers address");
 DEFINE_bool(check_offline_msg_on_login, true, "");
 DEFINE_string(persistence, "InMemory", "InMemory|Cassandra");
+DEFINE_string(auth, "Proxy", "Proxy|DB");
 
 const bool CHECK_SHARD = true;
 const bool NO_CHECK_SHARD = false;
@@ -175,7 +178,17 @@ Storage* CreateStorage() {
   } else if (FLAGS_persistence == "Cassandra") {
     return new CassandraStorage();
   } else {
-    CHECK(false) << "unknow persistence type";
+    CHECK(false) << "unknow persistence instance type";
+  }
+}
+
+Auth* CreateAuth(struct event_base* evbase) {
+  if (FLAGS_auth == "Proxy") {
+    return new AuthProxy(evbase);
+  } else if (FLAGS_auth == "DB") {
+    return new AuthDB();
+  } else {
+    CHECK(false) << "unknow auth instance type";
   }
 }
 
@@ -188,7 +201,7 @@ SessionServer::SessionServer()
       p_(new SessionServerPrivate()),
       storage_(CreateStorage()),
       peer_id_(FLAGS_peer_id),
-      auth_(new Auth()) {
+      auth_(CreateAuth(p_->evbase)) {
   vector<string> peers_ip;
   SplitString(FLAGS_peers_ip, ',', &peers_ip);
   vector<string> peers_address;

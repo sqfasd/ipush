@@ -1,5 +1,6 @@
 ADD_LIBRARY(xcomet_auth
-  auth.cc
+  auth_proxy.cc
+  auth_db.cc
   mongo_client.cc
 )
 

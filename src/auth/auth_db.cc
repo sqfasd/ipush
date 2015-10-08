@@ -1,4 +1,4 @@
-#include "src/auth/auth.h"
+#include "src/auth/auth_db.h"
 
 #include <string.h>
 #include <openssl/evp.h>
@@ -32,7 +32,7 @@ const int DEFAULT_AUTH_LRU_CACHE_SIZE = 100000;
 
 namespace xcomet {
 
-bool Auth::RSAPrivateDecode(const string& input, string& output) {
+bool AuthDB::RSAPrivateDecode(const string& input, string& output) {
   if (input.empty()) {
     return false;
   }
@@ -58,9 +58,9 @@ bool Auth::RSAPrivateDecode(const string& input, string& output) {
   return ret != -1;
 }
 
-Auth::Auth()
+AuthDB::AuthDB()
     : cache_(DEFAULT_AUTH_LRU_CACHE_SIZE) {
-  LOG(INFO) << "Auth()";
+  LOG(INFO) << "AuthDB()";
   if (FLAGS_auth_type == "None") {
     type_ = T_NONE;
   } else if (FLAGS_auth_type == "Fast") {
@@ -78,8 +78,8 @@ Auth::Auth()
   }
 }
 
-Auth::~Auth() {
-  LOG(INFO) << "~Auth()";
+AuthDB::~AuthDB() {
+  LOG(INFO) << "~AuthDB()";
 }
 
 static bool IsValidDeviceId(const Json::Value& id,
@@ -101,7 +101,7 @@ static string JoinDeviceId(const Json::Value& id,
   return stream.str();
 }
 
-void Auth::Authenticate(const string& user,
+void AuthDB::Authenticate(const string& user,
                         const string& password,
                         AuthCallback cb) {
   if (type_ == T_NONE) {
