@@ -1,6 +1,6 @@
-# xcomet
+# ipush
 
-基于comet技术的高性能分布式消息推送服务器
+基于comet和websocket技术的高性能分布式消息推送服务器
 
 ## 架构
 
@@ -74,10 +74,10 @@ BUILD_TYPE=debug ./install.sh <install_path>
 
 ```
 // 启动
-./bin/xcomet_server --flagfile=conf/default.conf
+./bin/ipush_server --flagfile=conf/default.conf
 
 // 停止
-kill $(cat xcomet_server.pid)
+kill $(cat ipush_server.pid)
 ```
 
 ## 集群部署
@@ -88,7 +88,7 @@ kill $(cat xcomet_server.pid)
 
 ## cassandra
 
-cassandra是xcomet的一种持久化方式, 还有另一种叫InMemoryStorage, 可以参考配置文件中的说明
+cassandra是ipush的一种持久化方式, 还有另一种叫InMemoryStorage, 可以参考配置文件中的说明
 用cassandra的好处是它自身的集群功能支持比较好, 需要扩容时只要部署一台新的机器, 然后简单的修改配置文件即可
 配置文件中关键的一点是```seed```字段
 ```seed```是一个其他节点的ip列表, 这些节点可以理解为其他系统里的name server, 用来注册和管理集群中的节点信息
@@ -140,12 +140,12 @@ cql -f scripts/clear_db.cql
 
 ### 客户端
 
-客户端向xcomet server发起http请求，请求完毕连接不关闭，服务器可以以chunk的方式持续推送消息
+客户端向ipush server发起http请求，请求完毕连接不关闭，服务器可以以chunk的方式持续推送消息
 如果客户端使用tcp协议实现，那么客户端也可以随时向服务器发送消息
 下面这个方法是普通的http客户端，所以只能单向的接受服务器推送的消息
 
 ```
-curl -L http://xcomet_server_host:9000/connect?uid=user001&password=pwd001
+curl -L http://ipush_server_host:9000/connect?uid=user001&password=pwd001
 ```
 
 #### 连接协议
@@ -263,7 +263,7 @@ a\r\n
 
 ### 管理员或后端服务
 
-管理员向 xcomet_server 请求向id为user001的用户push数据，该请求类型是 HTTP POST，推送的内容为POST body
+管理员向 ipush_server 请求向id为user001的用户push数据，该请求类型是 HTTP POST，推送的内容为POST body
 
 Error Response
 
@@ -279,19 +279,19 @@ Successful Response
 
 ```
 // 单个用户推送
-$ curl -d "@payload" "http://xcomet_server_host:9001/pub?to=user001&from=op"
+$ curl -d "@payload" "http://ipush_server_host:9001/pub?to=user001&from=op"
 {
       "result": "ok"
 }
 
 // 频道信息发布
-$ curl -d "@payload" "http://xcomet_server_host:9001/pub?channel=channel1&from=op"
+$ curl -d "@payload" "http://ipush_server_host:9001/pub?channel=channel1&from=op"
 {
       "result": "ok"
 }
 
 // 推送一个一小时后过期的消息
-$ curl -d "@payload" "http://xcomet_server_host:9001/pub?to=user001&from=op&ttl=3600"
+$ curl -d "@payload" "http://ipush_server_host:9001/pub?to=user001&from=op&ttl=3600"
 {
       "result": "ok"
 }
@@ -300,12 +300,12 @@ $ curl -d "@payload" "http://xcomet_server_host:9001/pub?to=user001&from=op&ttl=
 订阅和取消订阅后端接口
 
 ```
-$ curl http://xcomet_server_host:9001/sub?uid=user001&cid=channel_id
+$ curl http://ipush_server_host:9001/sub?uid=user001&cid=channel_id
 {
       "result": "ok"
 }
 
-$ curl http://xcomet_server_host:9001/unsub?uid=user001&cid=channel_id
+$ curl http://ipush_server_host:9001/unsub?uid=user001&cid=channel_id
 {
       "result": "ok"
 }
@@ -314,7 +314,7 @@ $ curl http://xcomet_server_host:9001/unsub?uid=user001&cid=channel_id
 查询服务器状态
 
 ```
-$ curl "http://xcomet_server_host:9001/stats"
+$ curl "http://ipush_server_host:9001/stats"
 {
    "result" : {
       "auth_fail_number" : 0,
@@ -365,7 +365,7 @@ $ curl "http://xcomet_server_host:9001/stats"
 离线消息查询
 
 ```
-$ curl "http://xcomet_server_host:9001/msg?uid=user78"
+$ curl "http://ipush_server_host:9001/msg?uid=user78"
 {
   "result":
     [
@@ -380,7 +380,7 @@ $ curl "http://xcomet_server_host:9001/msg?uid=user78"
 用户分片查询
 
 ```
-$ curl "http://xcomet_server_host:9001/shard?uid=user1"
+$ curl "http://ipush_server_host:9001/shard?uid=user1"
 {"result":"192.168.2.3:9000"}
 ```
 

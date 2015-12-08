@@ -6,7 +6,7 @@ ADD_SUBDIRECTORY(peer)
 ADD_SUBDIRECTORY(websocket)
 ADD_SUBDIRECTORY(crypto)
 
-ADD_LIBRARY(xcomet_core
+ADD_LIBRARY(ipush_core
   http_session.cc
   user.cc
   event_msgqueue.c
@@ -17,20 +17,20 @@ ADD_LIBRARY(xcomet_core
   http_client.cc
 )
 
-TARGET_LINK_LIBRARIES(xcomet_core
+TARGET_LINK_LIBRARIES(ipush_core
   base
   event
   jsoncpp
 )
 
-ADD_EXECUTABLE(xcomet_server
+ADD_EXECUTABLE(ipush_server
   session_server.cc
   main.cc
 )
-TARGET_LINK_LIBRARIES(xcomet_server
-  xcomet_auth
-  xcomet_storage
-  xcomet_peer
-  xcomet_websocket
-  xcomet_core
+TARGET_LINK_LIBRARIES(ipush_server
+  ipush_auth
+  ipush_storage
+  ipush_peer
+  ipush_websocket
+  ipush_core
 )

@@ -15,9 +15,9 @@ ADD_EXECUTABLE(unittest
 
 TARGET_LINK_LIBRARIES(unittest
   gtest
-  xcomet_auth
-  xcomet_storage
-  xcomet_peer
-  xcomet_websocket
-  xcomet_core
+  ipush_auth
+  ipush_storage
+  ipush_peer
+  ipush_websocket
+  ipush_core
 )

@@ -1,8 +1,8 @@
-ADD_LIBRARY(xcomet_websocket
+ADD_LIBRARY(ipush_websocket
   websocket.cc
   websocket_session.cc
 )
 
-TARGET_LINK_LIBRARIES(xcomet_websocket
-  xcomet_crypto
+TARGET_LINK_LIBRARIES(ipush_websocket
+  ipush_crypto
 )
