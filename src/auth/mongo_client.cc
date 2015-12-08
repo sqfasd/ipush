@@ -8,10 +8,10 @@
 #include "deps/base/concurrent_queue.h"
 
 DEFINE_string(mongo_user_db_uri,
-              "mongodb://mongodb.liveaa.com:27017",
+              "mongodb://127.0.0.1:27017",
               "");
 DEFINE_int32(mongo_connection_pool_size, 4, "");
-DEFINE_string(mongo_user_db_name, "xuexibao2", "");
+DEFINE_string(mongo_user_db_name, "mydb", "");
 DEFINE_string(mongo_user_collection_name, "users", "");
 
 namespace xcomet {
@@ -39,7 +39,7 @@ struct MongoConnection {
     return mongoc_collection_find(collection, MONGOC_QUERY_NONE,
         0, 1, 0, query, fields, NULL);
   }
-  
+
 };
 
 static const char* QUERY_FIELD = "deviceid";

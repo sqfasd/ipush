@@ -344,7 +344,6 @@ void evhttp_send_reply_start(struct evhttp_request *req, int code,
     const char *reason);
 
 
-// added by xuexibao.cn
 void
 evhttp_send_reply_start_bi(struct evhttp_request *req, int code,
     const char *reason, void (*read_cb)(void *), void* ctx);

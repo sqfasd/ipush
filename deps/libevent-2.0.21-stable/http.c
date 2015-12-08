@@ -188,7 +188,6 @@ static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr
 static void evhttp_write_buffer(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
 
-/* added by xuexibao.cn */
 static void evhttp_write_buffer_bi(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
 
@@ -197,7 +196,6 @@ static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request
 /* callbacks for bufferevent */
 static void evhttp_read_cb(struct bufferevent *, void *);
 static void evhttp_write_cb(struct bufferevent *, void *);
-// added by xuexibao.cn
 static void evhttp_myread_cb(struct bufferevent *, void *);
 
 static void evhttp_error_cb(struct bufferevent *bufev, short what, void *arg);
